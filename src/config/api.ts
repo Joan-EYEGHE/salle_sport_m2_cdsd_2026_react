@@ -16,5 +16,8 @@ export const API_ENDPOINTS = {
         refresh: '/auth/refresh',
         me: '/auth/me'
     },
+    users:{
+        list: '/users'
+    }
 }
 

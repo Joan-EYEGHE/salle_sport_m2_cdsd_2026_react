@@ -1,14 +1,8 @@
 import { Link, NavLink } from "react-router-dom";
+import { menuItems } from "../../config/menuItems";
 
 export default function SideBar() {
-    const menuItems = [
-        { name: "Dashboard", path: "/dashboard", icon: "ri-dashboard-line" },
-        { name: "Clients", path: "/clients", icon: "ri-group-line" },
-        { name: "Utilisateurs", path: "/users", icon: "ri-user-settings-line" },
-        { name: "Activités", path: "/activities", icon: "ri-barbell-line" },
-        { name: "Billeteries", path: "/tickets", icon: "ri-ticket-2-line" },
-        { name: "Rôles", path: "/roles", icon: "ri-shield-user-line" },
-    ];
+
     const user = {
         name: "Aly Niang",
         role: "ADMIN",
@@ -36,7 +30,8 @@ export default function SideBar() {
                             }`
                         }
                     >
-                        <i className={`${item.icon} text-lg`}></i>
+                        {/* <i className={`${item.icon} text-lg`}></i> */}
+                        <item.icon />
                         <span className="font-medium">{item.name}</span>
                     </NavLink>
                 ))}
