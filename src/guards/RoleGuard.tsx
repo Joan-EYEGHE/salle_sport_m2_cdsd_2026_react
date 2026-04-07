@@ -1,0 +1,25 @@
+import { type ReactNode } from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+interface RoleGuardProps {
+  allowedRoles: string[];
+  children: ReactNode;
+}
+
+export default function RoleGuard({ allowedRoles, children }: RoleGuardProps) {
+  const { user, isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user && !allowedRoles.includes(user.role)) {
+    if (user.role === 'CONTROLLER') {
+      return <Navigate to="/qr-control" replace />;
+    }
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+}

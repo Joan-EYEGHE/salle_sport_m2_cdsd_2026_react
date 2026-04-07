@@ -1,50 +1,84 @@
-import type { RouteObject } from "react-router-dom";
-import { lazy } from "react";
+import { lazy, Suspense } from 'react';
+import type { RouteObject } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
+import RoleGuard from '../guards/RoleGuard';
+import Loader from '../components/Loader';
 
-const MainLayout = lazy(() => import("../pages/main-layout/page"));
-const DashboardPage = lazy(() => import("../pages/dashboard/page"));
-const FirstConnectionPage = lazy(() => import("../pages/first-connection/page"));
-const HomePage = lazy(() => import("../pages/home/page"));
-const UsersPage = lazy(() => import("../pages/users/page"));
-const LoginPage = lazy(() => import("../pages/login/page"));
-const NotFound = lazy(() => import("../pages/NotFound"));
+const MainLayout = lazy(() => import('../layouts/MainLayout'));
+const LoginPage = lazy(() => import('../pages/LoginPage'));
+const DashboardPage = lazy(() => import('../pages/DashboardPage'));
+const ActivitiesPage = lazy(() => import('../pages/ActivitiesPage'));
+const MembersPage = lazy(() => import('../pages/MembersPage'));
+const SubscriptionForm = lazy(() => import('../pages/SubscriptionForm'));
+const TicketsPage = lazy(() => import('../pages/TicketsPage'));
+const QRControlPage = lazy(() => import('../pages/QRControlPage'));
+const TransactionsPage = lazy(() => import('../pages/TransactionsPage'));
+const UsersPage = lazy(() => import('../pages/UsersPage'));
+const NotFound = lazy(() => import('../pages/NotFound'));
 
+function wrap(el: React.ReactNode) {
+  return <Suspense fallback={<Loader size="lg" />}>{el}</Suspense>;
+}
+
+function guard(roles: string[], el: React.ReactNode) {
+  return wrap(<RoleGuard allowedRoles={roles}>{el}</RoleGuard>);
+}
 
 const routes: RouteObject[] = [
-    
-    {
-        path: '/',
-        element: <MainLayout />,
-        children: [
-            {
-                index: true,
-                element: <DashboardPage />
-            },
-
-            {
-                path: '/dashboard',
-                element: <DashboardPage />
-            },
-            {
-                path: '/first-connection',
-                element: <FirstConnectionPage />
-            },
-            {
-                path: '/users',
-                element: <UsersPage />
-            },
-        ]
-    },
-    {
-        path: '/login',
-        element: <LoginPage />
-    },
-
-    {
-        path: '*',
-        element: <NotFound />
-    }
+  {
+    path: '/login',
+    element: wrap(<LoginPage />),
+  },
+  {
+    path: '/',
+    element: wrap(<MainLayout />),
+    children: [
+      {
+        index: true,
+        element: guard(['ADMIN', 'CASHIER'], <DashboardPage />),
+      },
+      {
+        path: 'activities',
+        element: guard(['ADMIN', 'CASHIER'], <ActivitiesPage />),
+      },
+      {
+        path: 'activities/:id/subscribe',
+        element: guard(['ADMIN', 'CASHIER'], <SubscriptionForm />),
+      },
+      {
+        path: 'members',
+        element: guard(['ADMIN', 'CASHIER'], <MembersPage />),
+      },
+      {
+        path: 'members/subscribe',
+        element: guard(['ADMIN', 'CASHIER'], <SubscriptionForm />),
+      },
+      {
+        path: 'tickets',
+        element: guard(['ADMIN', 'CASHIER'], <TicketsPage />),
+      },
+      {
+        path: 'transactions',
+        element: guard(['ADMIN', 'CASHIER'], <TransactionsPage />),
+      },
+      {
+        path: 'qr-control',
+        element: guard(['ADMIN', 'CONTROLLER'], <QRControlPage />),
+      },
+      {
+        path: 'users',
+        element: guard(['ADMIN'], <UsersPage />),
+      },
+      {
+        path: 'dashboard',
+        element: <Navigate to="/" replace />,
+      },
+    ],
+  },
+  {
+    path: '*',
+    element: wrap(<NotFound />),
+  },
 ];
 
 export default routes;
-

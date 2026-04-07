@@ -4,8 +4,8 @@ import usersService, { type User } from "../../services/users.service"
 export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [paginatedUsers, setPaginatedUsers] = useState<User[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
-  const [statusFilter, setStatusFilter] = useState('');
+  const [filteredUsers] = useState<User[]>([]);
+  const [statusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   let i =0;
@@ -24,11 +24,10 @@ export default function UsersPage() {
     getUsers({search:search});
   },[search]);
 
-  const handleSearchChange = (e)=>{
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>)=>{
     setSearch(e.target.value);
-    // getUsers({search:search})
   }
-  const handleFilterChange = (type:string)=>{}
+  const handleFilterChange = (_type:string)=>{}
   return (
     <div className="space-y-6">
       {/* HEADER */}

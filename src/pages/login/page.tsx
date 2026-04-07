@@ -22,8 +22,8 @@ export default function LoginPage() {
     e.preventDefault();
     setErrorMessage('');
     try {
-      const {data,success} = await authService.login(formData);
-      const{user,token} = data;
+      const {data} = await authService.login(formData);
+      const{user} = data;
       if(user.firstConnection){
         navigate('/first-connection');
       }else{
