@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Calculator } from 'lucide-react';
+import { ArrowLeft, Info } from 'lucide-react';
 import api from '../api/axios';
 import Loader from '../components/Loader';
 import type { Activity } from '../types';
@@ -24,6 +24,11 @@ const forfaitOptions: ForfaitOption[] = [
   { type: 'ANNUEL', label: 'Annuel', priceKey: 'prix_annuel' },
 ];
 
+const inputClass =
+  'w-full bg-white border border-gray-300 text-gray-900 rounded-lg px-4 py-3 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition';
+
+const labelClass = 'block text-gray-500 text-sm font-medium mb-1.5';
+
 export default function SubscriptionForm() {
   const { id } = useParams<{ id?: string }>();
   const navigate = useNavigate();
@@ -34,26 +39,25 @@ export default function SubscriptionForm() {
   const [loadingActivity, setLoadingActivity] = useState(false);
   const [loadingActivities, setLoadingActivities] = useState(false);
 
-  // Member fields
   const [nom, setNom] = useState('');
   const [prenom, setPrenom] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [dateNaissance, setDateNaissance] = useState('');
+  const [lieuNaissance, setLieuNaissance] = useState('');
   const [adresse, setAdresse] = useState('');
 
-  // Subscription fields
   const [selectedActivityId, setSelectedActivityId] = useState<number | ''>('');
   const [forfait, setForfait] = useState<ForfaitType>('MENSUEL');
   const [fraisInscription, setFraisInscription] = useState(0);
   const [fraisUniquement, setFraisUniquement] = useState(false);
   const [dateDebut, setDateDebut] = useState(new Date().toISOString().split('T')[0]);
+  const [avecInscription, setAvecInscription] = useState(true);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Load activity for activity mode
   useEffect(() => {
     if (!isActivityMode || !id) return;
     setLoadingActivity(true);
@@ -62,7 +66,6 @@ export default function SubscriptionForm() {
         const data = res.data?.data ?? res.data;
         setSelectedActivity(data);
         setFraisInscription(data.frais_inscription ?? 0);
-        // auto-select default forfait
         if (data.isMonthlyOnly) {
           setForfait('MENSUEL');
         } else {
@@ -74,7 +77,6 @@ export default function SubscriptionForm() {
       .finally(() => setLoadingActivity(false));
   }, [id, isActivityMode]);
 
-  // Load activities for client mode
   useEffect(() => {
     if (isActivityMode) return;
     setLoadingActivities(true);
@@ -87,7 +89,6 @@ export default function SubscriptionForm() {
       .finally(() => setLoadingActivities(false));
   }, [isActivityMode]);
 
-  // When activity selected in client mode
   useEffect(() => {
     if (isActivityMode || !selectedActivityId) return;
     const act = activities.find((a) => a.id === Number(selectedActivityId));
@@ -103,18 +104,17 @@ export default function SubscriptionForm() {
     }
   }, [selectedActivityId, activities, isActivityMode]);
 
-  // Compute available forfaits
   const availableForfaits = selectedActivity
     ? (selectedActivity.isMonthlyOnly
         ? forfaitOptions.filter((f) => f.type === 'MENSUEL')
         : forfaitOptions.filter((f) => (selectedActivity[f.priceKey] as number) > 0))
     : [];
 
-  // Price calculation
   const forfaitPrice = selectedActivity && !fraisUniquement
     ? ((selectedActivity[forfaitOptions.find((f) => f.type === forfait)?.priceKey ?? 'prix_mensuel'] as number) ?? 0)
     : 0;
-  const total = forfaitPrice + fraisInscription;
+  const fraisToApply = avecInscription ? fraisInscription : 0;
+  const total = forfaitPrice + fraisToApply;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,19 +129,20 @@ export default function SubscriptionForm() {
         email: email || undefined,
         phone: phone || undefined,
         date_naissance: dateNaissance || undefined,
+        lieu_naissance: lieuNaissance || undefined,
         adresse: adresse || undefined,
         id_activity: selectedActivity.id,
         type_forfait: forfait,
-        frais_inscription_payes: fraisInscription,
+        frais_inscription_payes: fraisToApply,
         frais_uniquement: fraisUniquement,
         date_debut: dateDebut,
       });
-      setSuccess('Abonnement créé avec succès !');
+      setSuccess('Client créé avec succès !');
       setTimeout(() => navigate('/members'), 1200);
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        "Erreur lors de la création de l'abonnement.";
+        "Erreur lors de la création.";
       setError(msg);
     } finally {
       setSaving(false);
@@ -156,13 +157,13 @@ export default function SubscriptionForm() {
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition"
+          className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-white">Nouvel abonnement</h1>
-          <p className="text-gray-400 text-sm mt-0.5">
+          <h1 className="text-2xl font-bold text-gray-900">Nouveau Client</h1>
+          <p className="text-gray-500 text-sm mt-0.5">
             {isActivityMode && selectedActivity
               ? `Activité : ${selectedActivity.nom}`
               : 'Sélectionnez une activité et renseignez les informations du membre'}
@@ -171,107 +172,110 @@ export default function SubscriptionForm() {
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg p-4">
-          {error}
-        </div>
+        <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg p-4">{error}</div>
       )}
       {success && (
-        <div className="bg-green-500/10 border border-green-500/30 text-green-400 text-sm rounded-lg p-4">
-          {success}
-        </div>
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-lg p-4">{success}</div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Section Membre */}
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-white">Informations du membre</h2>
+        {/* Member info */}
+        <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-6">
+          <h2 className="text-gray-900 font-semibold text-base mb-4">Informations du membre</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Prénom *</label>
+              <label className={labelClass}>Prénom *</label>
               <input
                 type="text"
                 required
                 value={prenom}
                 onChange={(e) => setPrenom(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder-gray-500"
+                className={inputClass}
                 placeholder="Mamadou"
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Nom *</label>
+              <label className={labelClass}>Nom *</label>
               <input
                 type="text"
                 required
                 value={nom}
                 onChange={(e) => setNom(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder-gray-500"
+                className={inputClass}
                 placeholder="Diallo"
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Téléphone</label>
+              <label className={labelClass}>Téléphone</label>
               <input
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder-gray-500"
-                placeholder="77 123 45 67"
+                className={inputClass}
+                placeholder="+221 77 123 45 67"
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Email</label>
+              <label className={labelClass}>Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder-gray-500"
+                className={inputClass}
                 placeholder="mamadou@email.com"
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Date de naissance</label>
+              <label className={labelClass}>Date de naissance</label>
               <input
                 type="date"
                 value={dateNaissance}
                 onChange={(e) => setDateNaissance(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Adresse</label>
+              <label className={labelClass}>Lieu de naissance</label>
+              <input
+                type="text"
+                value={lieuNaissance}
+                onChange={(e) => setLieuNaissance(e.target.value)}
+                className={inputClass}
+                placeholder="Dakar"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelClass}>Adresse</label>
               <input
                 type="text"
                 value={adresse}
                 onChange={(e) => setAdresse(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder-gray-500"
+                className={inputClass}
                 placeholder="Dakar, Sénégal"
               />
             </div>
           </div>
         </div>
 
-        {/* Section Abonnement */}
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-5">
-          <h2 className="text-lg font-semibold text-white">Abonnement</h2>
+        {/* Subscription section */}
+        <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-6 space-y-5">
+          <h2 className="text-gray-900 font-semibold text-base">Abonnement</h2>
 
-          {/* Activity selection */}
-          {isActivityMode ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Activity */}
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Activité</label>
-              <div className="bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 text-sm">
-                {selectedActivity?.nom ?? '...'}
-              </div>
-            </div>
-          ) : (
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Activité *</label>
-              {loadingActivities ? (
+              <label className={labelClass}>Activité *</label>
+              {isActivityMode ? (
+                <div className="bg-gray-50 border border-gray-200 text-gray-900 rounded-lg px-4 py-3 text-sm">
+                  {selectedActivity?.nom ?? '...'}
+                </div>
+              ) : loadingActivities ? (
                 <Loader size="sm" />
               ) : (
                 <select
                   value={selectedActivityId}
                   onChange={(e) => setSelectedActivityId(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className={inputClass}
                 >
                   <option value="">-- Sélectionner une activité --</option>
                   {activities.map((a) => (
@@ -280,60 +284,86 @@ export default function SubscriptionForm() {
                 </select>
               )}
             </div>
+
+            {/* Date debut */}
+            <div>
+              <label className={labelClass}>Date de début *</label>
+              <input
+                type="date"
+                value={dateDebut}
+                onChange={(e) => setDateDebut(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          {/* Forfaits */}
+          {selectedActivity && availableForfaits.length > 0 && (
+            <div>
+              <label className={labelClass}>Type d'adhésion *</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {availableForfaits.map((f) => {
+                  const price = selectedActivity[f.priceKey] as number;
+                  const isSelected = forfait === f.type;
+                  return (
+                    <button
+                      key={f.type}
+                      type="button"
+                      onClick={() => setForfait(f.type)}
+                      className={`rounded-xl p-3 border-2 text-center transition ${
+                        isSelected
+                          ? 'border-amber-500 bg-amber-50'
+                          : 'border-gray-200 bg-white hover:border-amber-300'
+                      }`}
+                    >
+                      <p className={`text-xs font-semibold ${isSelected ? 'text-amber-700' : 'text-gray-500'}`}>
+                        {f.label}
+                      </p>
+                      <p className={`text-sm font-bold mt-1 ${isSelected ? 'text-amber-600' : 'text-gray-900'}`}>
+                        {fmt(price)}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
 
-          {/* Forfaits — only shown when an activity is selected */}
+          {/* Frais & options */}
           {selectedActivity && (
-            <>
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Forfait *</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {availableForfaits.map((f) => {
-                    const price = selectedActivity[f.priceKey] as number;
-                    const isSelected = forfait === f.type;
-                    return (
-                      <button
-                        key={f.type}
-                        type="button"
-                        onClick={() => setForfait(f.type)}
-                        className={`rounded-xl p-3 border text-center transition ${
-                          isSelected
-                            ? 'border-amber-500 bg-amber-500/10 text-amber-400'
-                            : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'
-                        }`}
-                      >
-                        <p className="text-xs font-semibold">{f.label}</p>
-                        <p className={`text-sm font-bold mt-1 ${isSelected ? 'text-amber-500' : 'text-white'}`}>
-                          {fmt(price)}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={avecInscription}
+                  onChange={(e) => setAvecInscription(e.target.checked)}
+                  className="accent-amber-500 w-4 h-4"
+                />
+                <span className="text-sm text-gray-700">
+                  Avec {fmt(fraisInscription)} Inscription
+                </span>
+              </label>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {avecInscription && (
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
-                    Frais d'inscription (FCFA)
-                  </label>
+                  <label className={labelClass}>Frais d'inscription personnalisé (FCFA)</label>
                   <input
                     type="number"
                     min={0}
                     value={fraisInscription}
                     onChange={(e) => setFraisInscription(Number(e.target.value))}
-                    className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className={inputClass}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Date de début *</label>
-                  <input
-                    type="date"
-                    value={dateDebut}
-                    onChange={(e) => setDateDebut(e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
+              )}
+
+              <div>
+                <label className={labelClass}>Méthode de paiement</label>
+                <select className={inputClass}>
+                  <option>Cash</option>
+                  <option>Virement</option>
+                  <option>Mobile Money</option>
+                </select>
               </div>
 
               <label className="flex items-center gap-3 cursor-pointer">
@@ -343,54 +373,59 @@ export default function SubscriptionForm() {
                   onChange={(e) => setFraisUniquement(e.target.checked)}
                   className="accent-amber-500 w-4 h-4"
                 />
-                <span className="text-sm text-gray-300">
-                  Frais uniquement (prix du forfait = 0)
+                <span className="text-sm text-gray-700">
+                  Prendre seulement les frais d'inscription
                 </span>
               </label>
-            </>
+            </div>
           )}
         </div>
 
-        {/* Calculator */}
+        {/* Recap */}
         {selectedActivity && (
-          <div className="bg-gray-800 border border-amber-500/30 rounded-xl p-6">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Calculator className="w-5 h-5 text-amber-500" />
-              <h2 className="text-lg font-semibold text-amber-500">Récapitulatif</h2>
+              <Info className="w-4 h-4 text-amber-600" />
+              <span className="text-sm font-semibold text-amber-800">Récapitulatif</span>
             </div>
-            <div className="space-y-2 font-mono text-sm">
-              <div className="flex justify-between text-gray-300">
-                <span>Prix forfait :</span>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Prix forfait</span>
                 <span>{fmt(forfaitPrice)}</span>
               </div>
-              <div className="flex justify-between text-gray-300">
-                <span>Frais d'inscription :</span>
-                <span>{fmt(fraisInscription)}</span>
-              </div>
-              <div className="border-t border-gray-700 my-2" />
-              <div className="flex justify-between text-lg font-bold text-white">
-                <span>TOTAL :</span>
-                <span className="text-amber-500">{fmt(total)}</span>
+              {avecInscription && (
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Frais d'inscription</span>
+                  <span>{fmt(fraisToApply)}</span>
+                </div>
+              )}
+              <div className="border-t border-amber-200 pt-2 mt-2 flex items-center justify-between">
+                <span className="text-sm font-semibold text-gray-700">Montant Total :</span>
+                <span className="text-2xl font-bold text-amber-600">
+                  {new Intl.NumberFormat('fr-FR').format(total)}{' '}
+                  <span className="text-base font-semibold">FCFA</span>
+                </span>
               </div>
             </div>
           </div>
         )}
 
-        {/* Submit */}
-        <div className="flex justify-end gap-3">
+        {/* Buttons */}
+        <div className="flex justify-end gap-3 pb-4">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="px-6 py-2.5 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition"
+            className="px-6 py-2.5 text-sm text-gray-600 border border-gray-200 hover:bg-gray-50 rounded-lg transition font-medium"
           >
             Annuler
           </button>
           <button
             type="submit"
             disabled={saving || !selectedActivity || !prenom.trim() || !nom.trim()}
-            className="px-6 py-2.5 text-sm bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 font-semibold rounded-lg transition"
+            style={{ background: 'linear-gradient(135deg, #D4A843 0%, #C49B38 100%)' }}
+            className="px-6 py-2.5 text-sm text-white font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
-            {saving ? 'Enregistrement...' : 'Créer l\'abonnement'}
+            {saving ? 'Enregistrement...' : 'Créer un client'}
           </button>
         </div>
       </form>

@@ -1,10 +1,10 @@
 import { lazy, Suspense } from 'react';
 import type { RouteObject } from 'react-router-dom';
-import { Navigate } from 'react-router-dom';
 import RoleGuard from '../guards/RoleGuard';
 import Loader from '../components/Loader';
 
 const MainLayout = lazy(() => import('../layouts/MainLayout'));
+const LandingPage = lazy(() => import('../pages/LandingPage'));
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const DashboardPage = lazy(() => import('../pages/DashboardPage'));
 const ActivitiesPage = lazy(() => import('../pages/ActivitiesPage'));
@@ -26,6 +26,10 @@ function guard(roles: string[], el: React.ReactNode) {
 
 const routes: RouteObject[] = [
   {
+    path: '/',
+    element: wrap(<LandingPage />),
+  },
+  {
     path: '/login',
     element: wrap(<LoginPage />),
   },
@@ -34,7 +38,7 @@ const routes: RouteObject[] = [
     element: wrap(<MainLayout />),
     children: [
       {
-        index: true,
+        path: 'dashboard',
         element: guard(['ADMIN', 'CASHIER'], <DashboardPage />),
       },
       {
@@ -68,10 +72,6 @@ const routes: RouteObject[] = [
       {
         path: 'users',
         element: guard(['ADMIN'], <UsersPage />),
-      },
-      {
-        path: 'dashboard',
-        element: <Navigate to="/" replace />,
       },
     ],
   },

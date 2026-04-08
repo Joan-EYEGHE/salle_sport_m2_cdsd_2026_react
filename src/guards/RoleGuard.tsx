@@ -18,7 +18,7 @@ export default function RoleGuard({ allowedRoles, children }: RoleGuardProps) {
     if (user.role === 'CONTROLLER') {
       return <Navigate to="/qr-control" replace />;
     }
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

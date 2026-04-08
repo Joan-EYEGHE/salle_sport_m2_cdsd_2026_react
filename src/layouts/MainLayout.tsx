@@ -9,8 +9,8 @@ import {
   ScanLine,
   UserCog,
   LogOut,
-  ChevronDown,
   Menu,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -22,19 +22,23 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { name: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['ADMIN', 'CASHIER'] },
+  { name: 'Tableau de bord', path: '/dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'CASHIER'] },
   { name: 'Activités', path: '/activities', icon: Dumbbell, roles: ['ADMIN', 'CASHIER'] },
-  { name: 'Membres', path: '/members', icon: Users, roles: ['ADMIN', 'CASHIER'] },
   { name: 'Billetterie', path: '/tickets', icon: Ticket, roles: ['ADMIN', 'CASHIER'] },
-  { name: 'Caisse', path: '/transactions', icon: CreditCard, roles: ['ADMIN', 'CASHIER'] },
   { name: 'Contrôle QR', path: '/qr-control', icon: ScanLine, roles: ['ADMIN', 'CONTROLLER'] },
+  { name: 'Caisse', path: '/transactions', icon: CreditCard, roles: ['ADMIN', 'CASHIER'] },
+  { name: 'Clients', path: '/members', icon: Users, roles: ['ADMIN', 'CASHIER'] },
   { name: 'Utilisateurs', path: '/users', icon: UserCog, roles: ['ADMIN'] },
 ];
+
+const sidebarStyle = {
+  background: 'linear-gradient(180deg, #1a1a1a 0%, #2d1a0a 100%)',
+  borderTop: '3px solid #8B0000',
+};
 
 export default function MainLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const filteredNav = navItems.filter((item) =>
@@ -47,47 +51,76 @@ export default function MainLayout() {
     user?.email ??
     'Utilisateur';
 
+  const initials = displayName
+    .split(' ')
+    .slice(0, 2)
+    .map((w) => w.charAt(0).toUpperCase())
+    .join('');
+
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
   const sidebar = (
-    <aside className="w-64 bg-gray-800 border-r border-gray-700 flex flex-col h-full">
-      <div className="h-16 flex items-center px-6 border-b border-gray-700">
-        <span className="text-amber-500 font-bold text-2xl">GymFlow</span>
+    <aside
+      className="w-60 flex flex-col h-full"
+      style={sidebarStyle}
+    >
+      {/* Logo */}
+      <div className="py-6 px-5 flex items-center gap-3">
+        <div className="bg-amber-500 rounded-xl p-2">
+          <Dumbbell className="w-5 h-5 text-white" />
+        </div>
+        <span className="text-amber-400 font-bold text-xl">GymFlow</span>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      {/* Nav */}
+      <nav className="flex-1 px-3 pb-4 space-y-0.5 overflow-y-auto">
         {filteredNav.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
-            end={item.path === '/'}
             onClick={() => setSidebarOpen(false)}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm font-medium ${
+              `relative flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm font-medium ${
                 isActive
-                  ? 'bg-gray-700 text-amber-500'
-                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  ? 'bg-white/10 text-white'
+                  : 'text-gray-400 hover:bg-white/10 hover:text-white'
               }`
             }
           >
-            <item.icon className="w-5 h-5 shrink-0" />
-            {item.name}
+            {({ isActive }) => (
+              <>
+                {isActive && (
+                  <span
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-amber-500 rounded-r-full"
+                  />
+                )}
+                <item.icon className="w-5 h-5 shrink-0" />
+                {item.name}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
 
-      <div className="p-4 border-t border-gray-700">
-        <div className="bg-gray-700 rounded-lg p-3 mb-3">
-          <p className="text-xs text-gray-400">Connecté en tant que</p>
-          <p className="text-sm font-semibold text-white truncate">{displayName}</p>
-          <p className="text-xs text-amber-500 mt-0.5">{user?.role}</p>
+      {/* User section */}
+      <div className="p-4 border-t border-white/10">
+        <div className="flex items-center gap-3 mb-3 p-2 rounded-lg bg-white/5">
+          <div className="w-9 h-9 rounded-full bg-amber-500 text-gray-900 flex items-center justify-center text-sm font-bold shrink-0">
+            {initials || displayName.charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="text-white text-sm font-medium truncate">{displayName}</p>
+            <span className="inline-block mt-0.5 text-xs font-semibold text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded">
+              {user?.role}
+            </span>
+          </div>
         </div>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-gray-700 rounded-lg transition"
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-red-400 hover:bg-white/5 rounded-lg transition"
         >
           <LogOut className="w-4 h-4" />
           Déconnexion
@@ -97,9 +130,9 @@ export default function MainLayout() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-900 flex">
+    <div className="min-h-screen bg-gray-50 flex">
       {/* Desktop sidebar */}
-      <div className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:w-64 z-30">
+      <div className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:w-60 z-30">
         {sidebar}
       </div>
 
@@ -110,65 +143,34 @@ export default function MainLayout() {
             className="fixed inset-0 bg-black/60"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="relative flex flex-col w-64 z-50">{sidebar}</div>
+          <div className="relative flex flex-col w-60 z-50">{sidebar}</div>
+          <button
+            className="absolute top-4 left-[244px] z-50 text-white bg-gray-700 rounded-lg p-1"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
       )}
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col md:ml-64">
-        {/* Header */}
-        <header className="h-16 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-6 sticky top-0 z-20">
+      <div className="flex-1 flex flex-col md:ml-60">
+        {/* Mobile top bar */}
+        <div className="md:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200">
           <button
-            className="md:hidden text-gray-400 hover:text-white"
             onClick={() => setSidebarOpen(true)}
+            className="text-gray-600 hover:text-gray-900"
           >
             <Menu className="w-6 h-6" />
           </button>
-
-          <div className="hidden md:block" />
-
-          <div className="relative">
-            <button
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-3 bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition"
-            >
-              <div className="w-8 h-8 rounded-full bg-amber-500 text-gray-900 flex items-center justify-center font-bold text-sm">
-                {displayName.charAt(0).toUpperCase()}
-              </div>
-              <div className="text-left hidden sm:block">
-                <p className="text-sm font-semibold text-white">{displayName}</p>
-                <p className="text-xs text-gray-400">{user?.role}</p>
-              </div>
-              <ChevronDown className="w-4 h-4 text-gray-400" />
-            </button>
-
-            {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-xl shadow-lg overflow-hidden z-50">
-                <button
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    handleLogout();
-                  }}
-                  className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-gray-700 transition"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Déconnexion
-                </button>
-              </div>
-            )}
-          </div>
-        </header>
+          <span className="text-amber-500 font-bold text-lg">GymFlow</span>
+        </div>
 
         {/* Page content */}
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 p-8 overflow-y-auto">
           <Outlet />
         </main>
       </div>
-
-      {/* Close dropdown on outside click */}
-      {dropdownOpen && (
-        <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
-      )}
     </div>
   );
 }
