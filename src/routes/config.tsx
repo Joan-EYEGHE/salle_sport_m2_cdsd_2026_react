@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import type { RouteObject } from 'react-router-dom';
 import RoleGuard from '../guards/RoleGuard';
+import PublicRoute from '../guards/PublicRoute';
 import Loader from '../components/Loader';
 
 const MainLayout = lazy(() => import('../layouts/MainLayout'));
@@ -27,11 +28,11 @@ function guard(roles: string[], el: React.ReactNode) {
 const routes: RouteObject[] = [
   {
     path: '/',
-    element: wrap(<LandingPage />),
+    element: wrap(<PublicRoute><LandingPage /></PublicRoute>),
   },
   {
     path: '/login',
-    element: wrap(<LoginPage />),
+    element: wrap(<PublicRoute><LoginPage /></PublicRoute>),
   },
   {
     path: '/',

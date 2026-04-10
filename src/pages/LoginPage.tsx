@@ -4,9 +4,9 @@ import { Mail, Lock, Eye, EyeOff, Dumbbell, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const demoUsers = [
-  { email: 'admin@gymflow.sn', password: 'admin1234', role: 'ADMIN' },
-  { email: 'cashier@gymflow.sn', password: 'cashier1234', role: 'CASHIER' },
-  { email: 'controller@gymflow.sn', password: 'controller1234', role: 'CONTROLLER' },
+  { email: 'admin@gymflow.com', password: 'admin1234', role: 'ADMIN' },
+  { email: 'cashier@gymflow.com', password: 'cashier1234', role: 'CASHIER' },
+  { email: 'controller@gymflow.com', password: 'controller1234', role: 'CONTROLLER' },
 ];
 
 export default function LoginPage() {

@@ -25,6 +25,7 @@ export interface Member {
   id: number;
   nom: string;
   prenom: string;
+  slug?: string;
   email?: string;
   phone?: string;
   uuid_qr: string;
@@ -83,7 +84,15 @@ export interface AccessLog {
 }
 
 export interface TransactionSummary {
-  totalRevenus: number;
-  totalDepenses: number;
+  total_revenus: number;
+  total_depenses: number;
   solde: number;
+  nb_transactions: number;
+}
+
+export interface AccessLogStats {
+  total_scans: number;
+  total_succes: number;
+  total_echec: number;
+  taux_succes: number;
 }

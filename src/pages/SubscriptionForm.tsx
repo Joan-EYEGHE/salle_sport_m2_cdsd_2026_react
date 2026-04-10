@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Info } from 'lucide-react';
 import api from '../api/axios';
@@ -110,11 +110,18 @@ export default function SubscriptionForm() {
         : forfaitOptions.filter((f) => (selectedActivity[f.priceKey] as number) > 0))
     : [];
 
-  const forfaitPrice = selectedActivity && !fraisUniquement
-    ? ((selectedActivity[forfaitOptions.find((f) => f.type === forfait)?.priceKey ?? 'prix_mensuel'] as number) ?? 0)
-    : 0;
-  const fraisToApply = avecInscription ? fraisInscription : 0;
-  const total = forfaitPrice + fraisToApply;
+  const forfaitPrice = useMemo(() => {
+    if (!selectedActivity || fraisUniquement) return 0;
+    const key = forfaitOptions.find((f) => f.type === forfait)?.priceKey ?? 'prix_mensuel';
+    return (selectedActivity[key] as number) ?? 0;
+  }, [selectedActivity, fraisUniquement, forfait]);
+
+  const fraisToApply = useMemo(
+    () => (avecInscription ? fraisInscription : 0),
+    [avecInscription, fraisInscription],
+  );
+
+  const total = useMemo(() => forfaitPrice + fraisToApply, [forfaitPrice, fraisToApply]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -297,8 +304,8 @@ export default function SubscriptionForm() {
             </div>
           </div>
 
-          {/* Forfaits */}
-          {selectedActivity && availableForfaits.length > 0 && (
+          {/* Forfaits — masqués si "frais uniquement" est actif */}
+          {selectedActivity && availableForfaits.length > 0 && !fraisUniquement && (
             <div>
               <label className={labelClass}>Type d'adhésion *</label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -340,13 +347,14 @@ export default function SubscriptionForm() {
                   className="accent-amber-500 w-4 h-4"
                 />
                 <span className="text-sm text-gray-700">
-                  Avec {fmt(fraisInscription)} Inscription
+                  Modifier les frais d'inscription
+                  <span className="text-gray-400 ml-1">(défaut : {fmt(selectedActivity?.frais_inscription ?? 0)})</span>
                 </span>
               </label>
 
               {avecInscription && (
                 <div>
-                  <label className={labelClass}>Frais d'inscription personnalisé (FCFA)</label>
+                  <label className={labelClass}>Montant des frais d'inscription (FCFA)</label>
                   <input
                     type="number"
                     min={0}

@@ -19,7 +19,7 @@ import {
 } from 'recharts';
 import api from '../api/axios';
 import Loader from '../components/Loader';
-import type { TransactionSummary, Transaction } from '../types';
+import type { TransactionSummary, AccessLogStats, Transaction } from '../types';
 import { useAuth } from '../context/AuthContext';
 
 function fmt(n: number) {
@@ -32,22 +32,23 @@ function fmtCompact(n: number) {
   return String(n);
 }
 
-const weeklyData = [
-  { day: 'Lun', revenue: 185000 },
-  { day: 'Mar', revenue: 220000 },
-  { day: 'Mer', revenue: 175000 },
-  { day: 'Jeu', revenue: 310000 },
-  { day: 'Ven', revenue: 265000 },
-  { day: 'Sam', revenue: 390000 },
-  { day: 'Dim', revenue: 145000 },
-];
-
-const activityBreakdown = [
-  { name: 'Gym', pct: 45, color: 'bg-amber-500' },
-  { name: 'Football', pct: 25, color: 'bg-blue-500' },
-  { name: 'Karaté', pct: 18, color: 'bg-purple-500' },
-  { name: 'Massage', pct: 12, color: 'bg-orange-500' },
-];
+function getLast7Days(): { from: string; to: string; labels: string[] } {
+  const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+  const today = new Date();
+  const from = new Date(today);
+  from.setDate(from.getDate() - 6);
+  const labels: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(from);
+    d.setDate(from.getDate() + i);
+    labels.push(days[d.getDay()]);
+  }
+  return {
+    from: from.toISOString().split('T')[0],
+    to: today.toISOString().split('T')[0],
+    labels,
+  };
+}
 
 interface KpiCard {
   label: string;
@@ -58,6 +59,17 @@ interface KpiCard {
   change: number;
 }
 
+interface WeeklyEntry {
+  day: string;
+  revenue: number;
+}
+
+interface ScanStat {
+  name: string;
+  pct: number;
+  color: string;
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
@@ -66,6 +78,14 @@ export default function DashboardPage() {
   const [recentTx, setRecentTx] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const [weeklyData, setWeeklyData] = useState<WeeklyEntry[]>([]);
+  const [weeklyLoading, setWeeklyLoading] = useState(true);
+  const [weeklyError, setWeeklyError] = useState(false);
+
+  const [scanStats, setScanStats] = useState<ScanStat[]>([]);
+  const [scanLoading, setScanLoading] = useState(true);
+  const [scanError, setScanError] = useState(false);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -104,6 +124,85 @@ export default function DashboardPage() {
     fetchAll();
   }, []);
 
+  useEffect(() => {
+    const fetchWeekly = async () => {
+      setWeeklyLoading(true);
+      setWeeklyError(false);
+      try {
+        const { from, to, labels } = getLast7Days();
+        const res = await api.get(`/transactions?date_debut=${from}&date_fin=${to}`);
+        const rows: Transaction[] = (() => {
+          const d = res.data?.data ?? res.data;
+          return Array.isArray(d) ? d : [];
+        })();
+
+        const revenueByDay: Record<string, number> = {};
+        labels.forEach((label, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - (6 - i));
+          revenueByDay[d.toISOString().split('T')[0]] = 0;
+        });
+
+        for (const tx of rows) {
+          if (tx.type === 'REVENU') {
+            const day = new Date(tx.date).toISOString().split('T')[0];
+            if (day in revenueByDay) {
+              revenueByDay[day] = (revenueByDay[day] ?? 0) + tx.montant;
+            }
+          }
+        }
+
+        const entries: WeeklyEntry[] = labels.map((label, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - (6 - i));
+          const key = d.toISOString().split('T')[0];
+          return { day: label, revenue: revenueByDay[key] ?? 0 };
+        });
+
+        setWeeklyData(entries);
+      } catch {
+        setWeeklyError(true);
+      } finally {
+        setWeeklyLoading(false);
+      }
+    };
+    fetchWeekly();
+  }, []);
+
+  useEffect(() => {
+    const fetchScanStats = async () => {
+      setScanLoading(true);
+      setScanError(false);
+      try {
+        const res = await api.get('/access-logs/stats');
+        const d: AccessLogStats = res.data?.data ?? res.data;
+        const total = d.total_scans || 1;
+        setScanStats([
+          {
+            name: 'Scans réussis',
+            pct: Math.round((d.total_succes / total) * 100),
+            color: 'bg-emerald-500',
+          },
+          {
+            name: 'Scans échoués',
+            pct: Math.round((d.total_echec / total) * 100),
+            color: 'bg-red-500',
+          },
+          {
+            name: 'Taux de succès',
+            pct: Math.round(d.taux_succes),
+            color: 'bg-amber-500',
+          },
+        ]);
+      } catch {
+        setScanError(true);
+      } finally {
+        setScanLoading(false);
+      }
+    };
+    fetchScanStats();
+  }, []);
+
   if (loading) return <Loader size="lg" />;
 
   const firstName = user?.firstName ?? user?.fullName?.split(' ')[0] ?? 'vous';
@@ -111,7 +210,7 @@ export default function DashboardPage() {
   const kpiCards: KpiCard[] = [
     {
       label: 'Ventes du jour',
-      value: summary ? fmt(summary.totalRevenus) : '—',
+      value: summary ? fmt(summary.total_revenus) : '—',
       icon: DollarSign,
       iconBg: 'bg-amber-100',
       iconColor: 'text-amber-600',
@@ -135,7 +234,7 @@ export default function DashboardPage() {
     },
     {
       label: 'Revenu total',
-      value: summary ? fmt(summary.totalRevenus) : '—',
+      value: summary ? fmt(summary.total_revenus) : '—',
       icon: TrendingUp,
       iconBg: 'bg-purple-100',
       iconColor: 'text-purple-600',
@@ -210,50 +309,67 @@ export default function DashboardPage() {
               <h2 className="text-gray-900 font-semibold">Revenu hebdomadaire</h2>
               <p className="text-gray-400 text-sm">Performances des 7 derniers jours</p>
             </div>
-            <select className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
-              <option>Cette semaine</option>
-              <option>Semaine passée</option>
-            </select>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={weeklyData} barSize={32}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-              <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <YAxis
-                tickFormatter={fmtCompact}
-                tick={{ fontSize: 12, fill: '#9ca3af' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                formatter={(v) => [fmt(Number(v)), 'Revenu']}
-                contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }}
-              />
-              <Bar dataKey="revenue" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {weeklyLoading ? (
+            <div className="animate-pulse h-[220px] bg-gray-100 rounded-lg" />
+          ) : weeklyError ? (
+            <div className="h-[220px] flex items-center justify-center text-sm text-gray-400">
+              Données indisponibles
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={weeklyData} barSize={32}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                <YAxis
+                  tickFormatter={fmtCompact}
+                  tick={{ fontSize: 12, fill: '#9ca3af' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  formatter={(v) => [fmt(Number(v)), 'Revenu']}
+                  contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }}
+                />
+                <Bar dataKey="revenue" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
-        {/* Activity breakdown */}
+        {/* Scan stats */}
         <div className="lg:col-span-2 bg-white border border-gray-100 rounded-xl shadow-sm p-6">
-          <h2 className="text-gray-900 font-semibold mb-1">Répartition des activités</h2>
-          <p className="text-gray-400 text-sm mb-5">Distribution par type</p>
-          <div className="space-y-4">
-            {activityBreakdown.map((act) => (
-              <div key={act.name}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-700 font-medium">{act.name}</span>
-                  <span className="text-gray-500">{act.pct}%</span>
+          <h2 className="text-gray-900 font-semibold mb-1">Statistiques des scans</h2>
+          <p className="text-gray-400 text-sm mb-5">Contrôle d'accès ce mois</p>
+          {scanLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-3 bg-gray-100 rounded mb-2 w-3/4" />
+                  <div className="h-2 bg-gray-100 rounded-full" />
                 </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${act.color}`}
-                    style={{ width: `${act.pct}%` }}
-                  />
+              ))}
+            </div>
+          ) : scanError ? (
+            <div className="text-sm text-gray-400 text-center py-8">Données indisponibles</div>
+          ) : (
+            <div className="space-y-4">
+              {scanStats.map((stat) => (
+                <div key={stat.name}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-700 font-medium">{stat.name}</span>
+                    <span className="text-gray-500">{stat.pct}%</span>
+                  </div>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${stat.color}`}
+                      style={{ width: `${stat.pct}%` }}
+                    />
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
