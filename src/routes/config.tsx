@@ -74,11 +74,11 @@ const routes: RouteObject[] = [
         path: 'users',
         element: guard(['ADMIN'], <UsersPage />),
       },
+      {
+        path: '*',
+        element: wrap(<NotFound />),
+      },
     ],
-  },
-  {
-    path: '*',
-    element: wrap(<NotFound />),
   },
 ];
 
