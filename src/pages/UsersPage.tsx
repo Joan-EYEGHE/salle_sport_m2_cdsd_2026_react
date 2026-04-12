@@ -26,13 +26,11 @@ function avatarGradient(role: User['role']): string {
   }
 }
 
-function roleBadgeStyle(role: User['role']): { bg: string; color: string; label: string } {
-  switch (role) {
-    case 'ADMIN':      return { bg: '#fde8ff', color: '#8e24aa', label: 'Admin' };
-    case 'CASHIER':    return { bg: '#e8f4fd', color: '#1A73E8', label: 'Caissier' };
-    case 'CONTROLLER': return { bg: '#eaf7ea', color: '#43A047', label: 'Contrôleur' };
-  }
-}
+const ROLE_BADGE: Record<User['role'], { cls: string; label: string }> = {
+  ADMIN:      { cls: 'gf-badge--purple', label: 'Admin' },
+  CASHIER:    { cls: 'gf-badge--info',   label: 'Caissier' },
+  CONTROLLER: { cls: 'gf-badge--active', label: 'Contrôleur' },
+};
 
 function fmtDate(str: string | undefined): string {
   if (!str) return '—';
@@ -74,59 +72,9 @@ function isActive(u: ExtUser): boolean {
 
 function StatusBadge({ active }: { active: boolean }) {
   return (
-    <span
-      style={{
-        background: active ? '#eaf7ea' : '#fde8e8',
-        color:      active ? '#43A047' : '#F44335',
-        padding: '3px 10px',
-        borderRadius: 20,
-        fontSize: 11,
-        fontWeight: 600,
-        whiteSpace: 'nowrap',
-      }}
-    >
+    <span className={`gf-badge ${active ? 'gf-badge--active' : 'gf-badge--inactive'}`}>
       {active ? 'Actif' : 'Inactif'}
     </span>
-  );
-}
-
-// ─── ActionBtn ───────────────────────────────────────────────────────────────
-
-interface ActionBtnProps {
-  title: string;
-  bg: string;
-  hoverBg: string;
-  color: string;
-  hoverColor: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}
-
-function ActionBtn({ title, bg, hoverBg, color, hoverColor, onClick, children }: ActionBtnProps) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      title={title}
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: 28,
-        height: 28,
-        borderRadius: 6,
-        border: 'none',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: hovered ? hoverBg : bg,
-        color:      hovered ? hoverColor : color,
-        transition: 'background 0.15s, color 0.15s',
-        flexShrink: 0,
-      }}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -136,17 +84,8 @@ function SkeletonRow() {
   return (
     <tr>
       {[200, 110, 100, 110, 80, 70].map((w, i) => (
-        <td key={i} style={{ padding: '14px 14px' }}>
-          <div
-            style={{
-              height: 14,
-              width: w,
-              borderRadius: 4,
-              background: 'linear-gradient(90deg,#f0f2f5 25%,#e8ebf0 50%,#f0f2f5 75%)',
-              backgroundSize: '200% 100%',
-              animation: 'shimmer 1.4s infinite',
-            }}
-          />
+        <td key={i}>
+          <div className="gf-skeleton" style={{ width: w }} />
         </td>
       ))}
     </tr>
@@ -157,32 +96,22 @@ function SkeletonRow() {
 
 interface UserRowProps {
   user: ExtUser;
-  isLast: boolean;
   isAdmin: boolean;
   isSelf: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }
 
-function UserRow({ user: u, isLast, isAdmin, isSelf, onEdit, onDelete }: UserRowProps) {
-  const [hovered, setHovered] = useState(false);
-  const badge = roleBadgeStyle(u.role);
+function UserRow({ user: u, isAdmin, isSelf, onEdit, onDelete }: UserRowProps) {
+  const roleBadge = ROLE_BADGE[u.role];
   const active = isActive(u);
   const initials = getInitials(u);
   const name = fullName(u);
 
   return (
-    <tr
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        borderBottom: isLast ? 'none' : '1px solid #f0f2f5',
-        background: hovered ? '#fafafa' : '#fff',
-        transition: 'background 0.1s',
-      }}
-    >
+    <tr>
       {/* Utilisateur */}
-      <td style={{ padding: '12px 14px' }}>
+      <td>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{
@@ -211,64 +140,38 @@ function UserRow({ user: u, isLast, isAdmin, isSelf, onEdit, onDelete }: UserRow
       </td>
 
       {/* Rôle */}
-      <td style={{ padding: '12px 14px' }}>
-        <span
-          style={{
-            background: badge.bg,
-            color: badge.color,
-            padding: '3px 10px',
-            borderRadius: 20,
-            fontSize: 11,
-            fontWeight: 600,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {badge.label}
-        </span>
+      <td>
+        <span className={`gf-badge ${roleBadge.cls}`}>{roleBadge.label}</span>
       </td>
 
       {/* Date de création */}
-      <td style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}>
-        {fmtDate(u.createdAt)}
-      </td>
+      <td>{fmtDate(u.createdAt)}</td>
 
       {/* Dernière connexion */}
-      <td style={{ padding: '12px 14px', fontSize: 13, color: '#7b809a' }}>
-        {fmtDateTime(u.lastLogin)}
-      </td>
+      <td style={{ color: '#7b809a' }}>{fmtDateTime(u.lastLogin)}</td>
 
       {/* Statut */}
-      <td style={{ padding: '12px 14px' }}>
-        <StatusBadge active={active} />
-      </td>
+      <td><StatusBadge active={active} /></td>
 
       {/* Actions */}
-      <td style={{ padding: '12px 14px' }}>
+      <td>
         {isAdmin ? (
           <div style={{ display: 'flex', gap: 6 }}>
             {/* Modifier */}
-            <ActionBtn
-              title="Modifier"
-              bg="#e8f4fd"
-              hoverBg="#1A73E8"
-              color="#1A73E8"
-              hoverColor="#fff"
-              onClick={onEdit}
-            >
+            <button className="gf-btn-action gf-btn-action--edit" title="Modifier" onClick={onEdit}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
-            </ActionBtn>
+            </button>
 
-            {/* Supprimer */}
-            <ActionBtn
+            {/* Supprimer — Bug B3 : anti-auto-suppression */}
+            <button
+              className="gf-btn-action gf-btn-action--delete"
               title={isSelf ? 'Impossible de supprimer votre propre compte' : 'Supprimer'}
-              bg={isSelf ? '#f5f5f5' : '#fde8e8'}
-              hoverBg={isSelf ? '#f5f5f5' : '#F44335'}
-              color={isSelf ? '#c0c4cc' : '#F44335'}
-              hoverColor={isSelf ? '#c0c4cc' : '#fff'}
               onClick={onDelete}
+              disabled={isSelf}
+              style={isSelf ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="3 6 5 6 21 6" />
@@ -277,7 +180,7 @@ function UserRow({ user: u, isLast, isAdmin, isSelf, onEdit, onDelete }: UserRow
                 <path d="M14 11v6" />
                 <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
               </svg>
-            </ActionBtn>
+            </button>
           </div>
         ) : (
           <span style={{ fontSize: 11, color: '#c0c4cc' }}>—</span>
@@ -589,238 +492,135 @@ export default function UsersPage() {
 
   return (
     <>
-      <style>{`
-        @keyframes shimmer {
-          0%   { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-      `}</style>
-
-      <div
-        style={{
-          padding: '20px 24px 24px',
-          marginTop: 14,
-          background: '#f0f2f5',
-          minHeight: 'calc(100vh - 60px)',
-        }}
-      >
+      <div className="gf-page gf-page-top" style={{ minHeight: 'calc(100vh - 60px)' }}>
         {/* ── card wrapper ── */}
-        <div
-          style={{
-            background: '#fff',
-            borderRadius: 12,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-          }}
-        >
-          {/* ── header flottant ── */}
-          <div
-            style={{
-              margin: '-20px 16px 0',
-              background: 'linear-gradient(195deg,#49a3f1,#1A73E8)',
-              borderRadius: 10,
-              padding: '16px 20px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.4)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <div>
-              <div style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>Utilisateurs</div>
-              <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 2 }}>
-                Gestion des comptes utilisateurs
+        <div className="gf-card-outer">
+          <div className="gf-card">
+            {/* ── header flottant ── */}
+            <div className="gf-card-header gf-card-header--info">
+              <div>
+                <p className="gf-card-header__title">Utilisateurs</p>
+                <p className="gf-card-header__sub">Gestion des comptes utilisateurs</p>
               </div>
+              {isAdmin && (
+                <button className="gf-btn-header" onClick={openCreate}>
+                  <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
+                  Ajouter
+                </button>
+              )}
             </div>
-            {isAdmin && (
-              <button
-                onClick={openCreate}
+
+            {/* ── toolbar ── */}
+            <div className="gf-toolbar">
+              <div className="gf-search-wrap">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#7b809a"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="gf-search-icon"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Rechercher un utilisateur…"
+                />
+              </div>
+              <span className="gf-count-label">
+                {filtered.length} utilisateur{filtered.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {/* ── erreur ── */}
+            {error && (
+              <div
                 style={{
-                  background: 'rgba(255,255,255,0.2)',
-                  border: '1px solid rgba(255,255,255,0.4)',
-                  color: '#fff',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  padding: '7px 14px',
-                  borderRadius: 7,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
+                  margin: '12px 20px 0',
+                  background: '#fde8e8',
+                  color: '#F44335',
+                  borderRadius: 8,
+                  padding: '10px 14px',
+                  fontSize: 13,
                 }}
               >
-                <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
-                Ajouter
-              </button>
+                {error}
+              </div>
+            )}
+
+            {/* ── table ── */}
+            <div className="gf-card-body--table">
+              <table className="gf-table" style={{ minWidth: 760 }}>
+                <thead>
+                  <tr>
+                    {COLUMNS.map((col) => (
+                      <th key={col}>{col}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
+                  ) : pageRows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={COLUMNS.length}
+                        style={{
+                          textAlign: 'center',
+                          padding: '48px 0',
+                          color: '#7b809a',
+                          fontSize: 13,
+                        }}
+                      >
+                        Aucun utilisateur trouvé.
+                      </td>
+                    </tr>
+                  ) : (
+                    pageRows.map((u) => (
+                      <UserRow
+                        key={u.id}
+                        user={u}
+                        isAdmin={isAdmin}
+                        isSelf={u.id === authUser?.id}
+                        onEdit={() => openEdit(u)}
+                        onDelete={() => handleDelete(u)}
+                      />
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ── pagination ── */}
+            {!loading && filtered.length > 0 && (
+              <div className="gf-pagination">
+                <span className="gf-pagination__info">
+                  Affichage {pageStart + 1}–{pageEnd} sur {filtered.length}
+                </span>
+                <div className="gf-pagination__btns">
+                  {Array.from({ length: totalPages }).map((_, i) => {
+                    const p = i + 1;
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => setPage(p)}
+                        className={`gf-page-btn${p === safePage ? ' gf-page-btn--active' : ''}`}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </div>
-
-          {/* ── toolbar ── */}
-          <div
-            style={{
-              padding: '16px 20px 0',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <div style={{ position: 'relative' }}>
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#7b809a"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }}
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Rechercher un utilisateur…"
-                style={{
-                  border: '1px solid #d2d6da',
-                  borderRadius: 8,
-                  padding: '8px 12px 8px 34px',
-                  fontSize: 13,
-                  color: '#344767',
-                  width: 240,
-                  outline: 'none',
-                }}
-              />
-            </div>
-            <span style={{ fontSize: 12, color: '#7b809a' }}>
-              {filtered.length} utilisateur{filtered.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-
-          {/* ── erreur ── */}
-          {error && (
-            <div
-              style={{
-                margin: '12px 20px 0',
-                background: '#fde8e8',
-                color: '#F44335',
-                borderRadius: 8,
-                padding: '10px 14px',
-                fontSize: 13,
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          {/* ── table ── */}
-          <div style={{ padding: '16px 20px 8px', overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
-              <thead>
-                <tr>
-                  {COLUMNS.map((col, i, arr) => (
-                    <th
-                      key={col}
-                      style={{
-                        background: 'linear-gradient(195deg,#49a3f1,#1A73E8)',
-                        color: '#fff',
-                        fontSize: 11,
-                        fontWeight: 700,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        padding: '10px 14px',
-                        textAlign: 'left',
-                        borderRadius:
-                          i === 0
-                            ? '8px 0 0 8px'
-                            : i === arr.length - 1
-                            ? '0 8px 8px 0'
-                            : 0,
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {col}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
-                ) : pageRows.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={COLUMNS.length}
-                      style={{
-                        textAlign: 'center',
-                        padding: '48px 0',
-                        color: '#7b809a',
-                        fontSize: 13,
-                      }}
-                    >
-                      Aucun utilisateur trouvé.
-                    </td>
-                  </tr>
-                ) : (
-                  pageRows.map((u, idx) => (
-                    <UserRow
-                      key={u.id}
-                      user={u}
-                      isLast={idx === pageRows.length - 1}
-                      isAdmin={isAdmin}
-                      isSelf={u.id === authUser?.id}
-                      onEdit={() => openEdit(u)}
-                      onDelete={() => handleDelete(u)}
-                    />
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* ── pagination ── */}
-          {!loading && filtered.length > 0 && (
-            <div
-              style={{
-                padding: '12px 20px 16px',
-                borderTop: '1px solid #f0f2f5',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <span style={{ fontSize: 12, color: '#7b809a' }}>
-                Affichage {pageStart + 1}–{pageEnd} sur {filtered.length}
-              </span>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {Array.from({ length: totalPages }).map((_, i) => {
-                  const p = i + 1;
-                  const active = p === safePage;
-                  return (
-                    <button
-                      key={p}
-                      onClick={() => setPage(p)}
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 6,
-                        border: active ? 'none' : '0.5px solid #d2d6da',
-                        background: active ? '#1A73E8' : '#fff',
-                        color: active ? '#fff' : '#344767',
-                        fontSize: 12,
-                        fontWeight: active ? 700 : 400,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {p}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 

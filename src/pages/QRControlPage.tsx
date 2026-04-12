@@ -267,6 +267,7 @@ export default function QRControlPage() {
         }}
       >
         {/* ── Colonne Gauche — Card Scanner ──────────────────────────────── */}
+        <div className="gf-card-outer">
         <div className="gf-card" style={{ paddingBottom: 20 }}>
           {/* Header flottant orange */}
           <div className="gf-card-header gf-card-header--warning">
@@ -495,8 +496,10 @@ export default function QRControlPage() {
             )}
           </div>
         </div>
+        </div>
 
         {/* ── Colonne Droite — Card Historique ───────────────────────────── */}
+        <div className="gf-card-outer">
         <div className="gf-card" style={{ paddingBottom: 16 }}>
           {/* Header flottant sombre */}
           <div className="gf-card-header gf-card-header--dark">
@@ -603,6 +606,7 @@ export default function QRControlPage() {
               </div>
             )}
           </div>
+        </div>
         </div>
       </div>
     </div>

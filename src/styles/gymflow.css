@@ -34,7 +34,6 @@
 /* ── Page ───────────────────────────────────────────────────── */
 .gf-page {
   background: var(--gf-bg);
-  padding: 20px 24px 24px;
   display: flex;
   flex-direction: column;
   gap: 32px;
@@ -49,6 +48,7 @@
   background: var(--gf-white);
   border-radius: var(--gf-radius-card);
   box-shadow: var(--gf-shadow-card);
+  overflow: visible;
 }
 
 /* Wrapper qui donne l'espace au header flottant */

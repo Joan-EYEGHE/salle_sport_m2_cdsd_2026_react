@@ -269,6 +269,7 @@ export default function MembersPage() {
     <>
       <div className="gf-page gf-page-top" style={{ minHeight: 'calc(100vh - 60px)' }}>
         {/* ── card wrapper ── */}
+        <div className="gf-card-outer">
         <div className="gf-card">
           {/* ── floating header ── */}
           <div className="gf-card-header gf-card-header--info">
@@ -413,6 +414,7 @@ export default function MembersPage() {
               </div>
             </div>
           )}
+        </div>
         </div>
       </div>
 
