@@ -10,6 +10,7 @@ const LoginPage = lazy(() => import('../pages/LoginPage'));
 const DashboardPage = lazy(() => import('../pages/DashboardPage'));
 const ActivitiesPage = lazy(() => import('../pages/ActivitiesPage'));
 const MembersPage = lazy(() => import('../pages/MembersPage'));
+const MemberDetailPage = lazy(() => import('../pages/MemberDetailPage'));
 const SubscriptionForm = lazy(() => import('../pages/SubscriptionForm'));
 const TicketsPage = lazy(() => import('../pages/TicketsPage'));
 const QRControlPage = lazy(() => import('../pages/QRControlPage'));
@@ -53,6 +54,10 @@ const routes: RouteObject[] = [
       {
         path: 'members',
         element: guard(['ADMIN', 'CASHIER'], <MembersPage />),
+      },
+      {
+        path: 'members/:id',
+        element: guard(['ADMIN', 'CASHIER', 'CONTROLLER'], <MemberDetailPage />),
       },
       {
         path: 'members/subscribe',

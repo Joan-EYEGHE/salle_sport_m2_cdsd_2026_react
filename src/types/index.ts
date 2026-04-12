@@ -30,6 +30,7 @@ export interface Member {
   phone?: string;
   uuid_qr: string;
   initials?: string;
+  date_inscription?: string;
   subscriptions?: Subscription[];
 }
 
