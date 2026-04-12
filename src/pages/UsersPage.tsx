@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import type { User } from '../types';
@@ -223,25 +224,44 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
   );
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
-  const inputStyle: React.CSSProperties = {
+  const fieldLabelStyle: React.CSSProperties = {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#7b809a',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+  };
+
+  const inputBaseStyle: React.CSSProperties = {
     border: '1px solid #d2d6da',
     borderRadius: 8,
-    padding: '8px 12px',
+    padding: '10px 14px',
     fontSize: 13,
     color: '#344767',
     outline: 'none',
+    fontFamily: 'inherit',
     width: '100%',
     boxSizing: 'border-box',
   };
 
-  const labelStyle: React.CSSProperties = {
-    fontSize: 11,
-    fontWeight: 600,
-    color: '#7b809a',
-    textTransform: 'uppercase',
-    marginBottom: 4,
-    display: 'block',
+  const inputFocusBlur = {
+    onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+      e.currentTarget.style.borderColor = '#1A73E8';
+    },
+    onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+      e.currentTarget.style.borderColor = '#d2d6da';
+    },
+  };
+
+  const selectFocusBlur = {
+    onFocus: (e: React.FocusEvent<HTMLSelectElement>) => {
+      e.currentTarget.style.borderColor = '#1A73E8';
+    },
+    onBlur: (e: React.FocusEvent<HTMLSelectElement>) => {
+      e.currentTarget.style.borderColor = '#d2d6da';
+    },
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -282,81 +302,165 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 1000,
+        padding: '24px',
       }}
       onClick={onClose}
     >
       <div
         style={{
-          background: '#fff',
+          background: 'white',
           borderRadius: 12,
-          padding: '28px 32px',
-          width: 460,
-          maxWidth: '92vw',
+          boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+          width: '100%',
+          maxWidth: 440,
           maxHeight: '90vh',
           overflowY: 'auto',
-          boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+          paddingTop: 20,
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700, color: '#344767' }}>
-          {isEdit ? "Modifier l'utilisateur" : 'Ajouter un utilisateur'}
-        </h3>
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Nom complet */}
+        <div
+          style={{
+            margin: '-20px 16px 0',
+            background: 'linear-gradient(195deg, #EC407A, #D81B60)',
+            borderRadius: 10,
+            padding: '14px 20px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(233,30,99,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
           <div>
-            <label style={labelStyle}>Nom complet *</label>
+            <p style={{ color: 'white', fontSize: 14, fontWeight: 700, margin: 0 }}>
+              {isEdit ? "Modifier l'utilisateur" : 'Nouvel utilisateur'}
+            </p>
+            <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, margin: '3px 0 0' }}>
+              {isEdit ? 'Mettre à jour le compte' : "Créer un compte d'accès GymFlow"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              border: '1px solid rgba(255,255,255,0.4)',
+              color: 'white',
+              width: 28,
+              height: 28,
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontSize: 14,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <form
+          onSubmit={handleSubmit}
+          style={{ padding: '28px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={fieldLabelStyle}>
+              Nom complet <span style={{ color: '#F44335' }}>*</span>
+            </label>
             <input
               type="text"
+              placeholder="Jean Dupont"
               value={form.fullName}
               onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
-              placeholder="Jean Dupont"
-              style={inputStyle}
+              style={inputBaseStyle}
+              {...inputFocusBlur}
             />
           </div>
 
-          {/* Email */}
-          <div>
-            <label style={labelStyle}>Email *</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={fieldLabelStyle}>
+              Email <span style={{ color: '#F44335' }}>*</span>
+            </label>
             <input
               type="email"
+              placeholder="jean.dupont@exemple.com"
               value={form.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              placeholder="jean.dupont@exemple.com"
-              style={inputStyle}
+              style={inputBaseStyle}
+              {...inputFocusBlur}
             />
           </div>
 
-          {/* Mot de passe (création uniquement) */}
           {!isEdit && (
-            <div>
-              <label style={labelStyle}>Mot de passe *</label>
-              <input
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                placeholder="••••••••"
-                style={inputStyle}
-              />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={fieldLabelStyle}>
+                Mot de passe <span style={{ color: '#F44335' }}>*</span>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                  style={{
+                    ...inputBaseStyle,
+                    padding: '10px 42px 10px 14px',
+                  }}
+                  {...inputFocusBlur}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    color: '#7b809a',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Rôle */}
-          <div>
-            <label style={labelStyle}>Rôle</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={fieldLabelStyle}>Rôle</label>
             <select
               value={form.role}
               onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserFormData['role'] }))}
-              style={{ ...inputStyle, cursor: 'pointer' }}
+              style={{
+                ...inputBaseStyle,
+                cursor: 'pointer',
+                background: 'white',
+              }}
+              {...selectFocusBlur}
             >
-              <option value="ADMIN">Admin</option>
               <option value="CASHIER">Caissier</option>
+              <option value="ADMIN">Admin</option>
               <option value="CONTROLLER">Contrôleur</option>
             </select>
           </div>
 
-          {/* Statut */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#344767' }}>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: 13,
+              color: '#344767',
+              cursor: 'pointer',
+            }}
+          >
             <input
               type="checkbox"
               checked={form.isActive}
@@ -368,16 +472,16 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
 
           {err && <p style={{ color: '#F44335', fontSize: 12, margin: 0 }}>{err}</p>}
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+          <div style={{ display: 'flex', gap: 10, paddingTop: 8, borderTop: '1px solid #f0f2f5' }}>
             <button
               type="button"
               onClick={onClose}
               style={{
                 flex: 1,
-                padding: '9px 0',
+                padding: '10px 0',
                 borderRadius: 8,
                 border: '1px solid #d2d6da',
-                background: '#fff',
+                background: 'white',
                 color: '#7b809a',
                 fontSize: 13,
                 fontWeight: 600,
@@ -391,18 +495,18 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
               disabled={saving}
               style={{
                 flex: 1,
-                padding: '9px 0',
+                padding: '10px 0',
                 borderRadius: 8,
                 border: 'none',
-                background: 'linear-gradient(195deg,#49a3f1,#1A73E8)',
-                color: '#fff',
+                background: saving ? '#a0aec0' : 'linear-gradient(195deg, #EC407A, #D81B60)',
+                color: 'white',
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: saving ? 'not-allowed' : 'pointer',
-                opacity: saving ? 0.7 : 1,
+                boxShadow: saving ? 'none' : '0 3px 10px rgba(233,30,99,0.3)',
               }}
             >
-              {saving ? 'Enregistrement…' : 'Enregistrer'}
+              {saving ? 'Enregistrement…' : isEdit ? 'Enregistrer' : "Créer l'utilisateur"}
             </button>
           </div>
         </form>
