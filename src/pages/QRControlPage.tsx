@@ -1,21 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  ScanLine,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Users,
-  Ticket,
-  Camera,
-} from 'lucide-react';
+import { ScanLine, CheckCircle, XCircle, Users, Ticket } from 'lucide-react';
 import api from '../api/axios';
 import Loader from '../components/Loader';
-import Modal from '../components/Modal';
 import type { AccessLog } from '../types';
 
-interface ValidationResult {
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface VerifyResult {
   success: boolean;
   message: string;
+  membre?: { nom: string; prenom: string };
+  subscription?: { type_forfait: string; date_prochain_paiement: string };
   ticket?: {
     code_ticket: string;
     activity?: { nom: string };
@@ -23,44 +18,121 @@ interface ValidationResult {
   };
 }
 
-interface KpiCard {
+interface KpiDef {
   label: string;
-  value: number | null;
-  icon: React.ElementType;
-  iconBg: string;
-  iconColor: string;
+  value: string | null;
+  Icon: React.ElementType;
+  gradient: string;
+  shadow: string;
+  footer: string;
 }
+
+// ── SVG QR placeholder ────────────────────────────────────────────────────────
+
+function QrIcon() {
+  return (
+    <svg
+      width="48"
+      height="48"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#b0b7c3"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="5" y="5" width="3" height="3" fill="#b0b7c3" stroke="none" />
+      <rect x="16" y="5" width="3" height="3" fill="#b0b7c3" stroke="none" />
+      <rect x="5" y="16" width="3" height="3" fill="#b0b7c3" stroke="none" />
+      <path d="M14 14h2v2h-2z M18 14h3 M14 18h2 M18 18h3 M14 21h2 M20 21h1 M20 17v2" />
+    </svg>
+  );
+}
+
+// ── Camera corner decorators ──────────────────────────────────────────────────
+
+function CameraCorners() {
+  const base: React.CSSProperties = {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    border: '3px solid #1A73E8',
+  };
+  return (
+    <>
+      <span style={{ ...base, top: 0, left: 0, borderRight: 'none', borderBottom: 'none', borderRadius: '4px 0 0 0' }} />
+      <span style={{ ...base, top: 0, right: 0, borderLeft: 'none', borderBottom: 'none', borderRadius: '0 4px 0 0' }} />
+      <span style={{ ...base, bottom: 0, left: 0, borderRight: 'none', borderTop: 'none', borderRadius: '0 0 0 4px' }} />
+      <span style={{ ...base, bottom: 0, right: 0, borderLeft: 'none', borderTop: 'none', borderRadius: '0 0 4px 0' }} />
+    </>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export default function QRControlPage() {
   const [code, setCode] = useState('');
   const [validating, setValidating] = useState(false);
-  const [result, setResult] = useState<ValidationResult | null>(null);
+  const [result, setResult] = useState<VerifyResult | null>(null);
   const [logs, setLogs] = useState<AccessLog[]>([]);
-  const [loadingLogs, setLoadingLogs] = useState(false);
-  const [scanModalOpen, setScanModalOpen] = useState(false);
+  const [loadingLogs, setLoadingLogs] = useState(true);
+  const [cameraActive, setCameraActive] = useState(false);
+
   const inputRef = useRef<HTMLInputElement>(null);
-  const modalInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // ── Data fetching ───────────────────────────────────────────────────────────
 
   const fetchLogs = async () => {
     setLoadingLogs(true);
     try {
-      const res = await api.get('/access-logs?limit=10');
+      const res = await api.get('/access-logs?period=today&sort=desc');
       const data = res.data?.data ?? res.data;
       setLogs(Array.isArray(data) ? data : []);
-    } catch { /* silent */ }
-    finally { setLoadingLogs(false); }
+    } catch {
+      // silent — keep previous state
+    } finally {
+      setLoadingLogs(false);
+    }
   };
 
   useEffect(() => {
     fetchLogs();
     inputRef.current?.focus();
+    return () => {
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
   }, []);
 
-  useEffect(() => {
-    if (scanModalOpen) {
-      setTimeout(() => modalInputRef.current?.focus(), 100);
+  // ── Camera ──────────────────────────────────────────────────────────────────
+
+  const handleToggleCamera = async () => {
+    if (cameraActive) {
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      setCameraActive(false);
+      return;
     }
-  }, [scanModalOpen]);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setCameraActive(true);
+    } catch {
+      // Bug B10 — caméra non fonctionnelle dans cet environnement
+      setCameraActive(false);
+    }
+  };
+
+  // ── Validation ──────────────────────────────────────────────────────────────
 
   const handleValidate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,22 +140,22 @@ export default function QRControlPage() {
     setValidating(true);
     setResult(null);
     try {
-      const res = await api.post('/tickets/validate', { code: code.trim() });
+      const res = await api.post('/access-logs/verify', { code: code.trim() });
       const data = res.data?.data ?? res.data;
       setResult({
         success: true,
         message: data.message ?? 'Accès autorisé',
+        membre: data.membre,
+        subscription: data.subscription,
         ticket: data.ticket,
       });
       fetchLogs();
-      setScanModalOpen(false);
     } catch (err: unknown) {
       const errData = (err as { response?: { data?: { message?: string } } })?.response?.data;
       setResult({
         success: false,
-        message: errData?.message ?? 'Ticket invalide ou expiré.',
+        message: errData?.message ?? 'Code inconnu ou accès refusé.',
       });
-      setScanModalOpen(false);
     } finally {
       setValidating(false);
       setCode('');
@@ -91,230 +163,562 @@ export default function QRControlPage() {
     }
   };
 
-  const todaySuccesses = logs.filter(
+  // ── KPI computation ─────────────────────────────────────────────────────────
+
+  const totalEntrees = logs.length;
+  const membresUniques = new Set(
+    logs.map((l) => (l as AccessLog & { id_membre?: number }).id_membre ?? l.id)
+  ).size;
+  const ticketsValides = logs.filter(
     (l) => l.resultat === 'SUCCES' || l.resultat === 'SUCCESS'
   ).length;
 
-  const kpiCards: KpiCard[] = [
+  const kpiDefs: KpiDef[] = [
     {
       label: "Entrées aujourd'hui",
-      value: todaySuccesses,
-      icon: CheckCircle,
-      iconBg: 'bg-emerald-100',
-      iconColor: 'text-emerald-600',
+      value: loadingLogs ? null : String(totalEntrees),
+      Icon: CheckCircle,
+      gradient: 'linear-gradient(195deg, #66BB6A, #43A047)',
+      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(76,175,80,0.3)',
+      footer: 'Accès enregistrés',
     },
     {
       label: 'Membres accédés',
-      value: logs.length,
-      icon: Users,
-      iconBg: 'bg-amber-100',
-      iconColor: 'text-amber-600',
+      value: loadingLogs ? null : String(membresUniques),
+      Icon: Users,
+      gradient: 'linear-gradient(195deg, #FFA726, #fb8c00)',
+      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(251,140,0,0.3)',
+      footer: 'Membres uniques',
     },
     {
       label: 'Tickets validés',
-      value: logs.filter((l) => l.resultat === 'SUCCES' || l.resultat === 'SUCCESS').length,
-      icon: Ticket,
-      iconBg: 'bg-blue-100',
-      iconColor: 'text-blue-600',
+      value: loadingLogs ? null : String(ticketsValides),
+      Icon: Ticket,
+      gradient: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.3)',
+      footer: 'Scans accordés',
     },
   ];
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Contrôle d'accès par QR code</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Scanner et valider l'accès client</p>
-        </div>
-        <button
-          onClick={() => setScanModalOpen(true)}
-          style={{ background: 'linear-gradient(135deg, #D4A843 0%, #C49B38 100%)' }}
-          className="flex items-center gap-2 text-white font-medium rounded-lg px-4 py-2.5 text-sm hover:opacity-90 transition"
-        >
-          <ScanLine className="w-4 h-4" />
-          Scanner le code QR
-        </button>
-      </div>
+  // ── Render ──────────────────────────────────────────────────────────────────
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {kpiCards.map((card) => (
-          <div key={card.label} className="bg-white border border-gray-100 rounded-xl shadow-sm p-5">
-            <div className="flex items-center gap-3">
-              <div className={`p-3 rounded-xl ${card.iconBg}`}>
-                <card.icon className={`w-5 h-5 ${card.iconColor}`} />
-              </div>
-              <div>
-                <p className="text-gray-500 text-sm">{card.label}</p>
-                <p className="text-gray-900 font-bold text-2xl">{card.value ?? '—'}</p>
-              </div>
+  return (
+    <div
+      style={{
+        background: '#f0f2f5',
+        padding: '20px 24px 24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 20,
+      }}
+    >
+      {/* ── BLOC 1 — KPI Row ─────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          gap: 16,
+          marginTop: 14,
+        }}
+      >
+        {kpiDefs.map((kpi) => (
+          <div
+            key={kpi.label}
+            style={{
+              background: '#fff',
+              borderRadius: 12,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+              padding: '14px 16px 12px',
+              position: 'relative',
+            }}
+          >
+            {/* Floating icon */}
+            <div
+              style={{
+                position: 'absolute',
+                top: -14,
+                left: 16,
+                width: 48,
+                height: 48,
+                borderRadius: 10,
+                background: kpi.gradient,
+                boxShadow: kpi.shadow,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <kpi.Icon size={22} color="#fff" />
+            </div>
+
+            {/* Right-aligned label + value */}
+            <div style={{ textAlign: 'right', paddingTop: 6 }}>
+              <p
+                style={{
+                  fontSize: 11,
+                  color: '#7b809a',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  margin: 0,
+                }}
+              >
+                {kpi.label}
+              </p>
+              <p
+                style={{
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: '#344767',
+                  margin: '4px 0 0',
+                }}
+              >
+                {kpi.value ?? '--'}
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div
+              style={{
+                borderTop: '1px solid #f0f2f5',
+                paddingTop: 6,
+                marginTop: 10,
+              }}
+            >
+              <p style={{ fontSize: 11, color: '#7b809a', margin: 0 }}>
+                {kpi.footer}
+              </p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Scan card */}
-      <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-10 flex flex-col items-center text-center">
-        <div className="w-24 h-24 border-4 border-amber-500 rounded-2xl flex items-center justify-center mb-5">
-          <ScanLine className="w-12 h-12 text-amber-500" />
-        </div>
-        <h2 className="text-gray-900 font-bold text-xl mb-2">Scan QR Code</h2>
-        <p className="text-gray-500 text-sm max-w-sm mb-6">
-          Cliquez sur le bouton ci-dessous pour scanner les codes QR des clients pour la validation d'accès
-        </p>
-        <button
-          onClick={() => setScanModalOpen(true)}
-          style={{ background: 'linear-gradient(135deg, #D4A843 0%, #C49B38 100%)' }}
-          className="flex items-center gap-2 text-white font-medium rounded-lg px-6 py-3 hover:opacity-90 transition"
-        >
-          <ScanLine className="w-4 h-4" />
-          Démarrer la session
-        </button>
-      </div>
-
-      {/* Result */}
-      {result && (
+      {/* ── BLOC 2 — Main Grid ───────────────────────────────────────────── */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1.2fr 1fr',
+          gap: 16,
+        }}
+      >
+        {/* ── Colonne Gauche — Card Scanner ──────────────────────────────── */}
         <div
-          className={`rounded-xl p-6 border flex items-start gap-4 ${
-            result.success
-              ? 'bg-emerald-50 border-emerald-200'
-              : 'bg-red-50 border-red-200'
-          }`}
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+            paddingBottom: 20,
+          }}
         >
-          {result.success ? (
-            <CheckCircle className="w-8 h-8 text-emerald-500 shrink-0 mt-0.5" />
-          ) : (
-            <XCircle className="w-8 h-8 text-red-500 shrink-0 mt-0.5" />
-          )}
-          <div>
-            <p className={`font-bold text-lg ${result.success ? 'text-emerald-700' : 'text-red-700'}`}>
-              {result.success ? 'Accès autorisé' : 'Accès refusé'}
-            </p>
-            <p className="text-gray-600 text-sm mt-1">{result.message}</p>
-            {result.ticket && (
-              <div className="mt-3 space-y-1 text-sm text-gray-500">
-                <p>Code : <span className="text-gray-900 font-mono font-medium">{result.ticket.code_ticket}</span></p>
-                {result.ticket.activity && (
-                  <p>Activité : <span className="text-gray-900">{result.ticket.activity.nom}</span></p>
+          {/* Header flottant orange */}
+          <div
+            style={{
+              margin: '-20px 16px 0',
+              background: 'linear-gradient(195deg, #FFA726, #fb8c00)',
+              borderRadius: 10,
+              padding: '16px 20px',
+              boxShadow:
+                '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(251,140,0,0.4)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <div>
+              <p
+                style={{
+                  color: '#fff',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  margin: 0,
+                }}
+              >
+                Contrôle d&apos;accès QR
+              </p>
+              <p
+                style={{
+                  color: 'rgba(255,255,255,0.75)',
+                  fontSize: 11,
+                  margin: '3px 0 0',
+                }}
+              >
+                Scanner ou saisir un code manuellement
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleToggleCamera}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: '1px solid rgba(255,255,255,0.5)',
+                borderRadius: 8,
+                padding: '7px 14px',
+                color: '#fff',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                transition: 'background 0.2s',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+              }}
+            >
+              <ScanLine size={14} />
+              {cameraActive ? 'Arrêter' : 'Scanner le code QR'}
+            </button>
+          </div>
+
+          {/* Body */}
+          <div
+            style={{
+              padding: '28px 20px 0',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+              alignItems: 'center',
+            }}
+          >
+            {/* Zone caméra 200×200 */}
+            <div
+              style={{
+                width: 200,
+                height: 200,
+                borderRadius: 12,
+                background: '#f0f2f5',
+                border: '2px dashed #d2d6da',
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                flexShrink: 0,
+              }}
+            >
+              <CameraCorners />
+
+              {cameraActive ? (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    borderRadius: 10,
+                  }}
+                />
+              ) : (
+                <>
+                  <QrIcon />
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: '#7b809a',
+                      margin: '10px 0 0',
+                      textAlign: 'center',
+                      padding: '0 16px',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    Caméra inactive — Cliquer sur Scanner
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* Saisie manuelle */}
+            <div style={{ width: '100%' }}>
+              <p
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  color: '#7b809a',
+                  margin: '0 0 6px',
+                }}
+              >
+                Saisie manuelle
+              </p>
+              <form
+                onSubmit={handleValidate}
+                style={{ display: 'flex', gap: 8 }}
+              >
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="ex: TKT-0041 ou SUB-0012"
+                  style={{
+                    flex: 1,
+                    border: '1px solid #d2d6da',
+                    borderRadius: 8,
+                    padding: '9px 12px',
+                    fontSize: 13,
+                    fontFamily: 'monospace',
+                    color: '#344767',
+                    outline: 'none',
+                    transition: 'border-color 0.2s',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#1A73E8';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#d2d6da';
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={validating || !code.trim()}
+                  style={{
+                    background: validating || !code.trim()
+                      ? '#a0aec0'
+                      : 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '9px 16px',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: validating || !code.trim() ? 'not-allowed' : 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'opacity 0.2s',
+                  }}
+                >
+                  {validating ? '…' : 'Valider'}
+                </button>
+              </form>
+            </div>
+
+            {/* Zone résultat */}
+            {result && (
+              <div
+                style={{
+                  width: '100%',
+                  background: result.success ? '#eaf7ea' : '#fde8e8',
+                  borderLeft: `3px solid ${result.success ? '#43A047' : '#F44335'}`,
+                  borderRadius: 8,
+                  padding: '12px 14px',
+                  display: 'flex',
+                  gap: 12,
+                  alignItems: 'flex-start',
+                }}
+              >
+                {result.success ? (
+                  <CheckCircle size={20} color="#43A047" style={{ flexShrink: 0, marginTop: 1 }} />
+                ) : (
+                  <XCircle size={20} color="#F44335" style={{ flexShrink: 0, marginTop: 1 }} />
                 )}
-                <p>
-                  Expiration :{' '}
-                  <span className="text-gray-900">
-                    {new Date(result.ticket.date_expiration).toLocaleDateString('fr-FR')}
-                  </span>
-                </p>
+                <div>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: result.success ? '#2e7d32' : '#c62828',
+                      margin: 0,
+                    }}
+                  >
+                    {result.success ? 'Accès accordé' : 'Accès refusé'}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: result.success ? '#388e3c' : '#d32f2f',
+                      margin: '3px 0 0',
+                    }}
+                  >
+                    {result.message}
+                  </p>
+                  {result.success && (result.membre || result.ticket || result.subscription) && (
+                    <div style={{ marginTop: 6 }}>
+                      {result.membre && (
+                        <p style={{ fontSize: 12, color: '#344767', margin: '2px 0' }}>
+                          <strong>Membre :</strong>{' '}
+                          {result.membre.prenom} {result.membre.nom}
+                        </p>
+                      )}
+                      {result.ticket && (
+                        <>
+                          <p style={{ fontSize: 12, color: '#344767', margin: '2px 0' }}>
+                            <strong>Ticket :</strong>{' '}
+                            <span style={{ fontFamily: 'monospace' }}>
+                              {result.ticket.code_ticket}
+                            </span>
+                            {result.ticket.activity && ` — ${result.ticket.activity.nom}`}
+                          </p>
+                          <p style={{ fontSize: 12, color: '#344767', margin: '2px 0' }}>
+                            <strong>Expiration :</strong>{' '}
+                            {new Date(result.ticket.date_expiration).toLocaleDateString('fr-FR')}
+                          </p>
+                        </>
+                      )}
+                      {result.subscription && (
+                        <p style={{ fontSize: 12, color: '#344767', margin: '2px 0' }}>
+                          <strong>Abonnement :</strong> {result.subscription.type_forfait} —{' '}
+                          {new Date(result.subscription.date_prochain_paiement).toLocaleDateString('fr-FR')}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
         </div>
-      )}
 
-      {/* Recent access logs */}
-      <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
-        <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-100">
-          <Clock className="w-4 h-4 text-amber-500" />
-          <h2 className="text-base font-semibold text-gray-900">Historique des scans</h2>
-        </div>
-
-        {loadingLogs ? (
-          <Loader size="sm" />
-        ) : logs.length === 0 ? (
-          <p className="px-6 py-8 text-center text-gray-400 text-sm">Aucun scan récent.</p>
-        ) : (
-          <div className="divide-y divide-gray-50">
-            {logs.map((log) => (
-              <div key={log.id} className="flex items-center justify-between px-6 py-3">
-                <div>
-                  <p className="text-sm text-gray-900 font-mono font-medium">
-                    {log.ticket?.code_ticket ?? `#${log.id_ticket ?? log.id}`}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {new Date(log.date_scan).toLocaleString('fr-FR')}
-                  </p>
-                </div>
-                <span
-                  className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
-                    log.resultat === 'SUCCES' || log.resultat === 'SUCCESS'
-                      ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                      : 'bg-red-50 text-red-600 border-red-200'
-                  }`}
-                >
-                  {log.resultat}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Scan Modal */}
-      <Modal
-        isOpen={scanModalOpen}
-        onClose={() => setScanModalOpen(false)}
-        title="Scanner le code QR"
-        size="md"
-      >
-        <div className="space-y-5">
-          {/* Camera placeholder */}
+        {/* ── Colonne Droite — Card Historique ───────────────────────────── */}
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+            paddingBottom: 16,
+          }}
+        >
+          {/* Header flottant sombre */}
           <div
-            className="rounded-xl overflow-hidden h-52 flex items-center justify-center relative"
-            style={{ background: '#111' }}
+            style={{
+              margin: '-20px 16px 0',
+              background: 'linear-gradient(195deg, #42424a, #191919)',
+              borderRadius: 10,
+              padding: '16px 20px',
+              boxShadow:
+                '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(0,0,0,0.3)',
+            }}
           >
-            <div
-              className="absolute inset-4 rounded-lg"
+            <p
               style={{
-                border: '2px dashed #D4A843',
+                color: '#fff',
+                fontSize: 14,
+                fontWeight: 700,
+                margin: 0,
               }}
-            />
-            <div className="flex flex-col items-center gap-2 z-10">
-              <Camera className="w-10 h-10 text-amber-400" />
-              <p className="text-gray-400 text-sm">Cliquez sur Démarrer pour scanner le code QR</p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            style={{ background: 'linear-gradient(135deg, #D4A843 0%, #C49B38 100%)' }}
-            className="w-full flex items-center justify-center gap-2 text-white font-medium rounded-lg py-2.5 text-sm hover:opacity-90 transition"
-          >
-            <Camera className="w-4 h-4" />
-            Démarrer la caméra
-          </button>
-
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-gray-200" />
-            <span className="text-xs text-gray-400">Ou entrez le code manuellement</span>
-            <div className="flex-1 h-px bg-gray-200" />
-          </div>
-
-          <form onSubmit={handleValidate} className="flex gap-2">
-            <input
-              ref={modalInputRef}
-              type="text"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="Enter QR code"
-              className="flex-1 bg-white border border-gray-300 text-gray-900 rounded-lg px-4 py-2.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition font-mono"
-            />
-            <button
-              type="submit"
-              disabled={validating || !code.trim()}
-              style={{ background: 'linear-gradient(135deg, #D4A843 0%, #C49B38 100%)' }}
-              className="px-5 py-2.5 text-white font-semibold rounded-lg text-sm hover:opacity-90 disabled:opacity-50 transition whitespace-nowrap"
             >
-              {validating ? '...' : 'Verify'}
-            </button>
-          </form>
+              Historique du jour
+            </p>
+            <p
+              style={{
+                color: 'rgba(255,255,255,0.75)',
+                fontSize: 11,
+                margin: '3px 0 0',
+              }}
+            >
+              Derniers accès scannés
+            </p>
+          </div>
 
-          <button
-            onClick={() => setScanModalOpen(false)}
-            className="w-full text-sm text-gray-500 hover:text-gray-700 transition"
-          >
-            Annuler
-          </button>
+          {/* Body */}
+          <div style={{ padding: '28px 16px 0' }}>
+            {loadingLogs ? (
+              <Loader size="sm" />
+            ) : logs.length === 0 ? (
+              <p
+                style={{
+                  textAlign: 'center',
+                  color: '#7b809a',
+                  fontSize: 13,
+                  padding: '24px 0',
+                  margin: 0,
+                }}
+              >
+                Aucun accès enregistré aujourd&apos;hui.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {logs.slice(0, 10).map((log) => {
+                  const isSuccess =
+                    log.resultat === 'SUCCES' || log.resultat === 'SUCCESS';
+                  const nomMembre =
+                    (log as AccessLog & { membre?: { nom: string; prenom: string } }).membre
+                      ? `${(log as AccessLog & { membre?: { nom: string; prenom: string } }).membre!.prenom} ${(log as AccessLog & { membre?: { nom: string; prenom: string } }).membre!.nom}`
+                      : log.ticket?.code_ticket ?? `Scan #${log.id}`;
+                  const detail = log.ticket?.code_ticket
+                    ? log.ticket.batch?.activity?.nom ?? log.ticket.code_ticket
+                    : `ID ${log.id}`;
+                  const heure = new Date(log.date_scan).toLocaleTimeString('fr-FR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+                  return (
+                    <div
+                      key={log.id}
+                      style={{
+                        background: '#f8f9fa',
+                        borderRadius: 8,
+                        padding: '9px 12px',
+                        display: 'flex',
+                        gap: 10,
+                        alignItems: 'center',
+                      }}
+                    >
+                      {/* Status dot */}
+                      <span
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          background: isSuccess ? '#43A047' : '#F44335',
+                          flexShrink: 0,
+                        }}
+                      />
+
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: '#344767',
+                            margin: 0,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {nomMembre}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: 11,
+                            color: '#7b809a',
+                            margin: '1px 0 0',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {detail}
+                        </p>
+                      </div>
+
+                      {/* Heure */}
+                      <p
+                        style={{
+                          fontSize: 11,
+                          color: '#7b809a',
+                          margin: 0,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {heure}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
-      </Modal>
+      </div>
     </div>
   );
 }
