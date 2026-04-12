@@ -262,42 +262,20 @@ export default function TransactionsPage() {
 
   return (
     <>
-      <style>{`
-        @keyframes tx-spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-
-      <div
-        style={{
-          padding: '20px 24px 24px',
-          marginTop: 14,
-          background: '#f0f2f5',
-          minHeight: 'calc(100vh - 60px)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 20,
-        }}
-      >
+      <div className="gf-page" style={{ minHeight: 'calc(100vh - 60px)' }}>
         {/* ── KPI mini-row ──────────────────────────────────────────────── */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3,1fr)',
-            gap: 12,
-            marginTop: 14,
-          }}
-        >
+        <div className="gf-kpi-grid-3 gf-page-top">
           {kpis.map((kpi) => (
             <div
               key={kpi.label}
+              className="gf-kpi-card"
               style={{
-                background: '#f8f9fa',
-                borderRadius: 8,
                 padding: '12px 14px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
+                background: '#f8f9fa',
+                boxShadow: 'none',
               }}
             >
               {/* icon */}
@@ -344,47 +322,25 @@ export default function TransactionsPage() {
         </div>
 
         {/* ── card wrapper ──────────────────────────────────────────────── */}
-        <div
-          style={{
-            background: '#fff',
-            borderRadius: 12,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-          }}
-        >
+        <div className="gf-card-outer">
+          <div className="gf-card">
           {/* ── floating header ─────────────────────────────────────────── */}
-          <div
-            style={{
-              margin: '-20px 16px 0',
-              background: 'linear-gradient(195deg,#49a3f1,#1A73E8)',
-              borderRadius: 10,
-              padding: '16px 20px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.4)',
-            }}
-          >
-            <div style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>Transactions</div>
-            <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 2 }}>
-              Historique des paiements et mouvements
+          <div className="gf-card-header gf-card-header--info">
+            <div>
+              <p className="gf-card-header__title">Transactions</p>
+              <p className="gf-card-header__sub">Historique des paiements et mouvements</p>
             </div>
           </div>
 
           {/* ── toolbar ─────────────────────────────────────────────────── */}
-          <div
-            style={{
-              padding: '16px 20px 0',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: 12,
-            }}
-          >
-            {/* left — type pills */}
+          <div className="gf-toolbar">
             <div style={{ display: 'flex', gap: 6 }}>
               {typePills.map((pill) => {
                 const active = typeFilter === pill.value;
                 return (
                   <button
                     key={pill.value}
+                    type="button"
                     onClick={() => handleTypeFilter(pill.value)}
                     style={{
                       padding: '6px 14px',
@@ -404,8 +360,7 @@ export default function TransactionsPage() {
               })}
             </div>
 
-            {/* right — period + dates + export */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               {/* period select */}
               <select
                 value={period}
@@ -462,6 +417,7 @@ export default function TransactionsPage() {
 
               {/* export button */}
               <button
+                type="button"
                 onClick={handleExport}
                 style={{
                   display: 'flex',
@@ -503,30 +459,14 @@ export default function TransactionsPage() {
           )}
 
           {/* ── table ───────────────────────────────────────────────────── */}
-          <div style={{ padding: '16px 20px 8px', overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
+          <div className="gf-card-body--table">
+            <table className="gf-table" style={{ minWidth: 640 }}>
               <thead>
                 <tr>
-                  {thCols.map((col, i, arr) => (
+                  {thCols.map((col) => (
                     <th
                       key={col}
-                      style={{
-                        background: 'linear-gradient(195deg,#49a3f1,#1A73E8)',
-                        color: '#fff',
-                        fontSize: 11,
-                        fontWeight: 700,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        padding: '10px 14px',
-                        textAlign: col === 'Montant' ? 'right' : 'left',
-                        borderRadius:
-                          i === 0
-                            ? '8px 0 0 8px'
-                            : i === arr.length - 1
-                            ? '0 8px 8px 0'
-                            : 0,
-                        whiteSpace: 'nowrap',
-                      }}
+                      style={col === 'Montant' ? { textAlign: 'right' } : undefined}
                     >
                       {col}
                     </th>
@@ -553,8 +493,7 @@ export default function TransactionsPage() {
                     </td>
                   </tr>
                 ) : (
-                  pageRows.map((tx, idx) => {
-                    const isLast = idx === pageRows.length - 1;
+                  pageRows.map((tx) => {
                     const isRevenu = tx.type === 'REVENU';
                     const membre = tx.member
                       ? `${tx.member.prenom} ${tx.member.nom}`
@@ -564,7 +503,6 @@ export default function TransactionsPage() {
                       <TxRow
                         key={tx.id}
                         tx={tx}
-                        isLast={isLast}
                         isRevenu={isRevenu}
                         membre={membre}
                       />
@@ -577,37 +515,20 @@ export default function TransactionsPage() {
 
           {/* ── pagination ──────────────────────────────────────────────── */}
           {!loading && transactions.length > 0 && (
-            <div
-              style={{
-                padding: '12px 20px 16px',
-                borderTop: '1px solid #f0f2f5',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <span style={{ fontSize: 12, color: '#7b809a' }}>
+            <div className="gf-pagination">
+              <span className="gf-pagination__info">
                 Affichage {pageStart + 1}–{pageEnd} sur {transactions.length}
               </span>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div className="gf-pagination__btns">
                 {Array.from({ length: totalPages }).map((_, i) => {
                   const p = i + 1;
                   const active = p === safePage;
                   return (
                     <button
                       key={p}
+                      type="button"
                       onClick={() => setPage(p)}
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 6,
-                        border: active ? 'none' : '0.5px solid #d2d6da',
-                        background: active ? '#1A73E8' : '#fff',
-                        color: active ? '#fff' : '#344767',
-                        fontSize: 12,
-                        fontWeight: active ? 700 : 400,
-                        cursor: 'pointer',
-                      }}
+                      className={`gf-page-btn${active ? ' gf-page-btn--active' : ''}`}
                     >
                       {p}
                     </button>
@@ -616,6 +537,7 @@ export default function TransactionsPage() {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
     </>
@@ -626,27 +548,17 @@ export default function TransactionsPage() {
 
 interface TxRowProps {
   tx: Transaction;
-  isLast: boolean;
   isRevenu: boolean;
   membre: string;
 }
 
-function TxRow({ tx, isLast, isRevenu, membre }: TxRowProps) {
-  const [hovered, setHovered] = useState(false);
-
+function TxRow({ tx, isRevenu, membre }: TxRowProps) {
   const tdBase: React.CSSProperties = {
-    padding: '11px 14px',
     fontSize: 13,
-    borderBottom: isLast ? 'none' : '1px solid #f0f2f5',
-    background: hovered ? '#fafafa' : 'transparent',
-    transition: 'background 0.1s',
   };
 
   return (
-    <tr
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <tr>
       {/* Date */}
       <td style={{ ...tdBase, color: '#7b809a', whiteSpace: 'nowrap' }}>
         {fmtDate(tx.date)}
@@ -660,15 +572,7 @@ function TxRow({ tx, isLast, isRevenu, membre }: TxRowProps) {
       {/* Type badge */}
       <td style={tdBase}>
         <span
-          style={{
-            display: 'inline-block',
-            padding: '3px 10px',
-            borderRadius: 6,
-            fontSize: 11,
-            fontWeight: 700,
-            background: isRevenu ? '#eaf7ea' : '#fde8e8',
-            color: isRevenu ? '#43A047' : '#F44335',
-          }}
+          className={`gf-badge ${isRevenu ? 'gf-badge--active' : 'gf-badge--inactive'}`}
         >
           {isRevenu ? 'Revenu' : 'Dépense'}
         </span>

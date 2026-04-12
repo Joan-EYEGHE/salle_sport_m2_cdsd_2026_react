@@ -18,14 +18,14 @@ const STATUS_LABELS: Record<string, string> = {
   EXPIRE: 'Expiré',
 };
 
-const STATUS_BADGE: Record<string, { bg: string; color: string }> = {
-  DISPONIBLE: { bg: '#eaf7ea', color: '#43A047' },
-  VENDU:      { bg: '#e8f4fd', color: '#1A73E8' },
-  UTILISE:    { bg: '#f3e5f5', color: '#8e24aa' },
-  EXPIRE:     { bg: '#fde8e8', color: '#F44335' },
-};
-
 const STATUSES: TicketStatus[] = ['ALL', 'DISPONIBLE', 'VENDU', 'UTILISE', 'EXPIRE'];
+
+const STATUS_BADGE_CLASS: Record<string, string> = {
+  DISPONIBLE: 'gf-badge gf-badge--active',
+  VENDU: 'gf-badge gf-badge--info',
+  UTILISE: 'gf-badge gf-badge--purple',
+  EXPIRE: 'gf-badge gf-badge--inactive',
+};
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -41,60 +41,8 @@ function fmtDate(val: string | undefined | null): string {
 // ─── sub-components ──────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
-  const s = STATUS_BADGE[status] ?? { bg: '#f0f2f5', color: '#344767' };
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '3px 10px',
-        borderRadius: 20,
-        fontSize: 11,
-        fontWeight: 600,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {STATUS_LABELS[status] ?? status}
-    </span>
-  );
-}
-
-interface ActionBtnProps {
-  title: string;
-  bg: string;
-  hoverBg: string;
-  color: string;
-  hoverColor: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}
-
-function ActionBtn({ title, bg, hoverBg, color, hoverColor, onClick, children }: ActionBtnProps) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      title={title}
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: 28,
-        height: 28,
-        borderRadius: 6,
-        border: 'none',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: hovered ? hoverBg : bg,
-        color: hovered ? hoverColor : color,
-        transition: 'background 0.15s, color 0.15s',
-        flexShrink: 0,
-      }}
-    >
-      {children}
-    </button>
-  );
+  const cls = STATUS_BADGE_CLASS[status] ?? 'gf-badge';
+  return <span className={cls}>{STATUS_LABELS[status] ?? status}</span>;
 }
 
 function SkeletonRow() {
@@ -130,13 +78,14 @@ interface KpiMiniProps {
 function KpiMini({ label, value, gradient, icon }: KpiMiniProps) {
   return (
     <div
+      className="gf-kpi-card"
       style={{
-        background: '#f8f9fa',
-        borderRadius: 8,
         padding: '12px 14px',
         display: 'flex',
         gap: 12,
         alignItems: 'center',
+        background: '#f8f9fa',
+        boxShadow: 'none',
       }}
     >
       <div
@@ -330,11 +279,6 @@ export default function TicketsPage() {
       <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
     </svg>
   );
-  const iconSearch = (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7b809a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-  );
 
   // ── render ─────────────────────────────────────────────────────────────────
 
@@ -347,25 +291,9 @@ export default function TicketsPage() {
         }
       `}</style>
 
-      <div
-        style={{
-          padding: '20px 24px 24px',
-          background: '#f0f2f5',
-          minHeight: 'calc(100vh - 60px)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 20,
-        }}
-      >
+      <div className="gf-page" style={{ minHeight: 'calc(100vh - 60px)' }}>
         {/* ── BLOC 1 : KPI mini row ── */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: 16,
-            marginTop: 14,
-          }}
-        >
+        <div className="gf-kpi-grid-4 gf-page-top">
           <KpiMini
             label="Total tickets"
             value={tickets.length}
@@ -393,48 +321,19 @@ export default function TicketsPage() {
         </div>
 
         {/* ── BLOC 2 : Card table ── */}
-        <div
-          style={{
-            background: '#fff',
-            borderRadius: 12,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-          }}
-        >
+        <div className="gf-card-outer">
+          <div className="gf-card">
           {/* ── Header flottant ── */}
-          <div
-            style={{
-              margin: '-20px 16px 0',
-              background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
-              borderRadius: 10,
-              padding: '16px 20px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.4)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
+          <div className="gf-card-header gf-card-header--info">
             <div>
-              <div style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>Tickets</div>
-              <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 2 }}>
-                Gestion des tickets d&apos;accès
-              </div>
+              <p className="gf-card-header__title">Tickets</p>
+              <p className="gf-card-header__sub">Gestion des tickets d&apos;accès</p>
             </div>
             {canWrite && (
               <button
+                type="button"
+                className="gf-btn-header"
                 onClick={() => { setGenerateOpen(true); setBatchMsg(''); }}
-                style={{
-                  background: 'rgba(255,255,255,0.2)',
-                  border: '1px solid rgba(255,255,255,0.4)',
-                  color: '#fff',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  padding: '7px 14px',
-                  borderRadius: 7,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
               >
                 <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
                 Générer ticket
@@ -443,55 +342,38 @@ export default function TicketsPage() {
           </div>
 
           {/* ── Toolbar ── */}
-          <div
-            style={{
-              padding: '16px 20px 0',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              gap: 12,
-              flexWrap: 'wrap',
-            }}
-          >
-            {/* Gauche : recherche + pills */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {/* Recherche */}
-              <div style={{ position: 'relative' }}>
-                <span
-                  style={{
-                    position: 'absolute',
-                    left: 10,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    display: 'flex',
-                  }}
+          <div className="gf-toolbar">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div className="gf-search-wrap">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#7b809a"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="gf-search-icon"
                 >
-                  {iconSearch}
-                </span>
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Rechercher un code..."
-                  style={{
-                    border: '1px solid #d2d6da',
-                    borderRadius: 8,
-                    padding: '8px 12px 8px 34px',
-                    fontSize: 13,
-                    color: '#344767',
-                    width: 220,
-                    outline: 'none',
-                  }}
                 />
               </div>
 
-              {/* Pills statut */}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {STATUSES.map((s) => {
                   const active = s === statusFilter;
                   return (
                     <button
                       key={s}
+                      type="button"
                       onClick={() => setStatusFilter(s)}
                       style={{
                         padding: '4px 12px',
@@ -512,8 +394,7 @@ export default function TicketsPage() {
               </div>
             </div>
 
-            {/* Droite : compteur */}
-            <span style={{ fontSize: 12, color: '#7b809a', paddingTop: 10, whiteSpace: 'nowrap' }}>
+            <span className="gf-count-label">
               {filtered.length} ticket{filtered.length !== 1 ? 's' : ''}
             </span>
           </div>
@@ -535,34 +416,13 @@ export default function TicketsPage() {
           )}
 
           {/* ── Tableau ── */}
-          <div style={{ padding: '16px 20px 8px', overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
+          <div className="gf-card-body--table">
+            <table className="gf-table" style={{ minWidth: 800 }}>
               <thead>
                 <tr>
                   {['Code', 'Membre', 'Activité', 'Date achat', 'Date utilisation', 'Statut', 'Actions'].map(
-                    (col, i, arr) => (
-                      <th
-                        key={col}
-                        style={{
-                          background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
-                          color: '#fff',
-                          fontSize: 11,
-                          fontWeight: 700,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.5px',
-                          padding: '10px 14px',
-                          textAlign: 'left',
-                          whiteSpace: 'nowrap',
-                          borderRadius:
-                            i === 0
-                              ? '8px 0 0 8px'
-                              : i === arr.length - 1
-                              ? '0 8px 8px 0'
-                              : 0,
-                        }}
-                      >
-                        {col}
-                      </th>
+                    (col) => (
+                      <th key={col}>{col}</th>
                     )
                   )}
                 </tr>
@@ -585,11 +445,10 @@ export default function TicketsPage() {
                     </td>
                   </tr>
                 ) : (
-                  pageRows.map((t, idx) => (
+                  pageRows.map((t) => (
                     <TicketRow
                       key={t.id}
                       ticket={t}
-                      isLast={idx === pageRows.length - 1}
                       canWrite={canWrite}
                       onView={() => setViewTicket(t)}
                       onDelete={() => handleDelete(t)}
@@ -604,37 +463,20 @@ export default function TicketsPage() {
 
           {/* ── Pagination ── */}
           {!loading && filtered.length > 0 && (
-            <div
-              style={{
-                padding: '12px 20px 16px',
-                borderTop: '1px solid #f0f2f5',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <span style={{ fontSize: 12, color: '#7b809a' }}>
+            <div className="gf-pagination">
+              <span className="gf-pagination__info">
                 Affichage {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} sur {filtered.length}
               </span>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div className="gf-pagination__btns">
                 {Array.from({ length: totalPages }).map((_, i) => {
                   const p = i + 1;
                   const active = p === safePage;
                   return (
                     <button
                       key={p}
+                      type="button"
                       onClick={() => setPage(p)}
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 6,
-                        border: active ? 'none' : '0.5px solid #d2d6da',
-                        background: active ? '#1A73E8' : '#fff',
-                        color: active ? '#fff' : '#344767',
-                        fontSize: 12,
-                        fontWeight: active ? 700 : 400,
-                        cursor: 'pointer',
-                      }}
+                      className={`gf-page-btn${active ? ' gf-page-btn--active' : ''}`}
                     >
                       {p}
                     </button>
@@ -643,6 +485,7 @@ export default function TicketsPage() {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
 
@@ -855,7 +698,6 @@ export default function TicketsPage() {
 
 interface TicketRowProps {
   ticket: TicketType;
-  isLast: boolean;
   canWrite: boolean;
   onView: () => void;
   onDelete: () => void;
@@ -863,8 +705,7 @@ interface TicketRowProps {
   iconTrash: React.ReactNode;
 }
 
-function TicketRow({ ticket: t, isLast, canWrite, onView, onDelete, iconEye, iconTrash }: TicketRowProps) {
-  const [hovered, setHovered] = useState(false);
+function TicketRow({ ticket: t, canWrite, onView, onDelete, iconEye, iconTrash }: TicketRowProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ext = t as any;
 
@@ -873,17 +714,9 @@ function TicketRow({ ticket: t, isLast, canWrite, onView, onDelete, iconEye, ico
     : '—';
 
   return (
-    <tr
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        borderBottom: isLast ? 'none' : '1px solid #f0f2f5',
-        background: hovered ? '#fafafa' : '#fff',
-        transition: 'background 0.1s',
-      }}
-    >
+    <tr>
       {/* Code */}
-      <td style={{ padding: '12px 14px' }}>
+      <td>
         <span
           style={{
             background: '#f0f2f5',
@@ -901,54 +734,50 @@ function TicketRow({ ticket: t, isLast, canWrite, onView, onDelete, iconEye, ico
       </td>
 
       {/* Membre */}
-      <td style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}>
+      <td style={{ fontSize: 13, color: '#344767' }}>
         {memberName}
       </td>
 
       {/* Activité */}
-      <td style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}>
+      <td style={{ fontSize: 13, color: '#344767' }}>
         {t.batch?.activity?.nom ?? '—'}
       </td>
 
       {/* Date achat */}
-      <td style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}>
+      <td style={{ fontSize: 13, color: '#344767' }}>
         {fmtDate(ext.created_at)}
       </td>
 
       {/* Date utilisation */}
-      <td style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}>
+      <td style={{ fontSize: 13, color: '#344767' }}>
         {fmtDate(ext.date_utilisation)}
       </td>
 
       {/* Statut */}
-      <td style={{ padding: '12px 14px' }}>
+      <td>
         <StatusBadge status={t.status} />
       </td>
 
       {/* Actions */}
-      <td style={{ padding: '12px 14px' }}>
+      <td>
         <div style={{ display: 'flex', gap: 6 }}>
-          <ActionBtn
-            title="Voir le détail"
-            bg="#eaf7ea"
-            hoverBg="#43A047"
-            color="#43A047"
-            hoverColor="#fff"
+          <button
+            type="button"
+            className="gf-btn-action gf-btn-action--view"
+            title="Voir"
             onClick={onView}
           >
             {iconEye}
-          </ActionBtn>
+          </button>
           {canWrite && (
-            <ActionBtn
+            <button
+              type="button"
+              className="gf-btn-action gf-btn-action--delete"
               title="Supprimer"
-              bg="#fde8e8"
-              hoverBg="#F44335"
-              color="#F44335"
-              hoverColor="#fff"
               onClick={onDelete}
             >
               {iconTrash}
-            </ActionBtn>
+            </button>
           )}
         </div>
       </td>
