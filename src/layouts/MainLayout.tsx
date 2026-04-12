@@ -325,6 +325,7 @@ export default function MainLayout() {
             {/* Bell */}
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <button
+                onClick={() => navigate('/expirations')}
                 style={{
                   background: 'none',
                   border: 'none',
