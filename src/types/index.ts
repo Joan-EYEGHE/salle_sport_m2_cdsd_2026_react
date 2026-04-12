@@ -97,3 +97,19 @@ export interface AccessLogStats {
   total_echec: number;
   taux_succes: number;
 }
+
+export interface MemberSearchResult {
+  id: number;
+  nom: string;
+  prenom: string;
+  email?: string;
+  initials?: string;
+}
+
+export interface BatchFormOption {
+  id: number;
+  name: string;
+  amount: number;
+  duration_days?: number;
+  duration_type?: 'MENSUEL' | 'TRIMESTRIEL' | 'ANNUEL';
+}

@@ -1,442 +1,951 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Info } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
-import Loader from '../components/Loader';
-import type { Activity } from '../types';
+import type { Activity, BatchFormOption, MemberSearchResult } from '../types';
+
+// ─── helpers ────────────────────────────────────────────────────────────────
 
 function fmt(n: number) {
   return new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
 }
 
-type ForfaitType = 'HEBDO' | 'MENSUEL' | 'TRIMESTRIEL' | 'ANNUEL';
-
-interface ForfaitOption {
-  type: ForfaitType;
-  label: string;
-  priceKey: keyof Activity;
+function today() {
+  return new Date().toISOString().split('T')[0];
 }
 
-const forfaitOptions: ForfaitOption[] = [
-  { type: 'HEBDO', label: 'Hebdomadaire', priceKey: 'prix_hebdomadaire' },
-  { type: 'MENSUEL', label: 'Mensuel', priceKey: 'prix_mensuel' },
-  { type: 'TRIMESTRIEL', label: 'Trimestriel', priceKey: 'prix_trimestriel' },
-  { type: 'ANNUEL', label: 'Annuel', priceKey: 'prix_annuel' },
-];
+function addDays(date: string, days: number): string {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
 
-const inputClass =
-  'w-full bg-white border border-gray-300 text-gray-900 rounded-lg px-4 py-3 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition';
+function calcEndDate(start: string, batch: BatchFormOption): string {
+  if (!start || !batch) return '';
+  const d = new Date(start);
+  if (batch.duration_days) {
+    d.setDate(d.getDate() + batch.duration_days);
+  } else {
+    const map: Record<string, number> = { MENSUEL: 1, TRIMESTRIEL: 3, ANNUEL: 12 };
+    const months = map[batch.duration_type ?? 'MENSUEL'] ?? 1;
+    d.setMonth(d.getMonth() + months);
+  }
+  return d.toISOString().split('T')[0];
+}
 
-const labelClass = 'block text-gray-500 text-sm font-medium mb-1.5';
+function memberInitials(m: MemberSearchResult): string {
+  return ((m.prenom?.[0] ?? '') + (m.nom?.[0] ?? '')).toUpperCase();
+}
+
+// ─── styles ─────────────────────────────────────────────────────────────────
+
+const S = {
+  page: {
+    background: '#f0f2f5',
+    padding: '20px 24px 24px',
+    display: 'flex' as const,
+    flexDirection: 'column' as const,
+    gap: 20,
+    minHeight: '100%',
+  },
+  card: {
+    background: '#fff',
+    borderRadius: 12,
+    boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+    overflow: 'visible' as const,
+  },
+  headerCreation: {
+    margin: '-20px 16px 0',
+    borderRadius: 10,
+    padding: '16px 20px',
+    background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.4)',
+  },
+  headerRenewal: {
+    margin: '-20px 16px 0',
+    borderRadius: 10,
+    padding: '16px 20px',
+    background: 'linear-gradient(195deg, #66BB6A, #43A047)',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(67,160,71,0.4)',
+  },
+  label: {
+    display: 'block' as const,
+    fontSize: 11,
+    fontWeight: 700,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.06em',
+    color: '#7b809a',
+    marginBottom: 6,
+  },
+  input: {
+    width: '100%',
+    boxSizing: 'border-box' as const,
+    border: '1px solid #d2d6da',
+    borderRadius: 8,
+    padding: '10px 14px',
+    fontSize: 13,
+    color: '#344767',
+    outline: 'none',
+    background: '#fff',
+    transition: 'border-color 0.2s',
+  },
+  inputDisabled: {
+    width: '100%',
+    boxSizing: 'border-box' as const,
+    border: '1px solid #d2d6da',
+    borderRadius: 8,
+    padding: '10px 14px',
+    fontSize: 13,
+    color: '#7b809a',
+    background: '#f8f9fa',
+    outline: 'none',
+  },
+  inputError: {
+    border: '1px solid #F44335',
+  },
+  select: {
+    width: '100%',
+    boxSizing: 'border-box' as const,
+    border: '1px solid #d2d6da',
+    borderRadius: 8,
+    padding: '10px 14px',
+    fontSize: 13,
+    color: '#344767',
+    outline: 'none',
+    background: '#fff',
+    cursor: 'pointer',
+    transition: 'border-color 0.2s',
+    appearance: 'none' as const,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237b809a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+    backgroundRepeat: 'no-repeat' as const,
+    backgroundPosition: 'right 12px center',
+    paddingRight: 36,
+  },
+};
+
+// ─── component ───────────────────────────────────────────────────────────────
+
+type Mode = 'creation' | 'renewal';
+
+interface RenewalContext {
+  memberName: string;
+  activityName: string;
+  oldEndDate: string;
+}
 
 export default function SubscriptionForm() {
-  const { id } = useParams<{ id?: string }>();
   const navigate = useNavigate();
-  const isActivityMode = Boolean(id);
+  const [searchParams] = useSearchParams();
 
+  const qMode = searchParams.get('mode') === 'renewal' ? 'renewal' : 'creation';
+  const qMemberId = searchParams.get('memberId');
+  const qSubscriptionId = searchParams.get('subscriptionId');
+  const hasQueryParams = Boolean(qMemberId || qSubscriptionId);
+
+  // ── mode ──
+  const [mode, setMode] = useState<Mode>(qMode);
+
+  // ── member search (création) ──
+  const [memberQuery, setMemberQuery] = useState('');
+  const [memberResults, setMemberResults] = useState<MemberSearchResult[]>([]);
+  const [memberSearching, setMemberSearching] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<MemberSearchResult | null>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── activities ──
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
-  const [loadingActivity, setLoadingActivity] = useState(false);
-  const [loadingActivities, setLoadingActivities] = useState(false);
-
-  const [nom, setNom] = useState('');
-  const [prenom, setPrenom] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [dateNaissance, setDateNaissance] = useState('');
-  const [lieuNaissance, setLieuNaissance] = useState('');
-  const [adresse, setAdresse] = useState('');
-
   const [selectedActivityId, setSelectedActivityId] = useState<number | ''>('');
-  const [forfait, setForfait] = useState<ForfaitType>('MENSUEL');
-  const [fraisInscription, setFraisInscription] = useState(0);
-  const [fraisUniquement, setFraisUniquement] = useState(false);
-  const [dateDebut, setDateDebut] = useState(new Date().toISOString().split('T')[0]);
-  const [avecInscription, setAvecInscription] = useState(true);
 
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  // ── batches ──
+  const [batches, setBatches] = useState<BatchFormOption[]>([]);
+  const [selectedBatchId, setSelectedBatchId] = useState<number | ''>('');
+  const [batchesLoading, setBatchesLoading] = useState(false);
 
+  // ── dates ──
+  const [startDate, setStartDate] = useState(today());
+  const [endDate, setEndDate] = useState('');
+
+  // ── payment ──
+  const [inscriptionFee, setInscriptionFee] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState('');
+
+  // ── renewal context ──
+  const [renewalCtx, setRenewalCtx] = useState<RenewalContext | null>(null);
+  const [renewalLoading, setRenewalLoading] = useState(false);
+
+  // ── warning abonnement actif ──
+  const [activeSubWarning, setActiveSubWarning] = useState(false);
+
+  // ── validation ──
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // ─── load activities on mount ────────────────────────────────────────────
   useEffect(() => {
-    if (!isActivityMode || !id) return;
-    setLoadingActivity(true);
-    api.get(`/activities/${id}`)
-      .then((res) => {
-        const data = res.data?.data ?? res.data;
-        setSelectedActivity(data);
-        setFraisInscription(data.frais_inscription ?? 0);
-        if (data.isMonthlyOnly) {
-          setForfait('MENSUEL');
-        } else {
-          const first = forfaitOptions.find((f) => (data[f.priceKey] as number) > 0);
-          if (first) setForfait(first.type);
-        }
-      })
-      .catch(() => setError("Impossible de charger l'activité."))
-      .finally(() => setLoadingActivity(false));
-  }, [id, isActivityMode]);
-
-  useEffect(() => {
-    if (isActivityMode) return;
-    setLoadingActivities(true);
     api.get('/activities')
       .then((res) => {
         const data = res.data?.data ?? res.data;
         setActivities(Array.isArray(data) ? data : []);
       })
-      .catch(() => setError('Impossible de charger les activités.'))
-      .finally(() => setLoadingActivities(false));
-  }, [isActivityMode]);
+      .catch(() => {});
+  }, []);
 
+  // ─── load batches when activity changes ──────────────────────────────────
   useEffect(() => {
-    if (isActivityMode || !selectedActivityId) return;
-    const act = activities.find((a) => a.id === Number(selectedActivityId));
-    if (act) {
-      setSelectedActivity(act);
-      setFraisInscription(act.frais_inscription ?? 0);
-      if (act.isMonthlyOnly) {
-        setForfait('MENSUEL');
-      } else {
-        const first = forfaitOptions.find((f) => (act[f.priceKey] as number) > 0);
-        if (first) setForfait(first.type);
+    if (!selectedActivityId) {
+      setBatches([]);
+      setSelectedBatchId('');
+      setEndDate('');
+      return;
+    }
+    setBatchesLoading(true);
+    api.get(`/batches?activityId=${selectedActivityId}`)
+      .then((res) => {
+        const data = res.data?.data ?? res.data;
+        setBatches(Array.isArray(data) ? data : []);
+        setSelectedBatchId('');
+        setEndDate('');
+      })
+      .catch(() => setBatches([]))
+      .finally(() => setBatchesLoading(false));
+  }, [selectedActivityId]);
+
+  // ─── recalculate end date ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!selectedBatchId || !startDate) { setEndDate(''); return; }
+    const batch = batches.find((b) => b.id === selectedBatchId);
+    if (batch) setEndDate(calcEndDate(startDate, batch));
+  }, [selectedBatchId, startDate, batches]);
+
+  // ─── check active subscription warning ──────────────────────────────────
+  useEffect(() => {
+    if (!selectedMember || !selectedActivityId || mode !== 'creation') {
+      setActiveSubWarning(false);
+      return;
+    }
+    api.get(`/subscriptions?memberId=${selectedMember.id}&activityId=${selectedActivityId}&status=active`)
+      .then((res) => {
+        const data = res.data?.data ?? res.data;
+        setActiveSubWarning(Array.isArray(data) ? data.length > 0 : false);
+      })
+      .catch(() => setActiveSubWarning(false));
+  }, [selectedMember, selectedActivityId, mode]);
+
+  // ─── load renewal data from query params ─────────────────────────────────
+  useEffect(() => {
+    if (mode !== 'renewal' || !qMemberId || !qSubscriptionId) return;
+    setRenewalLoading(true);
+
+    Promise.all([
+      api.get(`/members/${qMemberId}`),
+      api.get(`/subscriptions/${qSubscriptionId}`),
+    ])
+      .then(([mRes, sRes]) => {
+        const member = mRes.data?.data ?? mRes.data;
+        const sub = sRes.data?.data ?? sRes.data;
+
+        const memberResult: MemberSearchResult = {
+          id: member.id,
+          nom: member.nom,
+          prenom: member.prenom,
+          email: member.email,
+          initials: member.initials,
+        };
+        setSelectedMember(memberResult);
+
+        const actId = sub.id_activity ?? sub.activity_id;
+        if (actId) setSelectedActivityId(actId);
+
+        const oldEnd = sub.date_prochain_paiement ?? sub.end_date ?? sub.date_fin ?? '';
+        const newStart = oldEnd ? addDays(oldEnd, 1) : today();
+        setStartDate(newStart);
+        setInscriptionFee(0);
+
+        setRenewalCtx({
+          memberName: `${member.prenom} ${member.nom}`,
+          activityName: sub.activity?.nom ?? '',
+          oldEndDate: oldEnd,
+        });
+      })
+      .catch(() => {})
+      .finally(() => setRenewalLoading(false));
+  }, [mode, qMemberId, qSubscriptionId]);
+
+  // ─── member search debounce ──────────────────────────────────────────────
+  const handleMemberQueryChange = useCallback((val: string) => {
+    setMemberQuery(val);
+    setShowDropdown(true);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (!val.trim()) { setMemberResults([]); return; }
+    searchTimer.current = setTimeout(() => {
+      setMemberSearching(true);
+      api.get(`/members?search=${encodeURIComponent(val)}`)
+        .then((res) => {
+          const data = res.data?.data ?? res.data;
+          setMemberResults(Array.isArray(data) ? data.slice(0, 5) : []);
+        })
+        .catch(() => setMemberResults([]))
+        .finally(() => setMemberSearching(false));
+    }, 350);
+  }, []);
+
+  // close dropdown on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
       }
     }
-  }, [selectedActivityId, activities, isActivityMode]);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
-  const availableForfaits = selectedActivity
-    ? (selectedActivity.isMonthlyOnly
-        ? forfaitOptions.filter((f) => f.type === 'MENSUEL')
-        : forfaitOptions.filter((f) => (selectedActivity[f.priceKey] as number) > 0))
-    : [];
+  // ─── mode switch ─────────────────────────────────────────────────────────
+  function switchMode(m: Mode) {
+    if (m === mode) return;
+    setMode(m);
+    // reset form unless pre-filled via query params
+    if (!hasQueryParams) {
+      setSelectedMember(null);
+      setMemberQuery('');
+      setMemberResults([]);
+      setSelectedActivityId('');
+      setBatches([]);
+      setSelectedBatchId('');
+      setStartDate(today());
+      setEndDate('');
+      setInscriptionFee(0);
+      setPaymentMethod('');
+      setActiveSubWarning(false);
+      setRenewalCtx(null);
+      setFieldErrors({});
+      setSubmitError('');
+    }
+  }
 
-  const forfaitPrice = useMemo(() => {
-    if (!selectedActivity || fraisUniquement) return 0;
-    const key = forfaitOptions.find((f) => f.type === forfait)?.priceKey ?? 'prix_mensuel';
-    return (selectedActivity[key] as number) ?? 0;
-  }, [selectedActivity, fraisUniquement, forfait]);
+  // ─── derived ─────────────────────────────────────────────────────────────
+  const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? null;
+  const selectedActivity = activities.find((a) => a.id === selectedActivityId) ?? null;
+  const subscriptionAmount = selectedBatch?.amount ?? 0;
+  const feeAmount = mode === 'renewal' ? 0 : inscriptionFee;
+  const total = subscriptionAmount + feeAmount;
 
-  const fraisToApply = useMemo(
-    () => (avecInscription ? fraisInscription : 0),
-    [avecInscription, fraisInscription],
-  );
+  const isFormValid =
+    Boolean(selectedMember) &&
+    Boolean(selectedActivityId) &&
+    Boolean(selectedBatchId) &&
+    Boolean(startDate) &&
+    Boolean(paymentMethod);
 
-  const total = useMemo(() => forfaitPrice + fraisToApply, [forfaitPrice, fraisToApply]);
+  // ─── validation ──────────────────────────────────────────────────────────
+  function validate(): boolean {
+    const errs: Record<string, string> = {};
+    if (!selectedMember) errs.member = 'Veuillez sélectionner un membre';
+    if (!selectedActivityId) errs.activity = 'Veuillez sélectionner une activité';
+    if (!selectedBatchId) errs.batch = 'Veuillez sélectionner un forfait';
+    if (!startDate) errs.startDate = 'La date de début est requise';
+    if (!paymentMethod) errs.paymentMethod = 'Veuillez choisir un mode de paiement';
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // ─── submit ──────────────────────────────────────────────────────────────
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedActivity) return;
-    setSaving(true);
-    setError('');
-    setSuccess('');
+    if (!validate()) return;
+    setSubmitError('');
+    setSubmitting(true);
     try {
-      await api.post('/members/subscribe', {
-        nom,
-        prenom,
-        email: email || undefined,
-        phone: phone || undefined,
-        date_naissance: dateNaissance || undefined,
-        lieu_naissance: lieuNaissance || undefined,
-        adresse: adresse || undefined,
-        id_activity: selectedActivity.id,
-        type_forfait: forfait,
-        frais_inscription_payes: fraisToApply,
-        frais_uniquement: fraisUniquement,
-        date_debut: dateDebut,
-      });
-      setSuccess('Client créé avec succès !');
-      setTimeout(() => navigate('/members'), 1200);
+      const body: Record<string, unknown> = {
+        member_id: selectedMember!.id,
+        activity_id: selectedActivityId,
+        batch_id: selectedBatchId,
+        start_date: startDate,
+        end_date: endDate,
+        inscription_fee: feeAmount,
+        payment_method: paymentMethod,
+      };
+      if (mode === 'renewal' && qSubscriptionId) {
+        body.subscription_id = qSubscriptionId;
+        body.mode = 'renewal';
+      }
+      await api.post('/subscriptions', body);
+      const msg = mode === 'renewal' ? 'Abonnement renouvelé avec succès' : 'Abonnement créé avec succès';
+      setToastMsg(msg);
+      setTimeout(() => navigate('/members'), 1500);
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        "Erreur lors de la création.";
-      setError(msg);
+        'Une erreur est survenue. Veuillez réessayer.';
+      setSubmitError(msg);
     } finally {
-      setSaving(false);
+      setSubmitting(false);
     }
-  };
+  }
 
-  if (loadingActivity) return <Loader size="lg" />;
+  // ─── focus/blur helpers ──────────────────────────────────────────────────
+  function onFocus(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
+    e.currentTarget.style.borderColor = mode === 'renewal' ? '#43A047' : '#1A73E8';
+  }
+  function onBlur(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
+    e.currentTarget.style.borderColor = '#d2d6da';
+  }
+
+  // ─── render ──────────────────────────────────────────────────────────────
+  if (renewalLoading) {
+    return (
+      <div style={{ ...S.page, alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: '#7b809a', fontSize: 14 }}>Chargement…</div>
+      </div>
+    );
+  }
+
+  const accentColor = mode === 'renewal' ? '#43A047' : '#1A73E8';
+  const headerStyle = mode === 'renewal' ? S.headerRenewal : S.headerCreation;
+  const btnGradient = mode === 'renewal'
+    ? 'linear-gradient(195deg, #66BB6A, #43A047)'
+    : 'linear-gradient(195deg, #49a3f1, #1A73E8)';
+  const btnShadow = mode === 'renewal'
+    ? '0 3px 12px rgba(67,160,71,0.35)'
+    : '0 3px 12px rgba(26,115,232,0.35)';
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Nouveau Client</h1>
-          <p className="text-gray-500 text-sm mt-0.5">
-            {isActivityMode && selectedActivity
-              ? `Activité : ${selectedActivity.nom}`
-              : 'Sélectionnez une activité et renseignez les informations du membre'}
-          </p>
+    <div style={S.page}>
+      {/* ── switcher de mode ─────────────────────────────────────────── */}
+      <div style={{ marginTop: 14, display: 'flex' }}>
+        <div style={{ display: 'flex', border: '1px solid #d2d6da', borderRadius: 8, overflow: 'hidden' }}>
+          {(['creation', 'renewal'] as Mode[]).map((m) => {
+            const active = mode === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() => switchMode(m)}
+                style={{
+                  padding: '8px 18px',
+                  fontSize: 13,
+                  fontWeight: active ? 700 : 400,
+                  color: active ? '#fff' : '#7b809a',
+                  background: active ? '#1A73E8' : '#fff',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s, color 0.2s',
+                }}
+              >
+                {m === 'creation' ? 'Nouvel abonnement' : 'Renouvellement'}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg p-4">{error}</div>
-      )}
-      {success && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-lg p-4">{success}</div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Member info */}
-        <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-6">
-          <h2 className="text-gray-900 font-semibold text-base mb-4">Informations du membre</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>Prénom *</label>
-              <input
-                type="text"
-                required
-                value={prenom}
-                onChange={(e) => setPrenom(e.target.value)}
-                className={inputClass}
-                placeholder="Mamadou"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Nom *</label>
-              <input
-                type="text"
-                required
-                value={nom}
-                onChange={(e) => setNom(e.target.value)}
-                className={inputClass}
-                placeholder="Diallo"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Téléphone</label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className={inputClass}
-                placeholder="+221 77 123 45 67"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
-                placeholder="mamadou@email.com"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Date de naissance</label>
-              <input
-                type="date"
-                value={dateNaissance}
-                onChange={(e) => setDateNaissance(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Lieu de naissance</label>
-              <input
-                type="text"
-                value={lieuNaissance}
-                onChange={(e) => setLieuNaissance(e.target.value)}
-                className={inputClass}
-                placeholder="Dakar"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className={labelClass}>Adresse</label>
-              <input
-                type="text"
-                value={adresse}
-                onChange={(e) => setAdresse(e.target.value)}
-                className={inputClass}
-                placeholder="Dakar, Sénégal"
-              />
-            </div>
-          </div>
+      {/* ── card formulaire ──────────────────────────────────────────── */}
+      <div style={{ ...S.card, paddingTop: 20 }}>
+        {/* header flottant */}
+        <div style={headerStyle}>
+          <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, margin: 0 }}>
+            {mode === 'creation' ? 'Nouvel abonnement' : 'Renouvellement d\'abonnement'}
+          </p>
+          <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, margin: '4px 0 0' }}>
+            {mode === 'creation'
+              ? 'Renseignez les informations pour créer un abonnement'
+              : 'Renouvelez l\'abonnement d\'un membre existant'}
+          </p>
         </div>
 
-        {/* Subscription section */}
-        <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-6 space-y-5">
-          <h2 className="text-gray-900 font-semibold text-base">Abonnement</h2>
+        <form onSubmit={handleSubmit}>
+          <div style={{ padding: '28px 24px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Activity */}
-            <div>
-              <label className={labelClass}>Activité *</label>
-              {isActivityMode ? (
-                <div className="bg-gray-50 border border-gray-200 text-gray-900 rounded-lg px-4 py-3 text-sm">
-                  {selectedActivity?.nom ?? '...'}
+            {/* ── bannière renouvellement ─────────────────────────────── */}
+            {mode === 'renewal' && renewalCtx && (
+              <div style={{
+                background: '#eaf7ea',
+                borderLeft: '4px solid #43A047',
+                borderRadius: 8,
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
+                  <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#43A047" strokeWidth="2"/>
+                  <path d="M9 12L11 14L15 10" stroke="#43A047" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <div style={{ fontSize: 13, color: '#2e7d32', lineHeight: 1.5 }}>
+                  Renouvellement de <strong>{renewalCtx.memberName}</strong>{renewalCtx.activityName ? ` — ${renewalCtx.activityName}` : ''}.
+                  {renewalCtx.oldEndDate && (
+                    <> Ancien abonnement expiré le <strong>{new Date(renewalCtx.oldEndDate).toLocaleDateString('fr-FR')}</strong>.</>
+                  )}
+                  {' '}La nouvelle date de début est automatiquement fixée au lendemain.
                 </div>
-              ) : loadingActivities ? (
-                <Loader size="sm" />
+              </div>
+            )}
+
+            {/* ── membre ─────────────────────────────────────────────── */}
+            <div>
+              <label style={S.label}>Membre</label>
+              {mode === 'renewal' && selectedMember ? (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '8px 14px',
+                  border: '1px solid #d2d6da',
+                  borderRadius: 8,
+                  background: '#f8f9fa',
+                }}>
+                  <div style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}>
+                    {memberInitials(selectedMember)}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#344767' }}>
+                      {selectedMember.prenom} {selectedMember.nom}
+                    </div>
+                    {selectedMember.email && (
+                      <div style={{ fontSize: 12, color: '#7b809a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {selectedMember.email}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : selectedMember ? (
+                /* membre sélectionné en mode création */
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '8px 14px',
+                  border: '1px solid #d2d6da',
+                  borderRadius: 8,
+                  background: '#f8f9fa',
+                }}>
+                  <div style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}>
+                    {memberInitials(selectedMember)}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#344767' }}>
+                      {selectedMember.prenom} {selectedMember.nom}
+                    </div>
+                    {selectedMember.email && (
+                      <div style={{ fontSize: 12, color: '#7b809a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {selectedMember.email}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMember(null);
+                      setMemberQuery('');
+                      setMemberResults([]);
+                      setActiveSubWarning(false);
+                      setFieldErrors((prev) => { const n = { ...prev }; delete n.member; return n; });
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      color: '#1A73E8',
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                      padding: '2px 0',
+                    }}
+                  >
+                    Changer →
+                  </button>
+                </div>
               ) : (
+                /* champ recherche autocomplete */
+                <div ref={searchRef} style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    value={memberQuery}
+                    onChange={(e) => handleMemberQueryChange(e.target.value)}
+                    onFocus={(e) => { setShowDropdown(true); onFocus(e); }}
+                    onBlur={onBlur}
+                    placeholder="Rechercher un membre…"
+                    style={{
+                      ...S.input,
+                      ...(fieldErrors.member ? S.inputError : {}),
+                    }}
+                  />
+                  {showDropdown && (memberResults.length > 0 || memberSearching) && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      background: '#fff',
+                      border: '1px solid #d2d6da',
+                      borderRadius: 8,
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                      zIndex: 100,
+                      marginTop: 4,
+                      overflow: 'hidden',
+                    }}>
+                      {memberSearching ? (
+                        <div style={{ padding: '12px 14px', fontSize: 13, color: '#7b809a' }}>Recherche…</div>
+                      ) : memberResults.map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onMouseDown={() => {
+                            setSelectedMember(m);
+                            setMemberQuery('');
+                            setMemberResults([]);
+                            setShowDropdown(false);
+                            setFieldErrors((prev) => { const n = { ...prev }; delete n.member; return n; });
+                          }}
+                          style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            padding: '10px 14px',
+                            background: 'none',
+                            border: 'none',
+                            borderBottom: '1px solid #f0f2f5',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = '#f8faff'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+                        >
+                          <div style={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: '50%',
+                            background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#fff',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            flexShrink: 0,
+                          }}>
+                            {memberInitials(m)}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: '#344767' }}>
+                              {m.prenom} {m.nom}
+                            </div>
+                            {m.email && (
+                              <div style={{ fontSize: 11, color: '#7b809a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {m.email}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {fieldErrors.member && (
+                <p style={{ fontSize: 11, color: '#F44335', marginTop: 4 }}>{fieldErrors.member}</p>
+              )}
+            </div>
+
+            {/* ── grid 2 colonnes ────────────────────────────────────── */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+
+              {/* activité */}
+              <div>
+                <label style={S.label}>Activité</label>
+                {mode === 'renewal' && renewalCtx?.activityName ? (
+                  <input
+                    type="text"
+                    value={renewalCtx.activityName}
+                    disabled
+                    style={S.inputDisabled}
+                  />
+                ) : (
+                  <select
+                    value={selectedActivityId}
+                    onChange={(e) => {
+                      const val = e.target.value === '' ? '' : Number(e.target.value);
+                      setSelectedActivityId(val as number | '');
+                      setSelectedBatchId('');
+                      setFieldErrors((prev) => { const n = { ...prev }; delete n.activity; return n; });
+                    }}
+                    onFocus={onFocus}
+                    onBlur={onBlur}
+                    style={{
+                      ...S.select,
+                      ...(fieldErrors.activity ? S.inputError : {}),
+                    }}
+                  >
+                    <option value="">Sélectionner une activité</option>
+                    {activities.map((a) => (
+                      <option key={a.id} value={a.id}>{a.nom}</option>
+                    ))}
+                  </select>
+                )}
+                {fieldErrors.activity && (
+                  <p style={{ fontSize: 11, color: '#F44335', marginTop: 4 }}>{fieldErrors.activity}</p>
+                )}
+              </div>
+
+              {/* forfait */}
+              <div>
+                <label style={S.label}>Forfait</label>
                 <select
-                  value={selectedActivityId}
-                  onChange={(e) => setSelectedActivityId(e.target.value === '' ? '' : Number(e.target.value))}
-                  className={inputClass}
+                  value={selectedBatchId}
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? '' : Number(e.target.value);
+                    setSelectedBatchId(val as number | '');
+                    setFieldErrors((prev) => { const n = { ...prev }; delete n.batch; return n; });
+                  }}
+                  onFocus={onFocus}
+                  onBlur={onBlur}
+                  disabled={!selectedActivityId || batchesLoading}
+                  style={{
+                    ...S.select,
+                    ...(!selectedActivityId ? { opacity: 0.6, cursor: 'not-allowed' } : {}),
+                    ...(fieldErrors.batch ? S.inputError : {}),
+                  }}
                 >
-                  <option value="">-- Sélectionner une activité --</option>
-                  {activities.map((a) => (
-                    <option key={a.id} value={a.id}>{a.nom}</option>
+                  <option value="">
+                    {batchesLoading ? 'Chargement…' : 'Sélectionner un forfait'}
+                  </option>
+                  {batches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} — {fmt(b.amount)}
+                    </option>
                   ))}
                 </select>
-              )}
-            </div>
-
-            {/* Date debut */}
-            <div>
-              <label className={labelClass}>Date de début *</label>
-              <input
-                type="date"
-                value={dateDebut}
-                onChange={(e) => setDateDebut(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          {/* Forfaits — masqués si "frais uniquement" est actif */}
-          {selectedActivity && availableForfaits.length > 0 && !fraisUniquement && (
-            <div>
-              <label className={labelClass}>Type d'adhésion *</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {availableForfaits.map((f) => {
-                  const price = selectedActivity[f.priceKey] as number;
-                  const isSelected = forfait === f.type;
-                  return (
-                    <button
-                      key={f.type}
-                      type="button"
-                      onClick={() => setForfait(f.type)}
-                      className={`rounded-xl p-3 border-2 text-center transition ${
-                        isSelected
-                          ? 'border-amber-500 bg-amber-50'
-                          : 'border-gray-200 bg-white hover:border-amber-300'
-                      }`}
-                    >
-                      <p className={`text-xs font-semibold ${isSelected ? 'text-amber-700' : 'text-gray-500'}`}>
-                        {f.label}
-                      </p>
-                      <p className={`text-sm font-bold mt-1 ${isSelected ? 'text-amber-600' : 'text-gray-900'}`}>
-                        {fmt(price)}
-                      </p>
-                    </button>
-                  );
-                })}
+                {fieldErrors.batch && (
+                  <p style={{ fontSize: 11, color: '#F44335', marginTop: 4 }}>{fieldErrors.batch}</p>
+                )}
               </div>
-            </div>
-          )}
 
-          {/* Frais & options */}
-          {selectedActivity && (
-            <div className="space-y-3">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={avecInscription}
-                  onChange={(e) => setAvecInscription(e.target.checked)}
-                  className="accent-amber-500 w-4 h-4"
-                />
-                <span className="text-sm text-gray-700">
-                  Modifier les frais d'inscription
-                  <span className="text-gray-400 ml-1">(défaut : {fmt(selectedActivity?.frais_inscription ?? 0)})</span>
-                </span>
-              </label>
-
-              {avecInscription && (
-                <div>
-                  <label className={labelClass}>Montant des frais d'inscription (FCFA)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={fraisInscription}
-                    onChange={(e) => setFraisInscription(Number(e.target.value))}
-                    className={inputClass}
-                  />
-                </div>
-              )}
-
+              {/* date de début */}
               <div>
-                <label className={labelClass}>Méthode de paiement</label>
-                <select className={inputClass}>
-                  <option>Cash</option>
-                  <option>Virement</option>
-                  <option>Mobile Money</option>
-                </select>
-              </div>
-
-              <label className="flex items-center gap-3 cursor-pointer">
+                <label style={S.label}>Date de début</label>
                 <input
-                  type="checkbox"
-                  checked={fraisUniquement}
-                  onChange={(e) => setFraisUniquement(e.target.checked)}
-                  className="accent-amber-500 w-4 h-4"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setFieldErrors((prev) => { const n = { ...prev }; delete n.startDate; return n; });
+                  }}
+                  onFocus={onFocus}
+                  onBlur={onBlur}
+                  disabled={mode === 'renewal'}
+                  style={{
+                    ...(mode === 'renewal' ? S.inputDisabled : S.input),
+                    ...(fieldErrors.startDate ? S.inputError : {}),
+                  }}
                 />
-                <span className="text-sm text-gray-700">
-                  Prendre seulement les frais d'inscription
-                </span>
-              </label>
-            </div>
-          )}
-        </div>
-
-        {/* Recap */}
-        {selectedActivity && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Info className="w-4 h-4 text-amber-600" />
-              <span className="text-sm font-semibold text-amber-800">Récapitulatif</span>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Prix forfait</span>
-                <span>{fmt(forfaitPrice)}</span>
+                {fieldErrors.startDate && (
+                  <p style={{ fontSize: 11, color: '#F44335', marginTop: 4 }}>{fieldErrors.startDate}</p>
+                )}
               </div>
-              {avecInscription && (
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Frais d'inscription</span>
-                  <span>{fmt(fraisToApply)}</span>
+
+              {/* date de fin calculée */}
+              <div>
+                <label style={S.label}>Date de fin (calculée)</label>
+                <input
+                  type="text"
+                  value={endDate ? new Date(endDate).toLocaleDateString('fr-FR') : '—'}
+                  disabled
+                  style={S.inputDisabled}
+                />
+              </div>
+
+              {/* frais d'inscription */}
+              <div>
+                <label style={S.label}>Frais d'inscription (FCFA)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={mode === 'renewal' ? 0 : inscriptionFee}
+                  onChange={(e) => setInscriptionFee(Math.max(0, Number(e.target.value)))}
+                  onFocus={onFocus}
+                  onBlur={onBlur}
+                  disabled={mode === 'renewal'}
+                  style={mode === 'renewal' ? S.inputDisabled : S.input}
+                />
+              </div>
+
+              {/* mode de paiement */}
+              <div>
+                <label style={S.label}>Mode de paiement</label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => {
+                    setPaymentMethod(e.target.value);
+                    setFieldErrors((prev) => { const n = { ...prev }; delete n.paymentMethod; return n; });
+                  }}
+                  onFocus={onFocus}
+                  onBlur={onBlur}
+                  style={{
+                    ...S.select,
+                    ...(fieldErrors.paymentMethod ? S.inputError : {}),
+                  }}
+                >
+                  <option value="">Sélectionner</option>
+                  <option value="ESPECES">Espèces</option>
+                  <option value="MOBILE_MONEY">Mobile Money</option>
+                  <option value="VIREMENT">Virement</option>
+                </select>
+                {fieldErrors.paymentMethod && (
+                  <p style={{ fontSize: 11, color: '#F44335', marginTop: 4 }}>{fieldErrors.paymentMethod}</p>
+                )}
+              </div>
+            </div>
+
+            {/* ── warning abonnement actif ────────────────────────────── */}
+            {activeSubWarning && (
+              <div style={{
+                background: '#fff8f0',
+                borderLeft: '4px solid #fb8c00',
+                borderRadius: 8,
+                padding: '12px 16px',
+                fontSize: 13,
+                color: '#e65100',
+                lineHeight: 1.5,
+              }}>
+                Ce membre a déjà un abonnement actif sur cette activité. Vous pouvez continuer pour en créer un nouveau.
+              </div>
+            )}
+
+            {/* ── récapitulatif ───────────────────────────────────────── */}
+            {selectedBatch && (
+              <div style={{
+                background: '#f8f9fa',
+                borderRadius: 10,
+                padding: '16px 18px',
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7b809a', marginBottom: 12 }}>
+                  Récapitulatif
                 </div>
-              )}
-              <div className="border-t border-amber-200 pt-2 mt-2 flex items-center justify-between">
-                <span className="text-sm font-semibold text-gray-700">Montant Total :</span>
-                <span className="text-2xl font-bold text-amber-600">
-                  {new Intl.NumberFormat('fr-FR').format(total)}{' '}
-                  <span className="text-base font-semibold">FCFA</span>
-                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#344767' }}>
+                    <span>Abonnement {selectedActivity?.nom ?? ''} ({selectedBatch.name})</span>
+                    <span style={{ fontWeight: 600 }}>{fmt(subscriptionAmount)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#344767' }}>
+                    <span>Frais d'inscription</span>
+                    <span style={{ fontWeight: 600 }}>{fmt(feeAmount)}</span>
+                  </div>
+                  <div style={{ borderTop: '1px solid #e0e0e0', paddingTop: 10, marginTop: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#344767' }}>Total à payer</span>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: accentColor }}>{fmt(total)}</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* Buttons */}
-        <div className="flex justify-end gap-3 pb-4">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="px-6 py-2.5 text-sm text-gray-600 border border-gray-200 hover:bg-gray-50 rounded-lg transition font-medium"
-          >
-            Annuler
-          </button>
-          <button
-            type="submit"
-            disabled={saving || !selectedActivity || !prenom.trim() || !nom.trim()}
-            style={{ background: 'linear-gradient(135deg, #D4A843 0%, #C49B38 100%)' }}
-            className="px-6 py-2.5 text-sm text-white font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition"
-          >
-            {saving ? 'Enregistrement...' : 'Créer un client'}
-          </button>
+            {/* ── erreur de soumission ────────────────────────────────── */}
+            {submitError && (
+              <p style={{ fontSize: 12, color: '#F44335', margin: 0 }}>{submitError}</p>
+            )}
+
+            {/* ── boutons ─────────────────────────────────────────────── */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: '#7b809a',
+                  background: '#fff',
+                  border: '1px solid #d2d6da',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#f8f9fa'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; }}
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={!isFormValid || submitting}
+                style={{
+                  padding: '10px 22px',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: '#fff',
+                  background: btnGradient,
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: isFormValid && !submitting ? 'pointer' : 'not-allowed',
+                  opacity: isFormValid && !submitting ? 1 : 0.6,
+                  boxShadow: isFormValid && !submitting ? btnShadow : 'none',
+                  transition: 'opacity 0.2s',
+                }}
+              >
+                {submitting
+                  ? 'Enregistrement…'
+                  : mode === 'renewal'
+                    ? 'Renouveler l\'abonnement'
+                    : 'Créer l\'abonnement'}
+              </button>
+            </div>
+
+          </div>
+        </form>
+      </div>
+
+      {/* ── toast ──────────────────────────────────────────────────────── */}
+      {toastMsg && (
+        <div style={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          background: mode === 'renewal' ? '#43A047' : '#1A73E8',
+          color: '#fff',
+          borderRadius: 10,
+          padding: '14px 20px',
+          fontSize: 14,
+          fontWeight: 600,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          maxWidth: 320,
+        }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M20 6L9 17L4 12" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          {toastMsg}
         </div>
-      </form>
+      )}
     </div>
   );
 }
