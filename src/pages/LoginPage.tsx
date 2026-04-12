@@ -1,21 +1,34 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, Dumbbell, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const demoUsers = [
-  { email: 'admin@gymflow.com', password: 'admin1234', role: 'ADMIN' },
-  { email: 'cashier@gymflow.com', password: 'cashier1234', role: 'CASHIER' },
-  { email: 'controller@gymflow.com', password: 'controller1234', role: 'CONTROLLER' },
+const DEMO_USERS = [
+  {
+    role: 'Admin',
+    email: 'admin@gymflow.com',
+    password: 'password',
+    color: '#ef4444',
+  },
+  {
+    role: 'Caissier',
+    email: 'cashier@gymflow.com',
+    password: 'password',
+    color: '#3b82f6',
+  },
+  {
+    role: 'Contrôleur',
+    email: 'controller@gymflow.com',
+    password: 'password',
+    color: '#22c55e',
+  },
 ];
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const navigate = useNavigate();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -25,156 +38,333 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      const storedUser = JSON.parse(localStorage.getItem('user') ?? '{}');
-      if (storedUser?.role === 'CONTROLLER') {
-        navigate('/qr-control');
-      } else {
-        navigate('/dashboard');
-      }
+      // PublicRoute handles role-based redirect automatically
     } catch (err: unknown) {
       const msg =
-        (err as { response?: { data?: { message?: string } }; message?: string })
-          ?.response?.data?.message ??
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
         (err as { message?: string })?.message ??
-        'Erreur lors de la connexion.';
+        'Identifiants incorrects. Veuillez réessayer.';
       setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
+  const fillDemo = (user: (typeof DEMO_USERS)[number]) => {
+    setEmail(user.email);
+    setPassword(user.password);
+    setError('');
+  };
+
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-[420px]">
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{ background: 'linear-gradient(195deg, #42424a, #191919)' }}
+    >
+      {/* Wrapper — padding-top makes room for the floating header */}
+      <div style={{ width: 380, paddingTop: 28 }}>
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-          {/* Logo section */}
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            overflow: 'visible',
+            boxShadow:
+              '0 20px 27px rgba(0,0,0,0.05), 0 8px 32px rgba(0,0,0,0.18)',
+          }}
+        >
+          {/* Floating header */}
           <div
-            className="flex flex-col items-center justify-center py-8 px-8"
-            style={{ background: 'linear-gradient(135deg, #D4A843 0%, #C49B38 100%)' }}
+            style={{
+              marginTop: -28,
+              marginLeft: 24,
+              marginRight: 24,
+              background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+              borderRadius: 10,
+              padding: '20px 24px',
+              boxShadow:
+                '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.4)',
+            }}
           >
-            <div className="bg-white/20 rounded-2xl p-3 mb-3">
-              <Dumbbell className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-white text-3xl font-bold tracking-tight">GymFlow</h1>
-            <p className="text-white/70 text-sm mt-0.5">Fitness</p>
+            <p
+              style={{
+                color: '#fff',
+                fontSize: 18,
+                fontWeight: 700,
+                margin: 0,
+                lineHeight: 1.3,
+              }}
+            >
+              Connexion
+            </p>
+            <p
+              style={{
+                color: 'rgba(255,255,255,0.75)',
+                fontSize: 13,
+                margin: '4px 0 0',
+              }}
+            >
+              Entrez vos identifiants pour accéder à GymFlow
+            </p>
           </div>
 
-          {/* Form section */}
-          <div className="px-8 py-8">
-            <h2 className="text-gray-900 font-semibold text-xl mb-6">Se connecter</h2>
-
-            {error && (
-              <div className="mb-5 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg p-3">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Form body */}
+          <div style={{ padding: '28px 32px 24px' }}>
+            <form onSubmit={handleSubmit}>
               {/* Email */}
-              <div>
-                <label className="block text-gray-500 text-sm font-medium mb-1.5">Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@gymflow.com"
-                    required
-                    className="w-full bg-white border border-gray-300 text-gray-900 rounded-lg pl-10 pr-4 py-3 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition"
-                  />
-                </div>
+              <div style={{ marginBottom: 18 }}>
+                <label
+                  htmlFor="email"
+                  style={{
+                    display: 'block',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    color: '#7b809a',
+                    marginBottom: 6,
+                  }}
+                >
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@gymflow.com"
+                  required
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    border: '1px solid #d2d6da',
+                    borderRadius: 8,
+                    padding: '10px 14px',
+                    fontSize: 14,
+                    color: '#344767',
+                    outline: 'none',
+                    transition: 'border-color 0.2s',
+                  }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = '#1A73E8')}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = '#d2d6da')}
+                />
               </div>
 
               {/* Password */}
-              <div>
-                <label className="block text-gray-500 text-sm font-medium mb-1.5">Mot de passe</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <div style={{ marginBottom: 20 }}>
+                <label
+                  htmlFor="password"
+                  style={{
+                    display: 'block',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    color: '#7b809a',
+                    marginBottom: 6,
+                  }}
+                >
+                  Mot de passe
+                </label>
+                <div style={{ position: 'relative' }}>
                   <input
+                    id="password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
-                    className="w-full bg-white border border-gray-300 text-gray-900 rounded-lg pl-10 pr-11 py-3 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition"
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      border: '1px solid #d2d6da',
+                      borderRadius: 8,
+                      padding: '10px 42px 10px 14px',
+                      fontSize: 14,
+                      color: '#344767',
+                      outline: 'none',
+                      transition: 'border-color 0.2s',
+                    }}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = '#1A73E8')}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = '#d2d6da')}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                    style={{
+                      position: 'absolute',
+                      right: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      color: '#7b809a',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
 
-              {/* Remember me + forgot */}
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="accent-amber-500 w-4 h-4 rounded"
-                  />
-                  <span className="text-sm text-gray-600">Souviens-toi de moi</span>
-                </label>
-                <button type="button" className="text-sm text-amber-600 hover:text-amber-700 transition">
-                  Mot de passe oublié ?
-                </button>
-              </div>
+              {/* Error message */}
+              {error && (
+                <div
+                  style={{
+                    background: '#fff5f5',
+                    border: '1px solid #fed7d7',
+                    borderRadius: 8,
+                    padding: '10px 14px',
+                    marginBottom: 16,
+                    fontSize: 13,
+                    color: '#c53030',
+                  }}
+                >
+                  {error}
+                </div>
+              )}
 
-              {/* Submit */}
+              {/* Submit button */}
               <button
                 type="submit"
                 disabled={loading}
-                style={{ background: 'linear-gradient(135deg, #D4A843 0%, #C49B38 100%)' }}
-                className="w-full flex items-center justify-center gap-2 text-white font-medium rounded-lg px-4 py-3 hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                style={{
+                  width: '100%',
+                  background: loading
+                    ? '#a0aec0'
+                    : 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '12px',
+                  color: '#fff',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  boxShadow: loading
+                    ? 'none'
+                    : '0 3px 12px rgba(26,115,232,0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  transition: 'opacity 0.2s',
+                }}
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Connexion...
+                    <Loader2 size={16} className="animate-spin" />
+                    Connexion en cours…
                   </>
                 ) : (
-                  <>
-                    <Lock className="w-4 h-4" />
-                    Se connecter
-                  </>
+                  'Se connecter'
                 )}
               </button>
             </form>
 
-            {/* Demo users */}
-            <div className="mt-6 pt-5 border-t border-gray-100">
-              <p className="text-xs text-gray-400 text-center mb-3">Comptes de démonstration</p>
-              <div className="space-y-2">
-                {demoUsers.map((u) => (
+            {/* Demo accounts */}
+            <div
+              style={{
+                marginTop: 24,
+                paddingTop: 20,
+                borderTop: '1px solid #f0f2f5',
+              }}
+            >
+              <p
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  color: '#7b809a',
+                  textAlign: 'center',
+                  marginBottom: 12,
+                }}
+              >
+                Comptes de démonstration
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {DEMO_USERS.map((u) => (
                   <button
                     key={u.email}
                     type="button"
-                    onClick={() => {
-                      setEmail(u.email);
-                      setPassword(u.password);
-                      setError('');
+                    onClick={() => fillDemo(u)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      width: '100%',
+                      background: 'none',
+                      border: '1px solid #f0f2f5',
+                      borderRadius: 8,
+                      padding: '9px 12px',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background 0.15s, border-color 0.15s',
                     }}
-                    className="w-full text-left px-3 py-2 bg-gray-50 hover:bg-amber-50 border border-gray-200 hover:border-amber-200 rounded-lg transition"
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f8faff';
+                      e.currentTarget.style.borderColor = '#d2e3fc';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'none';
+                      e.currentTarget.style.borderColor = '#f0f2f5';
+                    }}
                   >
-                    <span className="text-xs font-semibold text-amber-600">{u.role}</span>
-                    <span className="text-xs text-gray-500 ml-2">{u.email}</span>
+                    {/* Colored dot */}
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: u.color,
+                        flexShrink: 0,
+                      }}
+                    />
+                    {/* Role */}
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: '#344767',
+                        minWidth: 68,
+                      }}
+                    >
+                      {u.role}
+                    </span>
+                    {/* Email */}
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: '#7b809a',
+                        flex: 1,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {u.email}
+                    </span>
+                    {/* Fill button */}
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: '#1A73E8',
+                        flexShrink: 0,
+                      }}
+                    >
+                      Remplir →
+                    </span>
                   </button>
                 ))}
               </div>
             </div>
           </div>
         </div>
-
-        {/* Footer */}
-        <p className="text-gray-400 text-xs text-center mt-6">
-          © 2026 GymFlow. Tous droits réservés.
-        </p>
       </div>
     </div>
   );
