@@ -1,16 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Users, DollarSign, Ticket, TrendingUp } from 'lucide-react';
 import {
-  DollarSign,
-  Ticket,
-  Users,
-  TrendingUp,
-  Wallet,
-  Download,
-  TrendingDown,
-} from 'lucide-react';
-import {
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -18,9 +11,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import api from '../api/axios';
-import Loader from '../components/Loader';
-import type { TransactionSummary, AccessLogStats, Transaction } from '../types';
-import { useAuth } from '../context/AuthContext';
+import type { Transaction } from '../types';
 
 function fmt(n: number) {
   return new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
@@ -50,84 +41,95 @@ function getLast7Days(): { from: string; to: string; labels: string[] } {
   };
 }
 
-interface KpiCard {
-  label: string;
-  value: string;
-  icon: React.ElementType;
-  iconBg: string;
-  iconColor: string;
-  change: number;
-}
-
 interface WeeklyEntry {
   day: string;
   revenue: number;
 }
 
-interface ScanStat {
-  name: string;
-  pct: number;
-  color: string;
+interface ExpiringSub {
+  id: number;
+  membre?: { nom: string; prenom: string };
+  date_prochain_paiement: string;
+  daysLeft: number;
+}
+
+interface MemberRaw {
+  subscriptions?: { date_prochain_paiement: string }[];
+}
+
+function getTxCategory(libelle: string): { label: string; bg: string; color: string } {
+  const l = libelle.toLowerCase();
+  if (l.includes('ticket'))      return { label: 'Ticket',      bg: '#fef3e2', color: '#fb8c00' };
+  if (l.includes('inscription')) return { label: 'Inscription', bg: '#eaf7ea', color: '#43A047' };
+  return                                { label: 'Abonnement',  bg: '#e8f4fd', color: '#1A73E8' };
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
-  const [summary, setSummary] = useState<TransactionSummary | null>(null);
-  const [memberCount, setMemberCount] = useState<number | null>(null);
-  const [ticketCount, setTicketCount] = useState<number | null>(null);
+  const navigate = useNavigate();
+
+  // KPI state
+  const [membresActifs, setMembresActifs] = useState<number | null>(null);
+  const [revenusJour, setRevenusJour]     = useState<number | null>(null);
+  const [ticketsJour, setTicketsJour]     = useState<number | null>(null);
+  const [entreesJour, setEntreesJour]     = useState<number | null>(null);
+  const [kpiLoading, setKpiLoading]       = useState(true);
+
+  // Recent transactions (for bloc 3)
   const [recentTx, setRecentTx] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  const [weeklyData, setWeeklyData] = useState<WeeklyEntry[]>([]);
+  // Weekly chart
+  const [weeklyData, setWeeklyData]     = useState<WeeklyEntry[]>([]);
   const [weeklyLoading, setWeeklyLoading] = useState(true);
-  const [weeklyError, setWeeklyError] = useState(false);
 
-  const [scanStats, setScanStats] = useState<ScanStat[]>([]);
-  const [scanLoading, setScanLoading] = useState(true);
-  const [scanError, setScanError] = useState(false);
+  // Expirations
+  const [expirations, setExpirations]   = useState<ExpiringSub[]>([]);
+  const [expirLoading, setExpirLoading] = useState(true);
+  const [expirError, setExpirError]     = useState(false);
 
+  // ── Fetch KPI + recent transactions ────────────────────────────────────────
   useEffect(() => {
-    const fetchAll = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const [summaryRes, membersRes, ticketsRes, txRes] = await Promise.allSettled([
-          api.get('/transactions/summary'),
-          api.get('/members'),
-          api.get('/tickets'),
-          api.get('/transactions?limit=5'),
-        ]);
-
-        if (summaryRes.status === 'fulfilled') {
-          const d = summaryRes.value.data?.data ?? summaryRes.value.data;
-          setSummary(d);
-        }
-        if (membersRes.status === 'fulfilled') {
-          const d = membersRes.value.data?.data ?? membersRes.value.data;
-          setMemberCount(Array.isArray(d) ? d.length : d?.total ?? d?.count ?? null);
-        }
-        if (ticketsRes.status === 'fulfilled') {
-          const d = ticketsRes.value.data?.data ?? ticketsRes.value.data;
-          setTicketCount(Array.isArray(d) ? d.length : d?.total ?? d?.count ?? null);
-        }
-        if (txRes.status === 'fulfilled') {
-          const d = txRes.value.data?.data ?? txRes.value.data;
-          setRecentTx(Array.isArray(d) ? d.slice(0, 5) : d?.items?.slice(0, 5) ?? []);
-        }
-      } catch {
-        setError('Erreur lors du chargement du tableau de bord.');
-      } finally {
-        setLoading(false);
+    setKpiLoading(true);
+    Promise.allSettled([
+      api.get('/members'),
+      api.get('/transactions/summary'),
+      api.get('/tickets'),
+      api.get('/access-logs/stats'),
+      api.get('/transactions?limit=5'),
+    ]).then(([membRes, sumRes, tkRes, accRes, txRes]) => {
+      if (membRes.status === 'fulfilled') {
+        const d = membRes.value.data?.data ?? membRes.value.data;
+        const arr: MemberRaw[] = Array.isArray(d) ? d : [];
+        setMembresActifs(
+          arr.filter((m) => {
+            const subs = m.subscriptions ?? [];
+            if (!subs.length) return false;
+            return new Date(subs[subs.length - 1].date_prochain_paiement) >= new Date();
+          }).length
+        );
       }
-    };
-    fetchAll();
+      if (sumRes.status === 'fulfilled') {
+        const d = sumRes.value.data?.data ?? sumRes.value.data;
+        setRevenusJour(d?.total_revenus ?? null);
+      }
+      if (tkRes.status === 'fulfilled') {
+        const d = tkRes.value.data?.data ?? tkRes.value.data;
+        setTicketsJour(Array.isArray(d) ? d.length : d?.total ?? null);
+      }
+      if (accRes.status === 'fulfilled') {
+        const d = accRes.value.data?.data ?? accRes.value.data;
+        setEntreesJour(d?.total_scans ?? null);
+      }
+      if (txRes.status === 'fulfilled') {
+        const d = txRes.value.data?.data ?? txRes.value.data;
+        setRecentTx(Array.isArray(d) ? d.slice(0, 5) : d?.items?.slice(0, 5) ?? []);
+      }
+    }).finally(() => setKpiLoading(false));
   }, []);
 
+  // ── Fetch weekly chart ─────────────────────────────────────────────────────
   useEffect(() => {
     const fetchWeekly = async () => {
       setWeeklyLoading(true);
-      setWeeklyError(false);
       try {
         const { from, to, labels } = getLast7Days();
         const res = await api.get(`/transactions?date_debut=${from}&date_fin=${to}`);
@@ -137,7 +139,7 @@ export default function DashboardPage() {
         })();
 
         const revenueByDay: Record<string, number> = {};
-        labels.forEach((label, i) => {
+        labels.forEach((_label, i) => {
           const d = new Date();
           d.setDate(d.getDate() - (6 - i));
           revenueByDay[d.toISOString().split('T')[0]] = 0;
@@ -152,16 +154,15 @@ export default function DashboardPage() {
           }
         }
 
-        const entries: WeeklyEntry[] = labels.map((label, i) => {
-          const d = new Date();
-          d.setDate(d.getDate() - (6 - i));
-          const key = d.toISOString().split('T')[0];
-          return { day: label, revenue: revenueByDay[key] ?? 0 };
-        });
-
-        setWeeklyData(entries);
+        setWeeklyData(
+          labels.map((label, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - (6 - i));
+            return { day: label, revenue: revenueByDay[d.toISOString().split('T')[0]] ?? 0 };
+          })
+        );
       } catch {
-        setWeeklyError(true);
+        // leave weeklyData empty — chart will render flat
       } finally {
         setWeeklyLoading(false);
       }
@@ -169,281 +170,576 @@ export default function DashboardPage() {
     fetchWeekly();
   }, []);
 
+  // ── Fetch expirations ──────────────────────────────────────────────────────
   useEffect(() => {
-    const fetchScanStats = async () => {
-      setScanLoading(true);
-      setScanError(false);
-      try {
-        const res = await api.get('/access-logs/stats');
-        const d: AccessLogStats = res.data?.data ?? res.data;
-        const total = d.total_scans || 1;
-        setScanStats([
-          {
-            name: 'Scans réussis',
-            pct: Math.round((d.total_succes / total) * 100),
-            color: 'bg-emerald-500',
-          },
-          {
-            name: 'Scans échoués',
-            pct: Math.round((d.total_echec / total) * 100),
-            color: 'bg-red-500',
-          },
-          {
-            name: 'Taux de succès',
-            pct: Math.round(d.taux_succes),
-            color: 'bg-amber-500',
-          },
-        ]);
-      } catch {
-        setScanError(true);
-      } finally {
-        setScanLoading(false);
-      }
-    };
-    fetchScanStats();
+    setExpirLoading(true);
+    api
+      .get('/subscriptions/expiring-soon?days=30')
+      .then((res) => {
+        const d = res.data?.data ?? res.data;
+        const arr = (Array.isArray(d) ? d : []).map(
+          (s: { date_prochain_paiement: string } & Record<string, unknown>) => ({
+            ...s,
+            daysLeft: Math.ceil(
+              (new Date(s.date_prochain_paiement).getTime() - Date.now()) / 86400000
+            ),
+          })
+        ) as ExpiringSub[];
+        setExpirations(arr.sort((a, b) => a.daysLeft - b.daysLeft));
+      })
+      .catch(() => setExpirError(true))
+      .finally(() => setExpirLoading(false));
   }, []);
 
-  if (loading) return <Loader size="lg" />;
-
-  const firstName = user?.firstName ?? user?.fullName?.split(' ')[0] ?? 'vous';
-
-  const kpiCards: KpiCard[] = [
+  // ── KPI definitions ────────────────────────────────────────────────────────
+  const kpiDefs = [
     {
-      label: 'Ventes du jour',
-      value: summary ? fmt(summary.total_revenus) : '—',
-      icon: DollarSign,
-      iconBg: 'bg-amber-100',
-      iconColor: 'text-amber-600',
-      change: 12,
+      label: 'Membres actifs',
+      value: membresActifs !== null ? String(membresActifs) : null,
+      Icon: Users,
+      gradient: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.3)',
+      footer: 'Abonnements en cours',
+    },
+    {
+      label: 'Revenus du jour',
+      value: revenusJour !== null ? fmt(revenusJour) : null,
+      Icon: DollarSign,
+      gradient: 'linear-gradient(195deg, #66BB6A, #43A047)',
+      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(76,175,80,0.3)',
+      footer: 'Total cumulé',
     },
     {
       label: 'Tickets vendus',
-      value: ticketCount !== null ? String(ticketCount) : '—',
-      icon: Ticket,
-      iconBg: 'bg-blue-100',
-      iconColor: 'text-blue-600',
-      change: 8,
+      value: ticketsJour !== null ? String(ticketsJour) : null,
+      Icon: Ticket,
+      gradient: 'linear-gradient(195deg, #FFA726, #fb8c00)',
+      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(251,140,0,0.3)',
+      footer: 'Tickets en circulation',
     },
     {
-      label: 'Membres actifs',
-      value: memberCount !== null ? String(memberCount) : '—',
-      icon: Users,
-      iconBg: 'bg-pink-100',
-      iconColor: 'text-pink-600',
-      change: 5,
-    },
-    {
-      label: 'Revenu total',
-      value: summary ? fmt(summary.total_revenus) : '—',
-      icon: TrendingUp,
-      iconBg: 'bg-purple-100',
-      iconColor: 'text-purple-600',
-      change: 18,
-    },
-    {
-      label: 'Solde de caisse',
-      value: summary ? fmt(summary.solde) : '—',
-      icon: Wallet,
-      iconBg: 'bg-emerald-100',
-      iconColor: 'text-emerald-600',
-      change: summary && summary.solde < 0 ? -3 : 7,
+      label: 'Entrées du jour',
+      value: entreesJour !== null ? String(entreesJour) : null,
+      Icon: TrendingUp,
+      gradient: 'linear-gradient(195deg, #EC407A, #D81B60)',
+      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(233,30,99,0.3)',
+      footer: 'Scans validés',
     },
   ];
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-          <p className="text-gray-500 mt-0.5">Bon retour, {firstName}</p>
-        </div>
-        <button className="flex items-center gap-2 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg px-4 py-2 text-sm transition">
-          <Download className="w-4 h-4" />
-          Exporter le rapport
-        </button>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg p-4">
-          {error}
-        </div>
-      )}
-
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {kpiCards.map((card) => (
+    <div
+      style={{
+        padding: '20px 24px 24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 32,
+        background: '#f0f2f5',
+      }}
+    >
+      {/* ── BLOC 1 — KPI cards ─────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          gap: 16,
+          marginTop: 14,
+        }}
+      >
+        {kpiDefs.map((kpi) => (
           <div
-            key={card.label}
-            className="bg-white border border-gray-100 rounded-xl shadow-sm p-5"
+            key={kpi.label}
+            style={{
+              background: '#fff',
+              borderRadius: 12,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+              padding: '14px 16px 12px',
+              position: 'relative',
+            }}
           >
-            <div className="flex items-start justify-between mb-3">
-              <div className={`p-2.5 rounded-xl ${card.iconBg}`}>
-                <card.icon className={`w-5 h-5 ${card.iconColor}`} />
-              </div>
-              <span
-                className={`text-xs font-semibold flex items-center gap-0.5 ${
-                  card.change >= 0 ? 'text-emerald-600' : 'text-red-500'
-                }`}
-              >
-                {card.change >= 0 ? (
-                  <TrendingUp className="w-3 h-3" />
-                ) : (
-                  <TrendingDown className="w-3 h-3" />
-                )}
-                {Math.abs(card.change)}%
-              </span>
+            {/* Floating icon */}
+            <div
+              style={{
+                position: 'absolute',
+                top: -14,
+                left: 16,
+                width: 48,
+                height: 48,
+                borderRadius: 10,
+                background: kpi.gradient,
+                boxShadow: kpi.shadow,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <kpi.Icon size={22} color="#fff" />
             </div>
-            <p className="text-gray-500 text-xs mb-1">{card.label}</p>
-            <p className="text-gray-900 font-bold text-xl leading-tight">{card.value}</p>
+
+            {/* Right-aligned label + value */}
+            <div style={{ textAlign: 'right', paddingTop: 6 }}>
+              <p
+                style={{
+                  fontSize: 11,
+                  color: '#7b809a',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  margin: 0,
+                }}
+              >
+                {kpi.label}
+              </p>
+              <p style={{ fontSize: 20, fontWeight: 700, color: '#344767', margin: '4px 0 0' }}>
+                {kpiLoading ? '--' : (kpi.value ?? '--')}
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div style={{ borderTop: '1px solid #f0f2f5', paddingTop: 6, marginTop: 10 }}>
+              <p style={{ fontSize: 11, color: '#7b809a', margin: 0 }}>{kpi.footer}</p>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* Bar chart */}
-        <div className="lg:col-span-3 bg-white border border-gray-100 rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-gray-900 font-semibold">Revenu hebdomadaire</h2>
-              <p className="text-gray-400 text-sm">Performances des 7 derniers jours</p>
+      {/* ── BLOC 2 — Bottom grid: chart + expirations ──────────────────────── */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)',
+          gap: 16,
+        }}
+      >
+        {/* Left — Revenue AreaChart */}
+        <div style={{ paddingTop: 20 }}>
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 12,
+              overflow: 'visible',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+            }}
+          >
+            {/* Floating blue header */}
+            <div
+              style={{
+                margin: '-20px 16px 0',
+                background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+                borderRadius: 10,
+                padding: '16px 20px',
+                boxShadow:
+                  '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.4)',
+              }}
+            >
+              <p
+                style={{
+                  color: '#fff',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  margin: 0,
+                  lineHeight: 1.3,
+                }}
+              >
+                Revenus — 7 derniers jours
+              </p>
+              <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, margin: '3px 0 0' }}>
+                Connecté à /api/transactions
+              </p>
+            </div>
+
+            {/* Chart body */}
+            <div style={{ padding: '28px 20px 16px' }}>
+              {weeklyLoading ? (
+                <div
+                  className="animate-pulse"
+                  style={{ height: 200, background: '#f3f4f6', borderRadius: 8 }}
+                />
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={weeklyData}>
+                    <defs>
+                      <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#1A73E8" stopOpacity={0.08} />
+                        <stop offset="95%" stopColor="#1A73E8" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#f0f0f0"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="day"
+                      tick={{ fontSize: 12, fill: '#9ca3af' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tickFormatter={fmtCompact}
+                      tick={{ fontSize: 12, fill: '#9ca3af' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      formatter={(v) => [fmt(Number(v)), 'Revenu']}
+                      contentStyle={{
+                        borderRadius: '8px',
+                        border: '1px solid #e5e7eb',
+                        fontSize: '12px',
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#1A73E8"
+                      strokeWidth={2}
+                      fill="url(#revenueGrad)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
-          {weeklyLoading ? (
-            <div className="animate-pulse h-[220px] bg-gray-100 rounded-lg" />
-          ) : weeklyError ? (
-            <div className="h-[220px] flex items-center justify-center text-sm text-gray-400">
-              Données indisponibles
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={weeklyData} barSize={32}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis
-                  tickFormatter={fmtCompact}
-                  tick={{ fontSize: 12, fill: '#9ca3af' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  formatter={(v) => [fmt(Number(v)), 'Revenu']}
-                  contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }}
-                />
-                <Bar dataKey="revenue" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
         </div>
 
-        {/* Scan stats */}
-        <div className="lg:col-span-2 bg-white border border-gray-100 rounded-xl shadow-sm p-6">
-          <h2 className="text-gray-900 font-semibold mb-1">Statistiques des scans</h2>
-          <p className="text-gray-400 text-sm mb-5">Contrôle d'accès ce mois</p>
-          {scanLoading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="h-3 bg-gray-100 rounded mb-2 w-3/4" />
-                  <div className="h-2 bg-gray-100 rounded-full" />
-                </div>
-              ))}
+        {/* Right — Expirations imminentes */}
+        <div style={{ paddingTop: 20 }}>
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 12,
+              overflow: 'visible',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+            }}
+          >
+            {/* Floating orange header */}
+            <div
+              style={{
+                margin: '-20px 16px 0',
+                background: 'linear-gradient(195deg, #FFA726, #fb8c00)',
+                borderRadius: 10,
+                padding: '16px 20px',
+                boxShadow:
+                  '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(251,140,0,0.4)',
+              }}
+            >
+              <p
+                style={{
+                  color: '#fff',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  margin: 0,
+                  lineHeight: 1.3,
+                }}
+              >
+                Expirations imminentes
+              </p>
+              <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, margin: '3px 0 0' }}>
+                Abonnements à renouveler
+              </p>
             </div>
-          ) : scanError ? (
-            <div className="text-sm text-gray-400 text-center py-8">Données indisponibles</div>
-          ) : (
-            <div className="space-y-4">
-              {scanStats.map((stat) => (
-                <div key={stat.name}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-700 font-medium">{stat.name}</span>
-                    <span className="text-gray-500">{stat.pct}%</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+
+            {/* Expirations body */}
+            <div style={{ padding: '28px 16px 16px' }}>
+              {expirLoading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[1, 2, 3].map((i) => (
                     <div
-                      className={`h-full rounded-full ${stat.color}`}
-                      style={{ width: `${stat.pct}%` }}
+                      key={i}
+                      className="animate-pulse"
+                      style={{ height: 40, background: '#f3f4f6', borderRadius: 6 }}
                     />
-                  </div>
+                  ))}
                 </div>
-              ))}
+              ) : expirError || expirations.length === 0 ? (
+                <div
+                  style={{
+                    background: '#fff8f0',
+                    borderLeft: '3px solid #fb8c00',
+                    borderRadius: 6,
+                    padding: '10px 12px',
+                    marginBottom: 12,
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: '#fb8c00',
+                      fontWeight: 600,
+                      margin: 0,
+                    }}
+                  >
+                    Endpoint à connecter
+                  </p>
+                  <p style={{ fontSize: 11, color: '#7b809a', margin: '2px 0 0' }}>
+                    GET /api/subscriptions/expiring-soon
+                  </p>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                    marginBottom: 12,
+                  }}
+                >
+                  {expirations.slice(0, 5).map((sub) => {
+                    const isUrgent = sub.daysLeft <= 7;
+                    const memberName = sub.membre
+                      ? `${sub.membre.prenom} ${sub.membre.nom}`
+                      : `Abonnement #${sub.id}`;
+                    return (
+                      <div
+                        key={sub.id}
+                        style={{
+                          background: isUrgent ? '#fff5f5' : '#fff8f0',
+                          borderLeft: `3px solid ${isUrgent ? '#F44335' : '#fb8c00'}`,
+                          borderRadius: 6,
+                          padding: '8px 10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 8,
+                        }}
+                      >
+                        <div>
+                          <p
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: '#344767',
+                              margin: 0,
+                            }}
+                          >
+                            {memberName}
+                          </p>
+                          <p style={{ fontSize: 11, color: '#7b809a', margin: '2px 0 0' }}>
+                            Expire dans {sub.daysLeft}j
+                          </p>
+                        </div>
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            padding: '2px 7px',
+                            borderRadius: 8,
+                            fontSize: 10,
+                            fontWeight: 700,
+                            background: isUrgent ? '#fff5f5' : '#fff8f0',
+                            color: isUrgent ? '#F44335' : '#fb8c00',
+                            border: `1px solid ${isUrgent ? '#F44335' : '#fb8c00'}`,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {isUrgent ? '7j' : '30j'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <button
+                type="button"
+                style={{
+                  width: '100%',
+                  background: 'linear-gradient(195deg, #FFA726, #fb8c00)',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '10px',
+                  color: '#fff',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 3px 10px rgba(251,140,0,0.3)',
+                }}
+              >
+                Voir tous les renouvellements →
+              </button>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Recent transactions */}
-      <div className="bg-white border border-gray-100 rounded-xl shadow-sm">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-gray-900 font-semibold">Transactions récentes</h2>
-          <p className="text-gray-400 text-sm">Dernières ventes et activités</p>
-        </div>
-        {recentTx.length === 0 ? (
-          <div className="px-6 py-10 text-center text-gray-400 text-sm">
-            Aucune transaction récente.
+      {/* ── BLOC 3 — Recent transactions (preserved exactly) ───────────────── */}
+      <div style={{ paddingTop: 20 }}>
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            overflow: 'visible',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+          }}
+        >
+          {/* Floating header */}
+          <div
+            style={{
+              margin: '-20px 16px 0',
+              background: 'linear-gradient(195deg, #42424a, #191919)',
+              borderRadius: 10,
+              padding: '16px 20px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(0,0,0,0.3)',
+            }}
+          >
+            <p
+              style={{
+                color: '#fff',
+                fontSize: 14,
+                fontWeight: 700,
+                margin: 0,
+                lineHeight: 1.3,
+              }}
+            >
+              Transactions récentes
+            </p>
+            <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 11, margin: '3px 0 0' }}>
+              Dernières ventes et activités
+            </p>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Client</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Type</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Libellé</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Montant</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Date</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Statut</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {recentTx.map((tx) => {
-                  const clientName = tx.member
-                    ? `${tx.member.prenom} ${tx.member.nom}`
-                    : '—';
-                  const initials = tx.member
-                    ? `${tx.member.prenom.charAt(0)}${tx.member.nom.charAt(0)}`.toUpperCase()
-                    : '?';
-                  return (
-                    <tr key={tx.id} className="hover:bg-gray-50/50 transition">
-                      <td className="px-6 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold shrink-0">
-                            {initials}
-                          </div>
-                          <span className="text-sm text-gray-900 font-medium">{clientName}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                          tx.type === 'REVENU'
-                            ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                            : 'bg-red-50 text-red-600 border-red-200'
-                        }`}>
-                          {tx.type === 'REVENU' ? 'Revenu' : 'Dépense'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-3 text-sm text-gray-500">{tx.libelle}</td>
-                      <td className={`px-6 py-3 text-right text-sm font-semibold ${
-                        tx.type === 'REVENU' ? 'text-emerald-600' : 'text-red-500'
-                      }`}>
-                        {tx.type === 'DEPENSE' ? '−' : '+'}{fmt(tx.montant)}
-                      </td>
-                      <td className="px-6 py-3 text-sm text-gray-400">
-                        {new Date(tx.date).toLocaleDateString('fr-FR')}
-                      </td>
-                      <td className="px-6 py-3">
-                        <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
-                          <span className="text-emerald-500">✓</span> Complété
-                        </span>
-                      </td>
+
+          {/* Body */}
+          <div style={{ padding: '28px 20px 16px' }}>
+            {recentTx.length === 0 ? (
+              <p style={{ textAlign: 'center', color: '#7b809a', fontSize: 13, margin: 0 }}>
+                Aucune transaction récente.
+              </p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr
+                      style={{
+                        background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+                        borderRadius: 8,
+                      }}
+                    >
+                      {(['Date', 'Membre', 'Type', 'Activité', 'Montant'] as const).map(
+                        (col, idx, arr) => (
+                          <th
+                            key={col}
+                            style={{
+                              textAlign: col === 'Montant' ? 'right' : 'left',
+                              padding: '10px 14px',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.06em',
+                              color: '#fff',
+                              borderRadius:
+                                idx === 0
+                                  ? '8px 0 0 8px'
+                                  : idx === arr.length - 1
+                                  ? '0 8px 8px 0'
+                                  : undefined,
+                            }}
+                          >
+                            {col}
+                          </th>
+                        )
+                      )}
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {recentTx.map((tx) => {
+                      const memberName = tx.member
+                        ? `${tx.member.prenom} ${tx.member.nom}`
+                        : '—';
+                      const cat = getTxCategory(tx.libelle);
+                      return (
+                        <tr
+                          key={tx.id}
+                          style={{ borderBottom: '1px solid #f0f2f5', cursor: 'default' }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.background = '#fafafa')
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.background = 'transparent')
+                          }
+                        >
+                          <td
+                            style={{ padding: '12px 14px', fontSize: 13, color: '#7b809a' }}
+                          >
+                            {new Date(tx.date).toLocaleDateString('fr-FR')}
+                          </td>
+                          <td
+                            style={{
+                              padding: '12px 14px',
+                              fontSize: 13,
+                              color: '#344767',
+                              fontWeight: 500,
+                            }}
+                          >
+                            {memberName}
+                          </td>
+                          <td style={{ padding: '12px 14px' }}>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                padding: '3px 9px',
+                                borderRadius: 10,
+                                fontSize: 10,
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                background: cat.bg,
+                                color: cat.color,
+                              }}
+                            >
+                              {cat.label}
+                            </span>
+                          </td>
+                          <td
+                            style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}
+                          >
+                            {tx.libelle}
+                          </td>
+                          <td
+                            style={{
+                              padding: '12px 14px',
+                              textAlign: 'right',
+                              fontSize: 13,
+                              fontWeight: 700,
+                              color: tx.type === 'REVENU' ? '#059669' : '#dc2626',
+                            }}
+                          >
+                            {tx.type === 'DEPENSE' ? '−' : '+'}
+                            {fmt(tx.montant)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Footer link */}
+            <div
+              style={{
+                marginTop: 14,
+                borderTop: '1px solid #f0f2f5',
+                paddingTop: 12,
+                textAlign: 'right',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => navigate('/transactions')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#1A73E8',
+                  cursor: 'pointer',
+                }}
+              >
+                Voir toutes les transactions →
+              </button>
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

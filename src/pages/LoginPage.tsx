@@ -6,19 +6,19 @@ const DEMO_USERS = [
   {
     role: 'Admin',
     email: 'admin@gymflow.com',
-    password: 'password',
+    password: 'admin1234',
     color: '#ef4444',
   },
   {
     role: 'Caissier',
     email: 'cashier@gymflow.com',
-    password: 'password',
+    password: 'cashier1234',
     color: '#3b82f6',
   },
   {
     role: 'Contrôleur',
     email: 'controller@gymflow.com',
-    password: 'password',
+    password: 'controller1234',
     color: '#22c55e',
   },
 ];
@@ -58,11 +58,14 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: 'linear-gradient(195deg, #42424a, #191919)' }}
+      className="min-h-screen flex items-center justify-center"
+      style={{
+        background: 'linear-gradient(195deg, #42424a, #191919)',
+        padding: '40px 16px 16px',
+      }}
     >
       {/* Wrapper — padding-top makes room for the floating header */}
-      <div style={{ width: 380, paddingTop: 28 }}>
+      <div style={{ width: 380, paddingTop: 40 }}>
         {/* Card */}
         <div
           style={{
