@@ -1,18 +1,39 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Trash2, UserPlus, Search, Dumbbell } from 'lucide-react';
 import api from '../api/axios';
-import Loader from '../components/Loader';
-import Badge from '../components/Badge';
-import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
 import type { Activity } from '../types';
 
-function fmt(n: number) {
+// ─── types ───────────────────────────────────────────────────────────────────
+
+type ExtActivity = Activity & {
+  description?: string;
+  capacite?: number;
+  nb_membres?: number;
+};
+
+type ActivityForm = Omit<Activity, 'id'>;
+
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+function fmtFcfa(n: number | undefined | null): string {
+  if (!n || n === 0) return '—';
   return new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
 }
 
-const emptyForm: Omit<Activity, 'id'> = {
+const ICON_GRADIENTS = [
+  'linear-gradient(135deg,#49a3f1,#1A73E8)',
+  'linear-gradient(135deg,#66BB6A,#388E3C)',
+  'linear-gradient(135deg,#FFA726,#F57C00)',
+  'linear-gradient(135deg,#AB47BC,#7B1FA2)',
+  'linear-gradient(135deg,#26C6DA,#0097A7)',
+  'linear-gradient(135deg,#EF5350,#C62828)',
+];
+
+function iconGradient(id: number) {
+  return ICON_GRADIENTS[id % ICON_GRADIENTS.length];
+}
+
+const EMPTY_FORM: ActivityForm = {
   nom: '',
   status: true,
   frais_inscription: 0,
@@ -24,35 +45,430 @@ const emptyForm: Omit<Activity, 'id'> = {
   isMonthlyOnly: false,
 };
 
-interface Tarif {
-  label: string;
-  key: keyof Omit<Activity, 'id' | 'nom' | 'status' | 'isMonthlyOnly'>;
-  isInscription?: boolean;
+// ─── sub-components ──────────────────────────────────────────────────────────
+
+function StatusBadge({ active }: { active: boolean }) {
+  return (
+    <span
+      style={{
+        background: active ? '#eaf7ea' : '#fde8e8',
+        color: active ? '#43A047' : '#F44335',
+        padding: '3px 10px',
+        borderRadius: 20,
+        fontSize: 11,
+        fontWeight: 600,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {active ? 'Actif' : 'Inactif'}
+    </span>
+  );
 }
 
-const tarifs: Tarif[] = [
-  { label: 'Inscription', key: 'frais_inscription', isInscription: true },
-  { label: 'Prix Ticket', key: 'prix_ticket' },
-  { label: 'Hebdomadaire', key: 'prix_hebdomadaire' },
-  { label: 'Mensuelle', key: 'prix_mensuel' },
-  { label: 'Trimestrielle', key: 'prix_trimestriel' },
-  { label: 'Annuelle', key: 'prix_annuel' },
+interface ActionBtnProps {
+  title: string;
+  bg: string;
+  hoverBg: string;
+  color: string;
+  hoverColor: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}
+
+function ActionBtn({ title, bg, hoverBg, color, hoverColor, onClick, children }: ActionBtnProps) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: 28,
+        height: 28,
+        borderRadius: 6,
+        border: 'none',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: hovered ? hoverBg : bg,
+        color: hovered ? hoverColor : color,
+        transition: 'background 0.15s, color 0.15s',
+        flexShrink: 0,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ─── skeleton ────────────────────────────────────────────────────────────────
+
+function SkeletonRow() {
+  return (
+    <tr>
+      {[200, 110, 110, 80, 90, 70, 80].map((w, i) => (
+        <td key={i} style={{ padding: '14px 14px' }}>
+          <div
+            style={{
+              height: 14,
+              width: w,
+              borderRadius: 4,
+              background: 'linear-gradient(90deg,#f0f2f5 25%,#e8ebf0 50%,#f0f2f5 75%)',
+              backgroundSize: '200% 100%',
+              animation: 'shimmer 1.4s infinite',
+            }}
+          />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+// ─── activity row ────────────────────────────────────────────────────────────
+
+interface ActivityRowProps {
+  activity: ExtActivity;
+  isLast: boolean;
+  isAdmin: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+function ActivityRow({ activity: a, isLast, isAdmin, onEdit, onDelete }: ActivityRowProps) {
+  const [hovered, setHovered] = useState(false);
+
+  const subLabel =
+    a.description ??
+    (a.prix_mensuel > 0
+      ? `Mensuel : ${new Intl.NumberFormat('fr-FR').format(a.prix_mensuel)} FCFA`
+      : a.prix_hebdomadaire > 0
+      ? `Hebdo : ${new Intl.NumberFormat('fr-FR').format(a.prix_hebdomadaire)} FCFA`
+      : '');
+
+  return (
+    <tr
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        borderBottom: isLast ? 'none' : '1px solid #f0f2f5',
+        background: hovered ? '#fafafa' : '#fff',
+        transition: 'background 0.1s',
+      }}
+    >
+      {/* Activité */}
+      <td style={{ padding: '12px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              background: iconGradient(a.id),
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 13,
+              fontWeight: 700,
+              flexShrink: 0,
+            }}
+          >
+            {a.nom.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#344767' }}>{a.nom}</div>
+            {subLabel && (
+              <div style={{ fontSize: 11, color: '#7b809a' }}>{subLabel}</div>
+            )}
+          </div>
+        </div>
+      </td>
+
+      {/* Tarif abonnement */}
+      <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: '#344767' }}>
+        {fmtFcfa(a.prix_mensuel)}
+      </td>
+
+      {/* Tarif ticket */}
+      <td style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}>
+        {fmtFcfa(a.prix_ticket)}
+      </td>
+
+      {/* Capacité */}
+      <td style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}>
+        {a.capacite != null ? a.capacite : '—'}
+      </td>
+
+      {/* Membres inscrits */}
+      <td style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}>
+        {a.nb_membres != null ? a.nb_membres : '—'}
+      </td>
+
+      {/* Statut */}
+      <td style={{ padding: '12px 14px' }}>
+        <StatusBadge active={a.status} />
+      </td>
+
+      {/* Actions */}
+      <td style={{ padding: '12px 14px' }}>
+        {isAdmin ? (
+          <div style={{ display: 'flex', gap: 6 }}>
+            <ActionBtn
+              title="Modifier"
+              bg="#e8f4fd"
+              hoverBg="#1A73E8"
+              color="#1A73E8"
+              hoverColor="#fff"
+              onClick={onEdit}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </ActionBtn>
+            <ActionBtn
+              title="Supprimer"
+              bg="#fde8e8"
+              hoverBg="#F44335"
+              color="#F44335"
+              hoverColor="#fff"
+              onClick={onDelete}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6" />
+                <path d="M14 11v6" />
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+              </svg>
+            </ActionBtn>
+          </div>
+        ) : (
+          <span style={{ fontSize: 11, color: '#c0c4cc' }}>—</span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+// ─── add / edit modal ────────────────────────────────────────────────────────
+
+const PRICE_FIELDS: { key: keyof ActivityForm & string; label: string }[] = [
+  { key: 'frais_inscription', label: "Frais d'inscription" },
+  { key: 'prix_ticket',       label: 'Prix ticket' },
+  { key: 'prix_hebdomadaire', label: 'Tarif hebdomadaire' },
+  { key: 'prix_mensuel',      label: 'Tarif mensuel' },
+  { key: 'prix_trimestriel',  label: 'Tarif trimestriel' },
+  { key: 'prix_annuel',       label: 'Tarif annuel' },
+];
+
+interface ActivityModalProps {
+  editTarget: Activity | null;
+  form: ActivityForm;
+  onChange: (form: ActivityForm) => void;
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+function ActivityModal({ editTarget, form, onChange, onClose, onSaved }: ActivityModalProps) {
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.nom.trim()) { setErr('Le nom est obligatoire.'); return; }
+    setSaving(true);
+    setErr('');
+    try {
+      if (editTarget) {
+        await api.put(`/activities/${editTarget.id}`, form);
+      } else {
+        await api.post('/activities', form);
+      }
+      onSaved();
+    } catch {
+      setErr('Impossible de sauvegarder les modifications.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    border: '1px solid #d2d6da',
+    borderRadius: 8,
+    padding: '8px 12px',
+    fontSize: 13,
+    color: '#344767',
+    outline: 'none',
+    width: '100%',
+    boxSizing: 'border-box',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#7b809a',
+    textTransform: 'uppercase',
+    marginBottom: 4,
+    display: 'block',
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.45)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: '#fff',
+          borderRadius: 12,
+          padding: '28px 32px',
+          width: 520,
+          maxWidth: '92vw',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700, color: '#344767' }}>
+          {editTarget ? "Modifier l'activité" : 'Ajouter une activité'}
+        </h3>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Nom */}
+          <div>
+            <label style={labelStyle}>Nom de l'activité *</label>
+            <input
+              type="text"
+              value={form.nom}
+              onChange={(e) => onChange({ ...form, nom: e.target.value })}
+              placeholder="Ex : Musculation, Cardio…"
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Prix grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 16px' }}>
+            {PRICE_FIELDS.map(({ key, label }) => (
+              <div key={key}>
+                <label style={labelStyle}>{label} (FCFA)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={(form[key as keyof ActivityForm] as number) ?? 0}
+                  onChange={(e) => onChange({ ...form, [key]: Number(e.target.value) })}
+                  style={inputStyle}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Checkboxes */}
+          <div style={{ display: 'flex', gap: 24 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#344767' }}>
+              <input
+                type="checkbox"
+                checked={form.status}
+                onChange={(e) => onChange({ ...form, status: e.target.checked })}
+                style={{ width: 15, height: 15, accentColor: '#1A73E8' }}
+              />
+              Actif
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#344767' }}>
+              <input
+                type="checkbox"
+                checked={form.isMonthlyOnly}
+                onChange={(e) => onChange({ ...form, isMonthlyOnly: e.target.checked })}
+                style={{ width: 15, height: 15, accentColor: '#1A73E8' }}
+              />
+              Forfait mensuel uniquement
+            </label>
+          </div>
+
+          {err && <p style={{ color: '#F44335', fontSize: 12, margin: 0 }}>{err}</p>}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                flex: 1,
+                padding: '9px 0',
+                borderRadius: 8,
+                border: '1px solid #d2d6da',
+                background: '#fff',
+                color: '#7b809a',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                flex: 1,
+                padding: '9px 0',
+                borderRadius: 8,
+                border: 'none',
+                background: 'linear-gradient(195deg,#49a3f1,#1A73E8)',
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: saving ? 'not-allowed' : 'pointer',
+                opacity: saving ? 0.7 : 1,
+              }}
+            >
+              {saving ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── main page ───────────────────────────────────────────────────────────────
+
+const PAGE_SIZE = 10;
+
+const COLUMNS = [
+  'Activité',
+  'Tarif abonnement',
+  'Tarif ticket',
+  'Capacité',
+  'Membres inscrits',
+  'Statut',
+  'Actions',
 ];
 
 export default function ActivitiesPage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const isAdmin = user?.role === 'ADMIN';
+  const role = user?.role ?? 'CONTROLLER';
+  const isAdmin = role === 'ADMIN';
 
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const [activities, setActivities] = useState<ExtActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Activity | null>(null);
-  const [form, setForm] = useState<Omit<Activity, 'id'>>(emptyForm);
-  const [saving, setSaving] = useState(false);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [form, setForm] = useState<ActivityForm>(EMPTY_FORM);
 
   const fetchActivities = async () => {
     setLoading(true);
@@ -70,47 +486,28 @@ export default function ActivitiesPage() {
 
   useEffect(() => { fetchActivities(); }, []);
 
+  useEffect(() => { setPage(1); }, [search]);
+
   const openCreate = () => {
     setEditTarget(null);
-    setForm(emptyForm);
+    setForm(EMPTY_FORM);
     setModalOpen(true);
   };
 
   const openEdit = (a: Activity) => {
     setEditTarget(a);
-    const { id, ...rest } = a;
-    void id;
+    const { id: _id, ...rest } = a;
     setForm(rest);
     setModalOpen(true);
   };
 
-  const handleSave = async () => {
-    setSaving(true);
+  const handleDelete = async (a: ExtActivity) => {
+    if (!window.confirm(`Supprimer l'activité "${a.nom}" ? Cette action est irréversible.`)) return;
     try {
-      if (editTarget) {
-        await api.put(`/activities/${editTarget.id}`, form);
-      } else {
-        await api.post('/activities', form);
-      }
-      setModalOpen(false);
-      fetchActivities();
+      await api.delete(`/activities/${a.id}`);
+      await fetchActivities();
     } catch {
-      alert('Erreur lors de la sauvegarde.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm('Supprimer cette activité ?')) return;
-    setDeleteId(id);
-    try {
-      await api.delete(`/activities/${id}`);
-      fetchActivities();
-    } catch {
-      alert('Erreur lors de la suppression.');
-    } finally {
-      setDeleteId(null);
+      alert('Impossible de supprimer cette activité.');
     }
   };
 
@@ -118,206 +515,261 @@ export default function ActivitiesPage() {
     a.nom.toLowerCase().includes(search.toLowerCase())
   );
 
-  const inputClass =
-    'w-full bg-white border border-gray-300 text-gray-900 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition';
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const pageEnd = Math.min(pageStart + PAGE_SIZE, filtered.length);
+  const pageRows = filtered.slice(pageStart, pageEnd);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestion des activités</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Gérer toutes les activités sportives et de bien-être</p>
-        </div>
-        {isAdmin && (
-          <button
-            onClick={openCreate}
-            style={{ background: 'linear-gradient(135deg, #D4A843 0%, #C49B38 100%)' }}
-            className="flex items-center gap-2 text-white font-medium rounded-lg px-4 py-2.5 text-sm hover:opacity-90 transition"
+    <>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
+
+      <div
+        style={{
+          padding: '20px 24px 24px',
+          marginTop: 14,
+          background: '#f0f2f5',
+          minHeight: 'calc(100vh - 60px)',
+        }}
+      >
+        {/* ── card wrapper ── */}
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+          }}
+        >
+          {/* ── floating header ── */}
+          <div
+            style={{
+              margin: '-20px 16px 0',
+              background: 'linear-gradient(195deg,#49a3f1,#1A73E8)',
+              borderRadius: 10,
+              padding: '16px 20px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.4)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
           >
-            <Plus className="w-4 h-4" />
-            Ajouter une activité
-          </button>
-        )}
-      </div>
-
-      {/* Search bar */}
-      <div className="flex gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher une activité..."
-            className="w-full bg-white border border-gray-200 text-gray-900 rounded-lg pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition"
-          />
-        </div>
-        <button className="px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition">
-          Recherche
-        </button>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg p-4">
-          {error}
-        </div>
-      )}
-
-      {/* Activity cards grid */}
-      {loading ? (
-        <Loader />
-      ) : filtered.length === 0 ? (
-        <div className="bg-white border border-gray-100 rounded-xl shadow-sm py-16 text-center">
-          <Dumbbell className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">Aucune activité trouvée.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((a) => (
-            <div
-              key={a.id}
-              className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow"
-            >
-              {/* Image placeholder */}
-              <div className="bg-gray-100 h-40 flex items-center justify-center">
-                <Dumbbell className="w-12 h-12 text-gray-300" />
-              </div>
-
-              {/* Content */}
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-gray-900 text-lg">{a.nom}</h3>
-                  <Badge variant={a.status ? 'success' : 'danger'}>
-                    {a.status ? 'Active' : 'Inactive'}
-                  </Badge>
-                </div>
-
-                {/* Tariffs list */}
-                <div className="space-y-1.5 mb-4">
-                  {tarifs.map((t) => {
-                    const price = a[t.key] as number;
-                    if (price === 0) return null;
-                    return (
-                      <div key={t.key} className="flex items-center justify-between text-sm">
-                        <span className={t.isInscription ? 'text-amber-600 font-medium' : 'text-gray-500'}>
-                          {t.label}
-                        </span>
-                        <span className="font-medium text-gray-900">{fmt(price)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Subscribe button */}
-                <button
-                  onClick={() => navigate(`/activities/${a.id}/subscribe`)}
-                  style={{ background: 'linear-gradient(135deg, #D4A843 0%, #C49B38 100%)' }}
-                  className="w-full flex items-center justify-center gap-2 text-white font-medium rounded-lg py-2.5 text-sm hover:opacity-90 transition mb-3"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Nouvel abonnement
-                </button>
-
-                {/* Admin actions */}
-                {isAdmin && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => openEdit(a)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                      Modifier
-                    </button>
-                    <button
-                      onClick={() => handleDelete(a.id)}
-                      disabled={deleteId === a.id}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition disabled:opacity-50"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Supprimer
-                    </button>
-                  </div>
-                )}
+            <div>
+              <div style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>Activités</div>
+              <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 2 }}>
+                Gestion des activités proposées
               </div>
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* Create / Edit Modal */}
-      <Modal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editTarget ? 'Modifier l\'activité' : 'Nouvelle activité'}
-        size="xl"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-500 font-medium mb-1.5">Nom de l'activité *</label>
-            <input
-              type="text"
-              value={form.nom}
-              onChange={(e) => setForm({ ...form, nom: e.target.value })}
-              placeholder="Ex: Musculation, Cardio..."
-              className={inputClass}
-            />
+            {isAdmin && (
+              <button
+                onClick={openCreate}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: '1px solid rgba(255,255,255,0.4)',
+                  color: '#fff',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  padding: '7px 14px',
+                  borderRadius: 7,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
+                Ajouter
+              </button>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            {tarifs.map((t) => (
-              <div key={t.key}>
-                <label className="block text-sm text-gray-500 font-medium mb-1.5">{t.label} (FCFA)</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={form[t.key] as number}
-                  onChange={(e) => setForm({ ...form, [t.key]: Number(e.target.value) })}
-                  className={inputClass}
-                />
+          {/* ── toolbar ── */}
+          <div
+            style={{
+              padding: '16px 20px 0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <div style={{ position: 'relative' }}>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#7b809a"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }}
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Rechercher une activité…"
+                style={{
+                  border: '1px solid #d2d6da',
+                  borderRadius: 8,
+                  padding: '8px 12px 8px 34px',
+                  fontSize: 13,
+                  color: '#344767',
+                  width: 240,
+                  outline: 'none',
+                }}
+              />
+            </div>
+            <span style={{ fontSize: 12, color: '#7b809a' }}>
+              {filtered.length} activité{filtered.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          {/* ── error ── */}
+          {error && (
+            <div
+              style={{
+                margin: '12px 20px 0',
+                background: '#fde8e8',
+                color: '#F44335',
+                borderRadius: 8,
+                padding: '10px 14px',
+                fontSize: 13,
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          {/* ── table ── */}
+          <div style={{ padding: '16px 20px 8px', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 820 }}>
+              <thead>
+                <tr>
+                  {COLUMNS.map((col, i, arr) => (
+                    <th
+                      key={col}
+                      style={{
+                        background: 'linear-gradient(195deg,#49a3f1,#1A73E8)',
+                        color: '#fff',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        padding: '10px 14px',
+                        textAlign: 'left',
+                        borderRadius:
+                          i === 0
+                            ? '8px 0 0 8px'
+                            : i === arr.length - 1
+                            ? '0 8px 8px 0'
+                            : 0,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
+                ) : pageRows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={COLUMNS.length}
+                      style={{
+                        textAlign: 'center',
+                        padding: '48px 0',
+                        color: '#7b809a',
+                        fontSize: 13,
+                      }}
+                    >
+                      Aucune activité trouvée.
+                    </td>
+                  </tr>
+                ) : (
+                  pageRows.map((a, idx) => (
+                    <ActivityRow
+                      key={a.id}
+                      activity={a}
+                      isLast={idx === pageRows.length - 1}
+                      isAdmin={isAdmin}
+                      onEdit={() => openEdit(a)}
+                      onDelete={() => handleDelete(a)}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── pagination ── */}
+          {!loading && filtered.length > 0 && (
+            <div
+              style={{
+                padding: '12px 20px 16px',
+                borderTop: '1px solid #f0f2f5',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <span style={{ fontSize: 12, color: '#7b809a' }}>
+                Affichage {pageStart + 1}–{pageEnd} sur {filtered.length}
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {Array.from({ length: totalPages }).map((_, i) => {
+                  const p = i + 1;
+                  const active = p === safePage;
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p)}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 6,
+                        border: active ? 'none' : '0.5px solid #d2d6da',
+                        background: active ? '#1A73E8' : '#fff',
+                        color: active ? '#fff' : '#344767',
+                        fontSize: 12,
+                        fontWeight: active ? 700 : 400,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
               </div>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-6">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.checked })}
-                className="accent-amber-500 w-4 h-4"
-              />
-              <span className="text-sm text-gray-700">Actif</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={form.isMonthlyOnly}
-                onChange={(e) => setForm({ ...form, isMonthlyOnly: e.target.checked })}
-                className="accent-amber-500 w-4 h-4"
-              />
-              <span className="text-sm text-gray-700">Forfait mensuel uniquement</span>
-            </label>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              onClick={() => setModalOpen(false)}
-              className="px-4 py-2 text-sm text-gray-600 border border-gray-200 hover:bg-gray-50 rounded-lg transition"
-            >
-              Annuler
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || !form.nom.trim()}
-              style={{ background: 'linear-gradient(135deg, #D4A843 0%, #C49B38 100%)' }}
-              className="px-4 py-2 text-sm text-white font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition"
-            >
-              {saving ? 'Enregistrement...' : 'Enregistrer'}
-            </button>
-          </div>
+            </div>
+          )}
         </div>
-      </Modal>
-    </div>
+      </div>
+
+      {/* ── modal ── */}
+      {modalOpen && (
+        <ActivityModal
+          editTarget={editTarget}
+          form={form}
+          onChange={setForm}
+          onClose={() => setModalOpen(false)}
+          onSaved={() => {
+            setModalOpen(false);
+            fetchActivities();
+          }}
+        />
+      )}
+    </>
   );
 }
