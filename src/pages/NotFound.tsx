@@ -1,33 +1,113 @@
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Home, AlertTriangle } from 'lucide-react';
 
 export default function NotFound() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  const handleAction = () => {
+    navigate(isAuthenticated ? '/dashboard' : '/login');
+  };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-10 max-w-md w-full">
-        <div className="flex justify-center mb-4">
-          <div className="bg-amber-100 rounded-full p-4">
-            <AlertTriangle className="w-10 h-10 text-amber-500" />
-          </div>
-        </div>
-        <h1 className="text-6xl font-extrabold text-amber-500 mb-2">404</h1>
-        <h2 className="text-xl font-semibold text-gray-800 mb-2">Page introuvable</h2>
-        <p className="text-gray-500 text-sm mb-8">
-          La page que vous recherchez n'existe pas ou a été déplacée.
-        </p>
-        <button
-          onClick={() => navigate('/dashboard')}
-          style={{ background: 'linear-gradient(135deg, #D4A843 0%, #C49B38 100%)' }}
-          className="inline-flex items-center gap-2 px-6 py-3 text-white font-medium rounded-lg hover:opacity-90 transition"
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: '#f0f2f5',
+        padding: '24px',
+      }}
+    >
+      <div
+        style={{
+          background: '#ffffff',
+          borderRadius: '12px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+          maxWidth: '440px',
+          width: '100%',
+          padding: '48px 40px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '20px',
+          textAlign: 'center',
+        }}
+      >
+        {/* Chiffre 404 avec dégradé */}
+        <span
+          style={{
+            fontSize: '96px',
+            fontWeight: 700,
+            lineHeight: 1,
+            background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+            WebkitBackgroundClip: 'text',
+            backgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            color: 'transparent',
+          }}
         >
-          <Home className="w-4 h-4" />
-          Retour au tableau de bord
+          404
+        </span>
+
+        {/* Divider */}
+        <hr
+          style={{
+            border: 'none',
+            borderTop: '2px solid #f0f2f5',
+            width: '60px',
+            margin: '0 auto',
+          }}
+        />
+
+        {/* Titre */}
+        <h1
+          style={{
+            fontSize: '20px',
+            fontWeight: 700,
+            color: '#344767',
+            margin: 0,
+          }}
+        >
+          Page introuvable
+        </h1>
+
+        {/* Sous-titre */}
+        <p
+          style={{
+            fontSize: '13px',
+            color: '#7b809a',
+            lineHeight: 1.6,
+            margin: 0,
+          }}
+        >
+          La page que vous cherchez n'existe pas ou a été déplacée.
+        </p>
+
+        {/* Bouton action */}
+        <button
+          onClick={handleAction}
+          style={{
+            background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+            color: '#ffffff',
+            fontSize: '14px',
+            fontWeight: 700,
+            padding: '11px 28px',
+            borderRadius: '8px',
+            border: 'none',
+            boxShadow: '0 3px 10px rgba(26,115,232,0.3)',
+            cursor: 'pointer',
+            transition: 'opacity 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = '0.9';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = '1';
+          }}
+        >
+          {isAuthenticated ? 'Retour au Dashboard' : 'Se connecter'}
         </button>
       </div>
     </div>
