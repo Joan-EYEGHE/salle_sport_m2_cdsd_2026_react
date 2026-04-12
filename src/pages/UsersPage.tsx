@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import type { User } from '../types';
@@ -8,11 +8,10 @@ import type { User } from '../types';
 type ExtUser = User & { createdAt?: string };
 
 type UserFormData = {
-  firstName: string;
-  lastName: string;
+  fullName: string;
   email: string;
   role: 'ADMIN' | 'CASHIER' | 'CONTROLLER';
-  status: string;
+  isActive: boolean;
   password: string;
 };
 
@@ -53,19 +52,21 @@ function fmtDateTime(str: string | undefined): string {
 }
 
 function getInitials(u: ExtUser): string {
-  const first = (u.firstName ?? '').charAt(0);
-  const last  = (u.lastName  ?? '').charAt(0);
-  if (first || last) return `${first}${last}`.toUpperCase();
-  return u.email.charAt(0).toUpperCase();
+  const name = (u.fullName ?? '').trim();
+  if (!name) return u.email.charAt(0).toUpperCase();
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+  }
+  return name.charAt(0).toUpperCase();
 }
 
-function fullName(u: ExtUser): string {
-  const name = [u.firstName, u.lastName].filter(Boolean).join(' ');
-  return name || u.email;
+function displayFullName(u: ExtUser): string {
+  return (u.fullName ?? '').trim() || u.email;
 }
 
-function isActive(u: ExtUser): boolean {
-  return u.status === 'ACTIVE' || u.status === 'active';
+function userIsActive(u: ExtUser): boolean {
+  return u.isActive === true;
 }
 
 // ─── StatusBadge ─────────────────────────────────────────────────────────────
@@ -104,9 +105,9 @@ interface UserRowProps {
 
 function UserRow({ user: u, isAdmin, isSelf, onEdit, onDelete }: UserRowProps) {
   const roleBadge = ROLE_BADGE[u.role];
-  const active = isActive(u);
+  const active = userIsActive(u);
   const initials = getInitials(u);
-  const name = fullName(u);
+  const name = displayFullName(u);
 
   return (
     <tr>
@@ -199,11 +200,10 @@ interface UserModalProps {
 }
 
 const EMPTY_FORM: UserFormData = {
-  firstName: '',
-  lastName: '',
+  fullName: '',
   email: '',
   role: 'CASHIER',
-  status: 'ACTIVE',
+  isActive: true,
   password: '',
 };
 
@@ -213,12 +213,11 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
   const [form, setForm] = useState<UserFormData>(() =>
     isEdit
       ? {
-          firstName: editTarget.firstName ?? '',
-          lastName:  editTarget.lastName  ?? '',
-          email:     editTarget.email,
-          role:      editTarget.role,
-          status:    editTarget.status,
-          password:  '',
+          fullName: editTarget.fullName ?? '',
+          email: editTarget.email,
+          role: editTarget.role,
+          isActive: editTarget.isActive !== false,
+          password: '',
         }
       : EMPTY_FORM
   );
@@ -248,6 +247,7 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.email.trim()) { setErr("L'email est obligatoire."); return; }
+    if (!form.fullName.trim()) { setErr('Le nom complet est obligatoire.'); return; }
     if (!isEdit && !form.password.trim()) { setErr('Le mot de passe est obligatoire.'); return; }
     setSaving(true);
     setErr('');
@@ -256,7 +256,13 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
         const { password: _pw, ...payload } = form;
         await api.put(`/users/${editTarget.id}`, payload);
       } else {
-        await api.post('/users', form);
+        const { isActive: _a, ...createBody } = form;
+        await api.post('/users', {
+          fullName: createBody.fullName.trim(),
+          email: createBody.email.trim(),
+          role: createBody.role,
+          password: createBody.password,
+        });
       }
       onSaved();
     } catch {
@@ -297,28 +303,16 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
         </h3>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Prénom + Nom */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 16px' }}>
-            <div>
-              <label style={labelStyle}>Prénom</label>
-              <input
-                type="text"
-                value={form.firstName}
-                onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
-                placeholder="Jean"
-                style={inputStyle}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Nom</label>
-              <input
-                type="text"
-                value={form.lastName}
-                onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
-                placeholder="Dupont"
-                style={inputStyle}
-              />
-            </div>
+          {/* Nom complet */}
+          <div>
+            <label style={labelStyle}>Nom complet *</label>
+            <input
+              type="text"
+              value={form.fullName}
+              onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
+              placeholder="Jean Dupont"
+              style={inputStyle}
+            />
           </div>
 
           {/* Email */}
@@ -365,8 +359,8 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#344767' }}>
             <input
               type="checkbox"
-              checked={form.status === 'ACTIVE' || form.status === 'active'}
-              onChange={(e) => setForm((f) => ({ ...f, status: e.target.checked ? 'ACTIVE' : 'INACTIVE' }))}
+              checked={form.isActive}
+              onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
               style={{ width: 15, height: 15, accentColor: '#1A73E8' }}
             />
             Compte actif
@@ -434,22 +428,28 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ExtUser | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await api.get('/users');
-      const data = res.data?.data ?? res.data;
-      setUsers(Array.isArray(data) ? data : []);
+      const res = await api.get('/users', {
+        params: showInactive ? { includeInactive: 'true' } : undefined,
+      });
+      const payload = res.data?.data ?? res.data;
+      const list = Array.isArray(payload) ? payload : (payload?.items ?? []);
+      setUsers(Array.isArray(list) ? list : []);
     } catch {
       setError('Impossible de charger les utilisateurs.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [showInactive]);
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    void fetchUsers();
+  }, [fetchUsers]);
 
   useEffect(() => { setPage(1); }, [search]);
 
@@ -468,7 +468,7 @@ export default function UsersPage() {
       window.alert('Vous ne pouvez pas supprimer votre propre compte.');
       return;
     }
-    const name = fullName(u);
+    const name = displayFullName(u);
     if (!window.confirm(`Supprimer l'utilisateur "${name}" ? Cette action est irréversible.`)) return;
     try {
       await api.delete(`/users/${u.id}`);
@@ -480,7 +480,7 @@ export default function UsersPage() {
 
   const filtered = users.filter((u) => {
     const q = search.toLowerCase();
-    const name = [u.firstName, u.lastName].filter(Boolean).join(' ').toLowerCase();
+    const name = (u.fullName ?? '').toLowerCase();
     return name.includes(q) || u.email.toLowerCase().includes(q);
   });
 
@@ -534,6 +534,26 @@ export default function UsersPage() {
                   placeholder="Rechercher un utilisateur…"
                 />
               </div>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  color: '#7b809a',
+                  userSelect: 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={showInactive}
+                  onChange={(e) => setShowInactive(e.target.checked)}
+                  style={{ width: 15, height: 15, accentColor: '#1A73E8' }}
+                />
+                Afficher les utilisateurs inactifs
+              </label>
               <span className="gf-count-label">
                 {filtered.length} utilisateur{filtered.length !== 1 ? 's' : ''}
               </span>

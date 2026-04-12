@@ -1,10 +1,9 @@
 export interface User {
   id: number;
-  firstName: string;
-  lastName: string;
+  fullName: string;
   email: string;
   role: 'ADMIN' | 'CASHIER' | 'CONTROLLER';
-  status: string;
+  isActive: boolean;
   lastLogin?: string;
 }
 
