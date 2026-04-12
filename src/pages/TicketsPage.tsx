@@ -1,36 +1,16 @@
 import { useEffect, useState } from 'react';
-import {
-  Plus,
-  Ticket,
-  CheckCircle,
-  XCircle,
-  DollarSign,
-  QrCode,
-  Printer,
-  MessageCircle,
-  Search,
-} from 'lucide-react';
 import api from '../api/axios';
-import Loader from '../components/Loader';
+import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
-import WhatsAppModal from '../components/WhatsAppModal';
-import type { Activity, Ticket as TicketType } from '../types';
+import type { Ticket as TicketType, Activity } from '../types';
 
-function fmt(n: number) {
-  return new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
-}
+// ─── constants ───────────────────────────────────────────────────────────────
+
+const PAGE_SIZE = 10;
 
 type TicketStatus = TicketType['status'] | 'ALL';
 
-interface KpiCard {
-  label: string;
-  value: number;
-  icon: React.ElementType;
-  iconBg: string;
-  iconColor: string;
-}
-
-const statusLabel: Record<string, string> = {
+const STATUS_LABELS: Record<string, string> = {
   ALL: 'Tout',
   DISPONIBLE: 'Disponible',
   VENDU: 'Vendu',
@@ -38,30 +18,194 @@ const statusLabel: Record<string, string> = {
   EXPIRE: 'Expiré',
 };
 
-const statusPillClass: Record<string, string> = {
-  ALL: 'bg-gray-900 text-white',
-  DISPONIBLE: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
-  VENDU: 'bg-amber-100 text-amber-700 border border-amber-200',
-  UTILISE: 'bg-blue-100 text-blue-700 border border-blue-200',
-  EXPIRE: 'bg-red-100 text-red-700 border border-red-200',
+const STATUS_BADGE: Record<string, { bg: string; color: string }> = {
+  DISPONIBLE: { bg: '#eaf7ea', color: '#43A047' },
+  VENDU:      { bg: '#e8f4fd', color: '#1A73E8' },
+  UTILISE:    { bg: '#f3e5f5', color: '#8e24aa' },
+  EXPIRE:     { bg: '#fde8e8', color: '#F44335' },
 };
 
-const statusBadgeClass: Record<string, string> = {
-  DISPONIBLE: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
-  VENDU: 'bg-amber-50 text-amber-600 border border-amber-200',
-  UTILISE: 'bg-blue-50 text-blue-600 border border-blue-200',
-  EXPIRE: 'bg-red-50 text-red-600 border border-red-200',
-};
+const STATUSES: TicketStatus[] = ['ALL', 'DISPONIBLE', 'VENDU', 'UTILISE', 'EXPIRE'];
+
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+function fmtDate(val: string | undefined | null): string {
+  if (!val) return '—';
+  return new Date(val).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+// ─── sub-components ──────────────────────────────────────────────────────────
+
+function StatusBadge({ status }: { status: string }) {
+  const s = STATUS_BADGE[status] ?? { bg: '#f0f2f5', color: '#344767' };
+  return (
+    <span
+      style={{
+        background: s.bg,
+        color: s.color,
+        padding: '3px 10px',
+        borderRadius: 20,
+        fontSize: 11,
+        fontWeight: 600,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {STATUS_LABELS[status] ?? status}
+    </span>
+  );
+}
+
+interface ActionBtnProps {
+  title: string;
+  bg: string;
+  hoverBg: string;
+  color: string;
+  hoverColor: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}
+
+function ActionBtn({ title, bg, hoverBg, color, hoverColor, onClick, children }: ActionBtnProps) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: 28,
+        height: 28,
+        borderRadius: 6,
+        border: 'none',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: hovered ? hoverBg : bg,
+        color: hovered ? hoverColor : color,
+        transition: 'background 0.15s, color 0.15s',
+        flexShrink: 0,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SkeletonRow() {
+  return (
+    <tr>
+      {[100, 140, 120, 100, 100, 80, 72].map((w, i) => (
+        <td key={i} style={{ padding: '14px 14px' }}>
+          <div
+            style={{
+              height: 14,
+              width: w,
+              borderRadius: 4,
+              background: 'linear-gradient(90deg,#f0f2f5 25%,#e8ebf0 50%,#f0f2f5 75%)',
+              backgroundSize: '200% 100%',
+              animation: 'shimmer 1.4s infinite',
+            }}
+          />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+// ─── KPI card ────────────────────────────────────────────────────────────────
+
+interface KpiMiniProps {
+  label: string;
+  value: number;
+  gradient: string;
+  icon: React.ReactNode;
+}
+
+function KpiMini({ label, value, gradient, icon }: KpiMiniProps) {
+  return (
+    <div
+      style={{
+        background: '#f8f9fa',
+        borderRadius: 8,
+        padding: '12px 14px',
+        display: 'flex',
+        gap: 12,
+        alignItems: 'center',
+      }}
+    >
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 8,
+          background: gradient,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </div>
+      <div>
+        <div style={{ fontSize: 11, color: '#7b809a', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+          {label}
+        </div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: '#344767' }}>{value}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── View detail modal ────────────────────────────────────────────────────────
+
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '8px 0',
+        borderBottom: '1px solid #f0f2f5',
+        fontSize: 13,
+      }}
+    >
+      <span style={{ color: '#7b809a', fontWeight: 500 }}>{label}</span>
+      <span style={{ color: '#344767', fontWeight: 600 }}>{value}</span>
+    </div>
+  );
+}
+
+// ─── main page ───────────────────────────────────────────────────────────────
 
 export default function TicketsPage() {
+  const { user } = useAuth();
+  const role = user?.role ?? 'CONTROLLER';
+  const canWrite = role === 'ADMIN' || role === 'CASHIER';
+
+  // data
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [loadingTickets, setLoadingTickets] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<TicketStatus>('ALL');
-  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // filters
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<TicketStatus>('ALL');
+  const [page, setPage] = useState(1);
+
+  // modals
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [viewTicket, setViewTicket] = useState<TicketType | null>(null);
+
+  // generate form
   const [batchActivityId, setBatchActivityId] = useState<number | ''>('');
   const [batchQty, setBatchQty] = useState(10);
   const [batchPrice, setBatchPrice] = useState('');
@@ -69,11 +213,10 @@ export default function TicketsPage() {
   const [generating, setGenerating] = useState(false);
   const [batchMsg, setBatchMsg] = useState('');
 
-  const [qrTicket, setQrTicket] = useState<TicketType | null>(null);
-  const [whatsAppOpen, setWhatsAppOpen] = useState(false);
+  // ── fetch ──────────────────────────────────────────────────────────────────
 
   const fetchTickets = async () => {
-    setLoadingTickets(true);
+    setLoading(true);
     setError('');
     try {
       const res = await api.get('/tickets');
@@ -82,7 +225,7 @@ export default function TicketsPage() {
     } catch {
       setError('Impossible de charger les tickets.');
     } finally {
-      setLoadingTickets(false);
+      setLoading(false);
     }
   };
 
@@ -98,6 +241,38 @@ export default function TicketsPage() {
     fetchTickets();
     fetchActivities();
   }, []);
+
+  // reset page on filter change
+  useEffect(() => { setPage(1); }, [search, statusFilter]);
+
+  // ── derived ────────────────────────────────────────────────────────────────
+
+  const disponibles = tickets.filter((t) => t.status === 'DISPONIBLE').length;
+  const utilises   = tickets.filter((t) => t.status === 'UTILISE').length;
+  const expires    = tickets.filter((t) => t.status === 'EXPIRE').length;
+
+  const filtered = tickets
+    .filter((t) => statusFilter === 'ALL' || t.status === statusFilter)
+    .filter((t) =>
+      search === '' || t.code_ticket.toLowerCase().includes(search.toLowerCase())
+    );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages);
+  const pageStart  = (safePage - 1) * PAGE_SIZE;
+  const pageRows   = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+
+  // ── actions ────────────────────────────────────────────────────────────────
+
+  const handleDelete = async (t: TicketType) => {
+    if (!window.confirm(`Supprimer le ticket "${t.code_ticket}" ? Cette action est irréversible.`)) return;
+    try {
+      await api.delete(`/tickets/${t.id}`);
+      await fetchTickets();
+    } catch {
+      alert('Impossible de supprimer ce ticket.');
+    }
+  };
 
   const handleGenerateBatch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,223 +295,484 @@ export default function TicketsPage() {
     }
   };
 
-  const filtered = tickets
-    .filter((t) => statusFilter === 'ALL' || t.status === statusFilter)
-    .filter((t) =>
-      search === '' || t.code_ticket.toLowerCase().includes(search.toLowerCase())
-    );
+  // ── SVG icons ──────────────────────────────────────────────────────────────
 
-  const disponible = tickets.filter((t) => t.status === 'DISPONIBLE').length;
-  const vendu = tickets.filter((t) => t.status === 'VENDU').length;
-  const revenuJour = tickets
-    .filter((t) => t.status === 'VENDU')
-    .reduce((sum, t) => sum + (t.batch?.prix_unitaire_applique ?? 0), 0);
+  const iconInfo = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+    </svg>
+  );
+  const iconCheck = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+  const iconClock = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+  const iconX = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+    </svg>
+  );
+  const iconEye = (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+  const iconTrash = (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6" /><path d="M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>
+  );
+  const iconSearch = (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7b809a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
 
-  const kpiCards: KpiCard[] = [
-    { label: 'Total des billets', value: tickets.length, icon: Ticket, iconBg: 'bg-amber-100', iconColor: 'text-amber-600' },
-    { label: 'Billets disponibles', value: disponible, icon: CheckCircle, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600' },
-    { label: 'Billets vendus', value: vendu, icon: XCircle, iconBg: 'bg-pink-100', iconColor: 'text-pink-600' },
-    { label: 'Revenus du jour', value: revenuJour, icon: DollarSign, iconBg: 'bg-gray-100', iconColor: 'text-gray-600' },
-  ];
-
-  const statuses: TicketStatus[] = ['ALL', 'DISPONIBLE', 'VENDU', 'UTILISE', 'EXPIRE'];
-
-  const inputClass =
-    'w-full bg-white border border-gray-300 text-gray-900 rounded-lg px-3 py-2.5 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition';
+  // ── render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Système de billetterie</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Générez et gérez des billets d'activité avec des codes QR</p>
-        </div>
-        <button
-          onClick={() => { setGenerateOpen(true); setBatchMsg(''); }}
-          style={{ background: 'linear-gradient(135deg, #D4A843 0%, #C49B38 100%)' }}
-          className="flex items-center gap-2 text-white font-medium rounded-lg px-4 py-2.5 text-sm hover:opacity-90 transition"
+    <>
+      <style>{`
+        @keyframes shimmer {
+          0%   { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
+
+      <div
+        style={{
+          padding: '20px 24px 24px',
+          background: '#f0f2f5',
+          minHeight: 'calc(100vh - 60px)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 20,
+        }}
+      >
+        {/* ── BLOC 1 : KPI mini row ── */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: 16,
+            marginTop: 14,
+          }}
         >
-          <Plus className="w-4 h-4" />
-          Générer des Tickets
-        </button>
-      </div>
+          <KpiMini
+            label="Total tickets"
+            value={tickets.length}
+            gradient="linear-gradient(195deg, #49a3f1, #1A73E8)"
+            icon={iconInfo}
+          />
+          <KpiMini
+            label="Disponibles"
+            value={disponibles}
+            gradient="linear-gradient(195deg, #66BB6A, #43A047)"
+            icon={iconCheck}
+          />
+          <KpiMini
+            label="Utilisés"
+            value={utilises}
+            gradient="linear-gradient(195deg, #FFA726, #fb8c00)"
+            icon={iconClock}
+          />
+          <KpiMini
+            label="Expirés"
+            value={expires}
+            gradient="linear-gradient(195deg, #ef5350, #F44335)"
+            icon={iconX}
+          />
+        </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {kpiCards.map((card) => (
-          <div key={card.label} className="bg-white border border-gray-100 rounded-xl shadow-sm p-5">
-            <div className="flex items-center gap-3 mb-2">
-              <div className={`p-2.5 rounded-xl ${card.iconBg}`}>
-                <card.icon className={`w-5 h-5 ${card.iconColor}`} />
+        {/* ── BLOC 2 : Card table ── */}
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+          }}
+        >
+          {/* ── Header flottant ── */}
+          <div
+            style={{
+              margin: '-20px 16px 0',
+              background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+              borderRadius: 10,
+              padding: '16px 20px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.4)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <div>
+              <div style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>Tickets</div>
+              <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 2 }}>
+                Gestion des tickets d&apos;accès
               </div>
             </div>
-            <p className="text-gray-500 text-xs mb-0.5">{card.label}</p>
-            <p className="text-gray-900 font-bold text-xl">
-              {card.label === 'Revenus du jour' ? fmt(card.value) : card.value}
-            </p>
+            {canWrite && (
+              <button
+                onClick={() => { setGenerateOpen(true); setBatchMsg(''); }}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: '1px solid rgba(255,255,255,0.4)',
+                  color: '#fff',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  padding: '7px 14px',
+                  borderRadius: 7,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
+                Générer ticket
+              </button>
+            )}
           </div>
-        ))}
-      </div>
 
-      {/* Filters */}
-      <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-4">
-        <div className="flex flex-wrap gap-3 items-center mb-4">
-          <div className="relative flex-1 min-w-[180px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Recherche un code..."
-              className="w-full bg-white border border-gray-200 text-gray-900 rounded-lg pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition"
-            />
-          </div>
-          <button className="px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition">
-            Recherche
-          </button>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {statuses.map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-full transition ${
-                statusFilter === s
-                  ? statusPillClass[s]
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {statusLabel[s]}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg p-4">{error}</div>
-      )}
-
-      {/* Ticket cards grid */}
-      {loadingTickets ? (
-        <Loader />
-      ) : filtered.length === 0 ? (
-        <div className="bg-white border border-gray-100 rounded-xl shadow-sm py-16 text-center">
-          <Ticket className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">Pas de tickets trouvés</p>
-          <p className="text-gray-400 text-sm mt-1">Aucun ticket ne correspond aux critères de recherche.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {filtered.map((t) => (
-            <div
-              key={t.id}
-              className="bg-orange-50/50 border border-orange-100 rounded-xl p-4"
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <p className="font-bold text-gray-900 text-sm font-mono truncate">
-                    {t.code_ticket}
-                  </p>
-                  <p className="text-gray-500 text-xs mt-0.5">
-                    {t.batch?.activity?.nom ?? `Lot #${t.id_batch}`}
-                  </p>
-                </div>
+          {/* ── Toolbar ── */}
+          <div
+            style={{
+              padding: '16px 20px 0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: 12,
+              flexWrap: 'wrap',
+            }}
+          >
+            {/* Gauche : recherche + pills */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Recherche */}
+              <div style={{ position: 'relative' }}>
                 <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${
-                    statusBadgeClass[t.status] ?? 'bg-gray-100 text-gray-600'
-                  }`}
+                  style={{
+                    position: 'absolute',
+                    left: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    display: 'flex',
+                  }}
                 >
-                  {statusLabel[t.status] ?? t.status}
+                  {iconSearch}
                 </span>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Rechercher un code..."
+                  style={{
+                    border: '1px solid #d2d6da',
+                    borderRadius: 8,
+                    padding: '8px 12px 8px 34px',
+                    fontSize: 13,
+                    color: '#344767',
+                    width: 220,
+                    outline: 'none',
+                  }}
+                />
               </div>
 
-              <div className="space-y-0.5 mb-3 text-xs text-gray-500">
-                {t.batch?.prix_unitaire_applique != null && (
-                  <p>Prix : <span className="text-gray-900 font-medium">{fmt(t.batch.prix_unitaire_applique)}</span></p>
-                )}
-                <p>Expire : <span className="text-gray-700">{new Date(t.date_expiration).toLocaleDateString('fr-FR')}</span></p>
-              </div>
-
-              {/* QR code placeholder */}
-              <div className="bg-gray-100 rounded-lg p-3 flex items-center justify-center mb-3 h-20">
-                <QrCode className="w-10 h-10 text-gray-400" />
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex gap-1.5">
-                <button
-                  onClick={() => setQrTicket(t)}
-                  className="flex-1 flex items-center justify-center gap-1 text-xs text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg py-1.5 transition"
-                >
-                  <QrCode className="w-3.5 h-3.5" />
-                  QR Code
-                </button>
-                <button
-                  onClick={() => { setWhatsAppOpen(true); }}
-                  className="p-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition"
-                  title="WhatsApp"
-                >
-                  <MessageCircle className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => window.print()}
-                  className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 transition"
-                  title="Imprimer"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                </button>
+              {/* Pills statut */}
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {STATUSES.map((s) => {
+                  const active = s === statusFilter;
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => setStatusFilter(s)}
+                      style={{
+                        padding: '4px 12px',
+                        borderRadius: 20,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                        border: active ? 'none' : '1px solid #d2d6da',
+                        background: active ? '#344767' : 'transparent',
+                        color: active ? '#fff' : '#7b809a',
+                      }}
+                    >
+                      {STATUS_LABELS[s]}
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          ))}
-        </div>
-      )}
 
-      {/* Generate modal */}
+            {/* Droite : compteur */}
+            <span style={{ fontSize: 12, color: '#7b809a', paddingTop: 10, whiteSpace: 'nowrap' }}>
+              {filtered.length} ticket{filtered.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          {/* ── Erreur ── */}
+          {error && (
+            <div
+              style={{
+                margin: '12px 20px 0',
+                background: '#fde8e8',
+                color: '#F44335',
+                borderRadius: 8,
+                padding: '10px 14px',
+                fontSize: 13,
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          {/* ── Tableau ── */}
+          <div style={{ padding: '16px 20px 8px', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
+              <thead>
+                <tr>
+                  {['Code', 'Membre', 'Activité', 'Date achat', 'Date utilisation', 'Statut', 'Actions'].map(
+                    (col, i, arr) => (
+                      <th
+                        key={col}
+                        style={{
+                          background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+                          color: '#fff',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          padding: '10px 14px',
+                          textAlign: 'left',
+                          whiteSpace: 'nowrap',
+                          borderRadius:
+                            i === 0
+                              ? '8px 0 0 8px'
+                              : i === arr.length - 1
+                              ? '0 8px 8px 0'
+                              : 0,
+                        }}
+                      >
+                        {col}
+                      </th>
+                    )
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
+                ) : pageRows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      style={{
+                        textAlign: 'center',
+                        padding: '48px 0',
+                        color: '#7b809a',
+                        fontSize: 13,
+                      }}
+                    >
+                      Aucun ticket trouvé.
+                    </td>
+                  </tr>
+                ) : (
+                  pageRows.map((t, idx) => (
+                    <TicketRow
+                      key={t.id}
+                      ticket={t}
+                      isLast={idx === pageRows.length - 1}
+                      canWrite={canWrite}
+                      onView={() => setViewTicket(t)}
+                      onDelete={() => handleDelete(t)}
+                      iconEye={iconEye}
+                      iconTrash={iconTrash}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── Pagination ── */}
+          {!loading && filtered.length > 0 && (
+            <div
+              style={{
+                padding: '12px 20px 16px',
+                borderTop: '1px solid #f0f2f5',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <span style={{ fontSize: 12, color: '#7b809a' }}>
+                Affichage {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} sur {filtered.length}
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {Array.from({ length: totalPages }).map((_, i) => {
+                  const p = i + 1;
+                  const active = p === safePage;
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p)}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 6,
+                        border: active ? 'none' : '0.5px solid #d2d6da',
+                        background: active ? '#1A73E8' : '#fff',
+                        color: active ? '#fff' : '#344767',
+                        fontSize: 12,
+                        fontWeight: active ? 700 : 400,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Modale : Voir détail ── */}
+      <Modal
+        isOpen={!!viewTicket}
+        onClose={() => setViewTicket(null)}
+        title="Détail du ticket"
+        size="sm"
+      >
+        {viewTicket && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            <div style={{ marginBottom: 12, textAlign: 'center' }}>
+              <span
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: '#344767',
+                  background: '#f0f2f5',
+                  borderRadius: 6,
+                  padding: '4px 12px',
+                  display: 'inline-block',
+                }}
+              >
+                {viewTicket.code_ticket}
+              </span>
+            </div>
+            <DetailRow label="Statut" value={<StatusBadge status={viewTicket.status} />} />
+            <DetailRow
+              label="Activité"
+              value={viewTicket.batch?.activity?.nom ?? '—'}
+            />
+            <DetailRow
+              label="Membre"
+              value={(() => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const m = (viewTicket as any).member;
+                return m ? `${m.prenom ?? ''} ${m.nom ?? ''}`.trim() : '—';
+              })()}
+            />
+            <DetailRow
+              label="Date achat"
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              value={fmtDate((viewTicket as any).created_at)}
+            />
+            <DetailRow
+              label="Date utilisation"
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              value={fmtDate((viewTicket as any).date_utilisation)}
+            />
+            <DetailRow label="Expiration" value={fmtDate(viewTicket.date_expiration)} />
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Modale : Générer ticket ── */}
       <Modal
         isOpen={generateOpen}
         onClose={() => setGenerateOpen(false)}
         title="Générer des tickets"
         size="md"
       >
-        <form onSubmit={handleGenerateBatch} className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-500 font-medium mb-1.5">Sélectionnez une activité *</label>
+        <form
+          onSubmit={handleGenerateBatch}
+          style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+        >
+          {/* Activité */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: '#7b809a', textTransform: 'uppercase' }}>
+              Activité *
+            </label>
             <select
               value={batchActivityId}
-              onChange={(e) => setBatchActivityId(e.target.value === '' ? '' : Number(e.target.value))}
+              onChange={(e) =>
+                setBatchActivityId(e.target.value === '' ? '' : Number(e.target.value))
+              }
               required
-              className={inputClass}
+              style={{
+                border: '1px solid #d2d6da',
+                borderRadius: 8,
+                padding: '8px 12px',
+                fontSize: 13,
+                color: '#344767',
+                outline: 'none',
+                background: '#fff',
+              }}
             >
-              <option value="">-- Activité --</option>
+              <option value="">-- Sélectionner une activité --</option>
               {activities.map((a) => (
-                <option key={a.id} value={a.id}>{a.nom}</option>
+                <option key={a.id} value={a.id}>
+                  {a.nom}
+                </option>
               ))}
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm text-gray-500 font-medium mb-1.5">Nombre de tickets *</label>
+          {/* Quantité */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: '#7b809a', textTransform: 'uppercase' }}>
+              Nombre de tickets *
+            </label>
             <input
               type="number"
               min={1}
               max={100}
               value={batchQty}
               onChange={(e) => setBatchQty(Number(e.target.value))}
-              className={inputClass}
+              style={{
+                border: '1px solid #d2d6da',
+                borderRadius: 8,
+                padding: '8px 12px',
+                fontSize: 13,
+                color: '#344767',
+                outline: 'none',
+              }}
             />
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm text-gray-500 font-medium">Ticket Price</label>
-              <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
+          {/* Prix */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: '#7b809a', textTransform: 'uppercase' }}>
+                Prix
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#7b809a', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={customPrice}
                   onChange={(e) => setCustomPrice(e.target.checked)}
-                  className="accent-amber-500"
                 />
                 Prix personnalisé
               </label>
@@ -348,83 +784,174 @@ export default function TicketsPage() {
                 value={batchPrice}
                 onChange={(e) => setBatchPrice(e.target.value)}
                 placeholder="Prix unitaire (FCFA)"
-                className={inputClass}
+                style={{
+                  border: '1px solid #d2d6da',
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  fontSize: 13,
+                  color: '#344767',
+                  outline: 'none',
+                }}
               />
             )}
           </div>
 
           {batchMsg && (
-            <p className={`text-sm ${batchMsg.includes('Erreur') ? 'text-red-500' : 'text-emerald-600'}`}>
+            <p
+              style={{
+                fontSize: 13,
+                margin: 0,
+                color: batchMsg.includes('Erreur') ? '#F44335' : '#43A047',
+              }}
+            >
               {batchMsg}
             </p>
           )}
 
-          <div className="flex gap-3 pt-1">
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
             <button
               type="button"
               onClick={() => setGenerateOpen(false)}
-              className="flex-1 px-4 py-2.5 text-sm text-gray-600 border border-gray-200 hover:bg-gray-50 rounded-lg transition"
+              style={{
+                flex: 1,
+                padding: '9px 0',
+                borderRadius: 8,
+                border: '1px solid #d2d6da',
+                background: '#fff',
+                color: '#7b809a',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={generating || !batchActivityId}
-              style={{ background: 'linear-gradient(135deg, #D4A843 0%, #C49B38 100%)' }}
-              className="flex-1 text-white font-semibold rounded-lg py-2.5 text-sm hover:opacity-90 disabled:opacity-50 transition"
+              style={{
+                flex: 1,
+                padding: '9px 0',
+                borderRadius: 8,
+                border: 'none',
+                background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: generating || !batchActivityId ? 'not-allowed' : 'pointer',
+                opacity: generating || !batchActivityId ? 0.7 : 1,
+              }}
             >
-              {generating ? 'Génération...' : `+ Générer ${batchQty} Ticket(s)`}
+              {generating ? 'Génération…' : `+ Générer ${batchQty} ticket(s)`}
             </button>
           </div>
         </form>
       </Modal>
+    </>
+  );
+}
 
-      {/* QR Code modal */}
-      <Modal
-        isOpen={!!qrTicket}
-        onClose={() => setQrTicket(null)}
-        title="Ticket QR Code"
-        size="sm"
-      >
-        {qrTicket && (
-          <div className="space-y-4 text-center">
-            <div className="bg-gray-100 rounded-xl p-8 flex items-center justify-center mx-auto w-40 h-40">
-              <QrCode className="w-24 h-24 text-gray-600" />
-            </div>
-            <div className="space-y-1 text-sm">
-              <p className="font-bold text-gray-900 font-mono">{qrTicket.code_ticket}</p>
-              <p className="text-gray-500">{qrTicket.batch?.activity?.nom ?? `Lot #${qrTicket.id_batch}`}</p>
-              {qrTicket.batch?.prix_unitaire_applique != null && (
-                <p className="text-amber-600 font-semibold">{fmt(qrTicket.batch.prix_unitaire_applique)}</p>
-              )}
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setQrTicket(null); setWhatsAppOpen(true); }}
-                className="flex-1 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium rounded-lg py-2.5 text-sm transition"
-              >
-                <MessageCircle className="w-4 h-4" />
-                Partager
-              </button>
-              <button
-                onClick={() => window.print()}
-                style={{ background: 'linear-gradient(135deg, #D4A843 0%, #C49B38 100%)' }}
-                className="flex-1 flex items-center justify-center gap-2 text-white font-medium rounded-lg py-2.5 text-sm hover:opacity-90 transition"
-              >
-                <Printer className="w-4 h-4" />
-                Imprimer
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
+// ─── TicketRow ────────────────────────────────────────────────────────────────
 
-      {/* WhatsApp modal */}
-      <WhatsAppModal
-        isOpen={whatsAppOpen}
-        onClose={() => { setWhatsAppOpen(false); }}
-        defaultPhone=""
-      />
-    </div>
+interface TicketRowProps {
+  ticket: TicketType;
+  isLast: boolean;
+  canWrite: boolean;
+  onView: () => void;
+  onDelete: () => void;
+  iconEye: React.ReactNode;
+  iconTrash: React.ReactNode;
+}
+
+function TicketRow({ ticket: t, isLast, canWrite, onView, onDelete, iconEye, iconTrash }: TicketRowProps) {
+  const [hovered, setHovered] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ext = t as any;
+
+  const memberName = ext.member
+    ? `${ext.member.prenom ?? ''} ${ext.member.nom ?? ''}`.trim() || '—'
+    : '—';
+
+  return (
+    <tr
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        borderBottom: isLast ? 'none' : '1px solid #f0f2f5',
+        background: hovered ? '#fafafa' : '#fff',
+        transition: 'background 0.1s',
+      }}
+    >
+      {/* Code */}
+      <td style={{ padding: '12px 14px' }}>
+        <span
+          style={{
+            background: '#f0f2f5',
+            borderRadius: 6,
+            padding: '4px 10px',
+            fontSize: 12,
+            fontWeight: 700,
+            color: '#344767',
+            fontFamily: 'monospace',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {t.code_ticket}
+        </span>
+      </td>
+
+      {/* Membre */}
+      <td style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}>
+        {memberName}
+      </td>
+
+      {/* Activité */}
+      <td style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}>
+        {t.batch?.activity?.nom ?? '—'}
+      </td>
+
+      {/* Date achat */}
+      <td style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}>
+        {fmtDate(ext.created_at)}
+      </td>
+
+      {/* Date utilisation */}
+      <td style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}>
+        {fmtDate(ext.date_utilisation)}
+      </td>
+
+      {/* Statut */}
+      <td style={{ padding: '12px 14px' }}>
+        <StatusBadge status={t.status} />
+      </td>
+
+      {/* Actions */}
+      <td style={{ padding: '12px 14px' }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <ActionBtn
+            title="Voir le détail"
+            bg="#eaf7ea"
+            hoverBg="#43A047"
+            color="#43A047"
+            hoverColor="#fff"
+            onClick={onView}
+          >
+            {iconEye}
+          </ActionBtn>
+          {canWrite && (
+            <ActionBtn
+              title="Supprimer"
+              bg="#fde8e8"
+              hoverBg="#F44335"
+              color="#F44335"
+              hoverColor="#fff"
+              onClick={onDelete}
+            >
+              {iconTrash}
+            </ActionBtn>
+          )}
+        </div>
+      </td>
+    </tr>
   );
 }
