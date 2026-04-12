@@ -260,7 +260,18 @@ export default function SubscriptionForm() {
         if (actId) setSelectedActivityId(actId);
 
         const oldEnd = sub.date_prochain_paiement ?? sub.end_date ?? sub.date_fin ?? '';
-        const newStart = oldEnd ? addDays(oldEnd, 1) : today();
+        let newStart: string;
+        if (oldEnd) {
+          const ancienneExpiration = new Date(oldEnd);
+          const aujourdHui = new Date();
+          aujourdHui.setHours(0, 0, 0, 0);
+          ancienneExpiration.setHours(0, 0, 0, 0);
+          newStart = ancienneExpiration < aujourdHui
+            ? today()
+            : addDays(oldEnd, 1);
+        } else {
+          newStart = today();
+        }
         setStartDate(newStart);
         setInscriptionFee(0);
 
@@ -479,7 +490,7 @@ export default function SubscriptionForm() {
                   {renewalCtx.oldEndDate && (
                     <> Ancien abonnement expiré le <strong>{new Date(renewalCtx.oldEndDate).toLocaleDateString('fr-FR')}</strong>.</>
                   )}
-                  {' '}La nouvelle date de début est automatiquement fixée au lendemain.
+                  {' '}La nouvelle date de début est calculée automatiquement.
                 </div>
               </div>
             )}
