@@ -48,67 +48,17 @@ function avatarGradient(id: number) {
 
 // ─── sub-components ──────────────────────────────────────────────────────────
 
+const STATUS_MAP: Record<MemberStatus, { label: string; badgeClass: string }> = {
+  ACTIF:      { label: 'Actif',       badgeClass: 'active' },
+  INACTIF:    { label: 'Inactif',     badgeClass: 'inactive' },
+  EN_ATTENTE: { label: 'En attente',  badgeClass: 'pending' },
+};
+
 function StatusBadge({ status }: { status: MemberStatus }) {
-  const styles: Record<MemberStatus, { bg: string; color: string; label: string }> = {
-    ACTIF:      { bg: '#eaf7ea', color: '#43A047', label: 'Actif' },
-    INACTIF:    { bg: '#fde8e8', color: '#F44335', label: 'Inactif' },
-    EN_ATTENTE: { bg: '#fef3e2', color: '#fb8c00', label: 'En attente' },
-  };
-  const s = styles[status];
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.color,
-        padding: '3px 10px',
-        borderRadius: 20,
-        fontSize: 11,
-        fontWeight: 600,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {s.label}
-    </span>
-  );
+  const { label, badgeClass } = STATUS_MAP[status];
+  return <span className={`gf-badge gf-badge--${badgeClass}`}>{label}</span>;
 }
 
-interface ActionBtnProps {
-  title: string;
-  bg: string;
-  hoverBg: string;
-  color: string;
-  hoverColor: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}
-
-function ActionBtn({ title, bg, hoverBg, color, hoverColor, onClick, children }: ActionBtnProps) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      title={title}
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: 28,
-        height: 28,
-        borderRadius: 6,
-        border: 'none',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: hovered ? hoverBg : bg,
-        color: hovered ? hoverColor : color,
-        transition: 'background 0.15s, color 0.15s',
-        flexShrink: 0,
-      }}
-    >
-      {children}
-    </button>
-  );
-}
 
 // ─── edit modal ──────────────────────────────────────────────────────────────
 
@@ -241,16 +191,7 @@ function SkeletonRow() {
     <tr>
       {[200, 120, 110, 80, 90, 80].map((w, i) => (
         <td key={i} style={{ padding: '14px 14px' }}>
-          <div
-            style={{
-              height: 14,
-              width: w,
-              borderRadius: 4,
-              background: 'linear-gradient(90deg,#f0f2f5 25%,#e8ebf0 50%,#f0f2f5 75%)',
-              backgroundSize: '200% 100%',
-              animation: 'shimmer 1.4s infinite',
-            }}
-          />
+          <div className="gf-skeleton" style={{ width: w }} />
         </td>
       ))}
     </tr>
@@ -326,66 +267,17 @@ export default function MembersPage() {
 
   return (
     <>
-      {/* shimmer keyframe */}
-      <style>{`
-        @keyframes shimmer {
-          0%   { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-      `}</style>
-
-      <div
-        style={{
-          padding: '20px 24px 24px',
-          marginTop: 14,
-          background: '#f0f2f5',
-          minHeight: 'calc(100vh - 60px)',
-        }}
-      >
+      <div className="gf-page gf-page-top" style={{ minHeight: 'calc(100vh - 60px)' }}>
         {/* ── card wrapper ── */}
-        <div
-          style={{
-            background: '#fff',
-            borderRadius: 12,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-          }}
-        >
+        <div className="gf-card">
           {/* ── floating header ── */}
-          <div
-            style={{
-              margin: '-20px 16px 0',
-              background: 'linear-gradient(195deg,#49a3f1,#1A73E8)',
-              borderRadius: 10,
-              padding: '16px 20px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.4)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
+          <div className="gf-card-header gf-card-header--info">
             <div>
-              <div style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>Liste des membres</div>
-              <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 2 }}>
-                Gestion des membres inscrits
-              </div>
+              <p className="gf-card-header__title">Liste des membres</p>
+              <p className="gf-card-header__sub">Gestion des membres inscrits</p>
             </div>
             {canEditOrAdd && (
-              <button
-                onClick={() => navigate('/members/subscribe')}
-                style={{
-                  background: 'rgba(255,255,255,0.2)',
-                  border: '1px solid rgba(255,255,255,0.4)',
-                  color: '#fff',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  padding: '7px 14px',
-                  borderRadius: 7,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
+              <button className="gf-btn-header" onClick={() => navigate('/members/subscribe')}>
                 <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
                 Ajouter
               </button>
@@ -393,16 +285,9 @@ export default function MembersPage() {
           </div>
 
           {/* ── toolbar ── */}
-          <div
-            style={{
-              padding: '16px 20px 0',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
+          <div className="gf-toolbar">
             {/* search */}
-            <div style={{ position: 'relative' }}>
+            <div className="gf-search-wrap">
               <svg
                 width="14"
                 height="14"
@@ -412,7 +297,7 @@ export default function MembersPage() {
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }}
+                className="gf-search-icon"
               >
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -422,19 +307,10 @@ export default function MembersPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Rechercher un membre..."
-                style={{
-                  border: '1px solid #d2d6da',
-                  borderRadius: 8,
-                  padding: '8px 12px 8px 34px',
-                  fontSize: 13,
-                  color: '#344767',
-                  width: 220,
-                  outline: 'none',
-                }}
               />
             </div>
             {/* counter */}
-            <span style={{ fontSize: 12, color: '#7b809a' }}>
+            <span className="gf-count-label">
               {filtered.length} membre{filtered.length !== 1 ? 's' : ''}
             </span>
           </div>
@@ -456,36 +332,16 @@ export default function MembersPage() {
           )}
 
           {/* ── table ── */}
-          <div style={{ padding: '16px 20px 8px', overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+          <div className="gf-card-body--table">
+            <table className="gf-table" style={{ minWidth: 700 }}>
               <thead>
                 <tr>
-                  {['Membre', 'Téléphone', 'Abonnement', 'Statut', 'Inscription', 'Actions'].map(
-                    (col, i, arr) => (
-                      <th
-                        key={col}
-                        style={{
-                          background: 'linear-gradient(195deg,#49a3f1,#1A73E8)',
-                          color: '#fff',
-                          fontSize: 11,
-                          fontWeight: 700,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.5px',
-                          padding: '10px 14px',
-                          textAlign: 'left',
-                          borderRadius:
-                            i === 0
-                              ? '8px 0 0 8px'
-                              : i === arr.length - 1
-                              ? '0 8px 8px 0'
-                              : 0,
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {col}
-                      </th>
-                    )
-                  )}
+                  <th>Membre</th>
+                  <th>Téléphone</th>
+                  <th>Abonnement</th>
+                  <th>Statut</th>
+                  <th>Inscription</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -506,12 +362,11 @@ export default function MembersPage() {
                     </td>
                   </tr>
                 ) : (
-                  pageRows.map((m, idx) => {
+                  pageRows.map((m) => {
                     const sub = lastSub(m);
                     const status = getMemberStatus(m);
                     const initials = getInitials(m);
                     const inscriptionDate = m.date_inscription ?? sub?.date_debut;
-                    const isLast = idx === pageRows.length - 1;
 
                     return (
                       <MemberRow
@@ -521,7 +376,6 @@ export default function MembersPage() {
                         status={status}
                         initials={initials}
                         inscriptionDate={inscriptionDate}
-                        isLast={isLast}
                         canEditOrAdd={canEditOrAdd}
                         canDelete={canDelete}
                         onView={() => navigate(`/members/${m.id}`)}
@@ -538,19 +392,11 @@ export default function MembersPage() {
 
           {/* ── pagination ── */}
           {!loading && filtered.length > 0 && (
-            <div
-              style={{
-                padding: '12px 20px 16px',
-                borderTop: '1px solid #f0f2f5',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <span style={{ fontSize: 12, color: '#7b809a' }}>
+            <div className="gf-pagination">
+              <span className="gf-pagination__info">
                 Affichage {pageStart + 1}–{pageEnd} sur {filtered.length}
               </span>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div className="gf-pagination__btns">
                 {Array.from({ length: totalPages }).map((_, i) => {
                   const p = i + 1;
                   const active = p === safePage;
@@ -558,17 +404,7 @@ export default function MembersPage() {
                     <button
                       key={p}
                       onClick={() => setPage(p)}
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 6,
-                        border: active ? 'none' : '0.5px solid #d2d6da',
-                        background: active ? '#1A73E8' : '#fff',
-                        color: active ? '#fff' : '#344767',
-                        fontSize: 12,
-                        fontWeight: active ? 700 : 400,
-                        cursor: 'pointer',
-                      }}
+                      className={`gf-page-btn${active ? ' gf-page-btn--active' : ''}`}
                     >
                       {p}
                     </button>
@@ -593,6 +429,7 @@ export default function MembersPage() {
       )}
     </>
   );
+
 }
 
 // ─── row component ───────────────────────────────────────────────────────────
@@ -603,7 +440,6 @@ interface MemberRowProps {
   status: MemberStatus;
   initials: string;
   inscriptionDate: string | undefined;
-  isLast: boolean;
   canEditOrAdd: boolean;
   canDelete: boolean;
   onView: () => void;
@@ -618,7 +454,6 @@ function MemberRow({
   status,
   initials,
   inscriptionDate,
-  isLast,
   canEditOrAdd,
   canDelete,
   onView,
@@ -626,20 +461,10 @@ function MemberRow({
   onDelete,
   avatarBg,
 }: MemberRowProps) {
-  const [hovered, setHovered] = useState(false);
-
   return (
-    <tr
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        borderBottom: isLast ? 'none' : '1px solid #f0f2f5',
-        background: hovered ? '#fafafa' : '#fff',
-        transition: 'background 0.1s',
-      }}
-    >
+    <tr>
       {/* Membre */}
-      <td style={{ padding: '12px 14px' }}>
+      <td>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{
@@ -668,73 +493,41 @@ function MemberRow({
       </td>
 
       {/* Téléphone */}
-      <td style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}>
-        {m.phone ?? '—'}
-      </td>
+      <td>{m.phone ?? '—'}</td>
 
       {/* Abonnement */}
-      <td style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}>
-        {sub?.activity?.nom ?? (sub ? sub.type_forfait : '—')}
-      </td>
+      <td>{sub?.activity?.nom ?? (sub ? sub.type_forfait : '—')}</td>
 
       {/* Statut */}
-      <td style={{ padding: '12px 14px' }}>
-        <StatusBadge status={status} />
-      </td>
+      <td><StatusBadge status={status} /></td>
 
       {/* Inscription */}
-      <td style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}>
-        {fmtDate(inscriptionDate)}
-      </td>
+      <td>{fmtDate(inscriptionDate)}</td>
 
       {/* Actions */}
-      <td style={{ padding: '12px 14px' }}>
+      <td>
         <div style={{ display: 'flex', gap: 6 }}>
           {/* Voir */}
-          <ActionBtn
-            title="Voir le détail"
-            bg="#eaf7ea"
-            hoverBg="#43A047"
-            color="#43A047"
-            hoverColor="#fff"
-            onClick={onView}
-          >
-            {/* eye icon */}
+          <button className="gf-btn-action gf-btn-action--view" title="Voir le détail" onClick={onView}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
-          </ActionBtn>
+          </button>
 
           {/* Modifier */}
           {canEditOrAdd && (
-            <ActionBtn
-              title="Modifier"
-              bg="#e8f4fd"
-              hoverBg="#1A73E8"
-              color="#1A73E8"
-              hoverColor="#fff"
-              onClick={onEdit}
-            >
-              {/* pencil icon */}
+            <button className="gf-btn-action gf-btn-action--edit" title="Modifier" onClick={onEdit}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
-            </ActionBtn>
+            </button>
           )}
 
           {/* Supprimer */}
           {canDelete && (
-            <ActionBtn
-              title="Supprimer"
-              bg="#fde8e8"
-              hoverBg="#F44335"
-              color="#F44335"
-              hoverColor="#fff"
-              onClick={onDelete}
-            >
-              {/* trash icon */}
+            <button className="gf-btn-action gf-btn-action--delete" title="Supprimer" onClick={onDelete}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="3 6 5 6 21 6" />
                 <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
@@ -742,7 +535,7 @@ function MemberRow({
                 <path d="M14 11v6" />
                 <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
               </svg>
-            </ActionBtn>
+            </button>
           )}
         </div>
       </td>

@@ -1,0 +1,371 @@
+/* ============================================================
+   GymFlow — Design System CSS
+   Variables, utilitaires et classes partagées entre les pages
+   ============================================================ */
+
+/* ── Variables ─────────────────────────────────────────────── */
+:root {
+  --gf-bg: #f0f2f5;
+  --gf-dark: #344767;
+  --gf-muted: #7b809a;
+  --gf-border: #d2d6da;
+  --gf-white: #ffffff;
+
+  --gf-shadow-card: 0 4px 20px rgba(0,0,0,0.05);
+  --gf-shadow-header-info: 0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.4);
+  --gf-shadow-header-warning: 0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(251,140,0,0.4);
+  --gf-shadow-header-success: 0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(76,175,80,0.4);
+  --gf-shadow-header-dark: 0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(0,0,0,0.3);
+  --gf-shadow-kpi-info: 0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.3);
+  --gf-shadow-kpi-success: 0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(76,175,80,0.3);
+  --gf-shadow-kpi-warning: 0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(251,140,0,0.3);
+  --gf-shadow-kpi-primary: 0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(233,30,99,0.3);
+
+  --gf-grad-info: linear-gradient(195deg, #49a3f1, #1A73E8);
+  --gf-grad-success: linear-gradient(195deg, #66BB6A, #43A047);
+  --gf-grad-warning: linear-gradient(195deg, #FFA726, #fb8c00);
+  --gf-grad-primary: linear-gradient(195deg, #EC407A, #D81B60);
+  --gf-grad-dark: linear-gradient(195deg, #42424a, #191919);
+
+  --gf-radius-card: 12px;
+  --gf-radius-header: 10px;
+}
+
+/* ── Page ───────────────────────────────────────────────────── */
+.gf-page {
+  background: var(--gf-bg);
+  padding: 20px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.gf-page-top {
+  margin-top: 14px;
+}
+
+/* ── Card ───────────────────────────────────────────────────── */
+.gf-card {
+  background: var(--gf-white);
+  border-radius: var(--gf-radius-card);
+  box-shadow: var(--gf-shadow-card);
+}
+
+/* Wrapper qui donne l'espace au header flottant */
+.gf-card-outer {
+  padding-top: 20px;
+}
+
+/* ── Header flottant ────────────────────────────────────────── */
+.gf-card-header {
+  margin: -20px 16px 0;
+  border-radius: var(--gf-radius-header);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gf-card-header--info {
+  background: var(--gf-grad-info);
+  box-shadow: var(--gf-shadow-header-info);
+}
+
+.gf-card-header--warning {
+  background: var(--gf-grad-warning);
+  box-shadow: var(--gf-shadow-header-warning);
+}
+
+.gf-card-header--success {
+  background: var(--gf-grad-success);
+  box-shadow: var(--gf-shadow-header-success);
+}
+
+.gf-card-header--dark {
+  background: var(--gf-grad-dark);
+  box-shadow: var(--gf-shadow-header-dark);
+}
+
+.gf-card-header__title {
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.gf-card-header__sub {
+  color: rgba(255,255,255,0.75);
+  font-size: 11px;
+  margin: 3px 0 0;
+}
+
+/* ── Body card ──────────────────────────────────────────────── */
+.gf-card-body {
+  padding: 28px 20px 16px;
+}
+
+.gf-card-body--table {
+  padding: 16px 20px 8px;
+  overflow-x: auto;
+}
+
+/* ── KPI grid ───────────────────────────────────────────────── */
+.gf-kpi-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.gf-kpi-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.gf-kpi-card {
+  background: var(--gf-white);
+  border-radius: var(--gf-radius-card);
+  box-shadow: var(--gf-shadow-card);
+  padding: 14px 16px 12px;
+  position: relative;
+}
+
+.gf-kpi-icon {
+  position: absolute;
+  top: -14px;
+  left: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gf-kpi-icon--info    { background: var(--gf-grad-info);    box-shadow: var(--gf-shadow-kpi-info); }
+.gf-kpi-icon--success { background: var(--gf-grad-success); box-shadow: var(--gf-shadow-kpi-success); }
+.gf-kpi-icon--warning { background: var(--gf-grad-warning); box-shadow: var(--gf-shadow-kpi-warning); }
+.gf-kpi-icon--primary { background: var(--gf-grad-primary); box-shadow: var(--gf-shadow-kpi-primary); }
+
+.gf-kpi-label {
+  font-size: 11px;
+  color: var(--gf-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: right;
+  padding-top: 6px;
+  margin: 0;
+}
+
+.gf-kpi-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--gf-dark);
+  text-align: right;
+  margin: 4px 0 0;
+}
+
+.gf-kpi-footer {
+  border-top: 1px solid var(--gf-bg);
+  padding-top: 6px;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--gf-muted);
+  margin-bottom: 0;
+}
+
+/* ── Tableau ────────────────────────────────────────────────── */
+.gf-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+.gf-table thead tr {
+  background: var(--gf-grad-info);
+}
+
+.gf-table thead th {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.gf-table thead th:first-child { border-radius: 8px 0 0 8px; }
+.gf-table thead th:last-child  { border-radius: 0 8px 8px 0; }
+
+.gf-table tbody tr {
+  border-bottom: 1px solid var(--gf-bg);
+  transition: background 0.1s;
+}
+
+.gf-table tbody tr:last-child { border-bottom: none; }
+.gf-table tbody tr:hover { background: #fafafa; }
+
+.gf-table tbody td {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--gf-dark);
+}
+
+/* ── Badges ─────────────────────────────────────────────────── */
+.gf-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.gf-badge--active   { background: #eaf7ea; color: #43A047; }
+.gf-badge--inactive { background: #fde8e8; color: #F44335; }
+.gf-badge--pending  { background: #fef3e2; color: #fb8c00; }
+.gf-badge--info     { background: #e8f4fd; color: #1A73E8; }
+.gf-badge--purple   { background: #f3e5f5; color: #8e24aa; }
+
+/* ── Boutons action ─────────────────────────────────────────── */
+.gf-btn-action {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.gf-btn-action--view   { background: #eaf7ea; color: #43A047; }
+.gf-btn-action--view:hover   { background: #43A047; color: white; }
+.gf-btn-action--edit   { background: #e8f4fd; color: #1A73E8; }
+.gf-btn-action--edit:hover   { background: #1A73E8; color: white; }
+.gf-btn-action--delete { background: #fde8e8; color: #F44335; }
+.gf-btn-action--delete:hover { background: #F44335; color: white; }
+
+/* ── Pagination ─────────────────────────────────────────────── */
+.gf-pagination {
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--gf-bg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.gf-pagination__info {
+  font-size: 12px;
+  color: var(--gf-muted);
+}
+
+.gf-pagination__btns {
+  display: flex;
+  gap: 4px;
+}
+
+.gf-page-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 0.5px solid var(--gf-border);
+  background: var(--gf-white);
+  color: var(--gf-dark);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gf-page-btn--active {
+  background: #1A73E8;
+  color: white;
+  border-color: #1A73E8;
+  font-weight: 700;
+}
+
+/* ── Toolbar ────────────────────────────────────────────────── */
+.gf-toolbar {
+  padding: 16px 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.gf-search-wrap {
+  position: relative;
+}
+
+.gf-search-wrap input {
+  border: 1px solid var(--gf-border);
+  border-radius: 8px;
+  padding: 8px 12px 8px 34px;
+  font-size: 13px;
+  color: var(--gf-dark);
+  width: 220px;
+  outline: none;
+}
+
+.gf-search-wrap input:focus {
+  border-color: #1A73E8;
+}
+
+.gf-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.gf-count-label {
+  font-size: 12px;
+  color: var(--gf-muted);
+}
+
+/* ── Bouton header card ─────────────────────────────────────── */
+.gf-btn-header {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.4);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 7px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.gf-btn-header:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+/* ── Skeleton shimmer ───────────────────────────────────────── */
+@keyframes gf-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.gf-skeleton {
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f2f5 25%, #e8ebf0 50%, #f0f2f5 75%);
+  background-size: 200% 100%;
+  animation: gf-shimmer 1.4s infinite;
+}

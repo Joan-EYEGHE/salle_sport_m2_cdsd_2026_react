@@ -216,24 +216,21 @@ export default function QRControlPage() {
       label: "Entrées aujourd'hui",
       value: kpiLoading || kpiError ? null : String(kpiData?.total ?? 0),
       Icon: CheckCircle,
-      gradient: 'linear-gradient(195deg, #66BB6A, #43A047)',
-      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(76,175,80,0.3)',
+      colorKey: 'success',
       footer: 'Accès enregistrés',
     },
     {
       label: 'Membres accédés',
       value: kpiLoading || kpiError ? null : String(kpiData?.uniques ?? 0),
       Icon: Users,
-      gradient: 'linear-gradient(195deg, #FFA726, #fb8c00)',
-      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(251,140,0,0.3)',
+      colorKey: 'warning',
       footer: 'Membres uniques',
     },
     {
       label: 'Tickets validés',
       value: kpiLoading || kpiError ? null : String(kpiData?.tickets ?? 0),
       Icon: Ticket,
-      gradient: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
-      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.3)',
+      colorKey: 'info',
       footer: 'Scans accordés',
     },
   ];
@@ -241,91 +238,22 @@ export default function QRControlPage() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      style={{
-        background: '#f0f2f5',
-        padding: '20px 24px 24px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 20,
-      }}
-    >
+    <div className="gf-page">
       {/* ── BLOC 1 — KPI Row ─────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-          gap: 16,
-          marginTop: 14,
-        }}
-      >
+      <div className="gf-kpi-grid-3 gf-page-top">
         {kpiDefs.map((kpi) => (
-          <div
-            key={kpi.label}
-            style={{
-              background: '#fff',
-              borderRadius: 12,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-              padding: '14px 16px 12px',
-              position: 'relative',
-            }}
-          >
+          <div key={kpi.label} className="gf-kpi-card">
             {/* Floating icon */}
-            <div
-              style={{
-                position: 'absolute',
-                top: -14,
-                left: 16,
-                width: 48,
-                height: 48,
-                borderRadius: 10,
-                background: kpi.gradient,
-                boxShadow: kpi.shadow,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
+            <div className={`gf-kpi-icon gf-kpi-icon--${kpi.colorKey}`}>
               <kpi.Icon size={22} color="#fff" />
             </div>
 
             {/* Right-aligned label + value */}
-            <div style={{ textAlign: 'right', paddingTop: 6 }}>
-              <p
-                style={{
-                  fontSize: 11,
-                  color: '#7b809a',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                  margin: 0,
-                }}
-              >
-                {kpi.label}
-              </p>
-              <p
-                style={{
-                  fontSize: 20,
-                  fontWeight: 700,
-                  color: '#344767',
-                  margin: '4px 0 0',
-                }}
-              >
-                {kpi.value ?? '--'}
-              </p>
-            </div>
+            <p className="gf-kpi-label">{kpi.label}</p>
+            <p className="gf-kpi-value">{kpi.value ?? '--'}</p>
 
             {/* Footer */}
-            <div
-              style={{
-                borderTop: '1px solid #f0f2f5',
-                paddingTop: 6,
-                marginTop: 10,
-              }}
-            >
-              <p style={{ fontSize: 11, color: '#7b809a', margin: 0 }}>
-                {kpi.footer}
-              </p>
-            </div>
+            <p className="gf-kpi-footer">{kpi.footer}</p>
           </div>
         ))}
       </div>
@@ -339,72 +267,17 @@ export default function QRControlPage() {
         }}
       >
         {/* ── Colonne Gauche — Card Scanner ──────────────────────────────── */}
-        <div
-          style={{
-            background: '#fff',
-            borderRadius: 12,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-            paddingBottom: 20,
-          }}
-        >
+        <div className="gf-card" style={{ paddingBottom: 20 }}>
           {/* Header flottant orange */}
-          <div
-            style={{
-              margin: '-20px 16px 0',
-              background: 'linear-gradient(195deg, #FFA726, #fb8c00)',
-              borderRadius: 10,
-              padding: '16px 20px',
-              boxShadow:
-                '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(251,140,0,0.4)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
+          <div className="gf-card-header gf-card-header--warning">
             <div>
-              <p
-                style={{
-                  color: '#fff',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  margin: 0,
-                }}
-              >
-                Contrôle d&apos;accès QR
-              </p>
-              <p
-                style={{
-                  color: 'rgba(255,255,255,0.75)',
-                  fontSize: 11,
-                  margin: '3px 0 0',
-                }}
-              >
-                Scanner ou saisir un code manuellement
-              </p>
+              <p className="gf-card-header__title">Contrôle d&apos;accès QR</p>
+              <p className="gf-card-header__sub">Scanner ou saisir un code manuellement</p>
             </div>
             <button
               type="button"
               onClick={handleToggleCamera}
-              style={{
-                background: 'rgba(255,255,255,0.2)',
-                border: '1px solid rgba(255,255,255,0.4)',
-                borderRadius: 8,
-                padding: '7px 14px',
-                color: '#fff',
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                whiteSpace: 'nowrap',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-              }}
+              className="gf-btn-header"
             >
               <QrIcon size={14} color="#fff" />
               {cameraActive ? 'Arrêter' : 'Scanner le code QR'}
@@ -413,12 +286,13 @@ export default function QRControlPage() {
 
           {/* Body */}
           <div
+            className="gf-card-body"
             style={{
-              padding: '28px 20px 0',
               display: 'flex',
               flexDirection: 'column',
               gap: 16,
               alignItems: 'center',
+              paddingBottom: 0,
             }}
           >
             {/* Zone caméra 200×200 */}
@@ -623,48 +497,17 @@ export default function QRControlPage() {
         </div>
 
         {/* ── Colonne Droite — Card Historique ───────────────────────────── */}
-        <div
-          style={{
-            background: '#fff',
-            borderRadius: 12,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-            paddingBottom: 16,
-          }}
-        >
+        <div className="gf-card" style={{ paddingBottom: 16 }}>
           {/* Header flottant sombre */}
-          <div
-            style={{
-              margin: '-20px 16px 0',
-              background: 'linear-gradient(195deg, #42424a, #191919)',
-              borderRadius: 10,
-              padding: '16px 20px',
-              boxShadow:
-                '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(0,0,0,0.3)',
-            }}
-          >
-            <p
-              style={{
-                color: '#fff',
-                fontSize: 14,
-                fontWeight: 700,
-                margin: 0,
-              }}
-            >
-              Historique du jour
-            </p>
-            <p
-              style={{
-                color: 'rgba(255,255,255,0.75)',
-                fontSize: 11,
-                margin: '3px 0 0',
-              }}
-            >
-              Derniers accès scannés
-            </p>
+          <div className="gf-card-header gf-card-header--dark">
+            <div>
+              <p className="gf-card-header__title">Historique du jour</p>
+              <p className="gf-card-header__sub">Derniers accès scannés</p>
+            </div>
           </div>
 
           {/* Body */}
-          <div style={{ padding: '28px 16px 0' }}>
+          <div className="gf-card-body" style={{ paddingLeft: 16, paddingRight: 16, paddingBottom: 0 }}>
             {loadingLogs ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
                 <Loader size="sm" />

@@ -57,11 +57,11 @@ interface MemberRaw {
   subscriptions?: { date_prochain_paiement: string }[];
 }
 
-function getTxCategory(libelle: string): { label: string; bg: string; color: string } {
+function getTxCategory(libelle: string): { label: string; badgeClass: string } {
   const l = libelle.toLowerCase();
-  if (l.includes('ticket'))      return { label: 'Ticket',      bg: '#fef3e2', color: '#fb8c00' };
-  if (l.includes('inscription')) return { label: 'Inscription', bg: '#eaf7ea', color: '#43A047' };
-  return                                { label: 'Abonnement',  bg: '#e8f4fd', color: '#1A73E8' };
+  if (l.includes('ticket'))      return { label: 'Ticket',      badgeClass: 'pending' };
+  if (l.includes('inscription')) return { label: 'Inscription', badgeClass: 'active' };
+  return                                { label: 'Abonnement',  badgeClass: 'info' };
 }
 
 export default function DashboardPage() {
@@ -197,108 +197,50 @@ export default function DashboardPage() {
       label: 'Membres actifs',
       value: membresActifs !== null ? String(membresActifs) : null,
       Icon: Users,
-      gradient: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
-      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.3)',
+      colorKey: 'info',
       footer: 'Abonnements en cours',
     },
     {
       label: 'Revenus du jour',
       value: revenusJour !== null ? fmt(revenusJour) : null,
       Icon: DollarSign,
-      gradient: 'linear-gradient(195deg, #66BB6A, #43A047)',
-      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(76,175,80,0.3)',
+      colorKey: 'success',
       footer: 'Total cumulé',
     },
     {
       label: 'Tickets vendus',
       value: ticketsJour !== null ? String(ticketsJour) : null,
       Icon: Ticket,
-      gradient: 'linear-gradient(195deg, #FFA726, #fb8c00)',
-      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(251,140,0,0.3)',
+      colorKey: 'warning',
       footer: 'Tickets en circulation',
     },
     {
       label: 'Entrées du jour',
       value: entreesJour !== null ? String(entreesJour) : null,
       Icon: TrendingUp,
-      gradient: 'linear-gradient(195deg, #EC407A, #D81B60)',
-      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(233,30,99,0.3)',
+      colorKey: 'primary',
       footer: 'Scans validés',
     },
   ];
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div
-      style={{
-        padding: '20px 24px 24px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 32,
-        background: '#f0f2f5',
-      }}
-    >
+    <div className="gf-page">
       {/* ── BLOC 1 — KPI cards ─────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-          gap: 16,
-          marginTop: 14,
-        }}
-      >
+      <div className="gf-kpi-grid-4 gf-page-top">
         {kpiDefs.map((kpi) => (
-          <div
-            key={kpi.label}
-            style={{
-              background: '#fff',
-              borderRadius: 12,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-              padding: '14px 16px 12px',
-              position: 'relative',
-            }}
-          >
+          <div key={kpi.label} className="gf-kpi-card">
             {/* Floating icon */}
-            <div
-              style={{
-                position: 'absolute',
-                top: -14,
-                left: 16,
-                width: 48,
-                height: 48,
-                borderRadius: 10,
-                background: kpi.gradient,
-                boxShadow: kpi.shadow,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
+            <div className={`gf-kpi-icon gf-kpi-icon--${kpi.colorKey}`}>
               <kpi.Icon size={22} color="#fff" />
             </div>
 
             {/* Right-aligned label + value */}
-            <div style={{ textAlign: 'right', paddingTop: 6 }}>
-              <p
-                style={{
-                  fontSize: 11,
-                  color: '#7b809a',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                  margin: 0,
-                }}
-              >
-                {kpi.label}
-              </p>
-              <p style={{ fontSize: 20, fontWeight: 700, color: '#344767', margin: '4px 0 0' }}>
-                {kpiLoading ? '--' : (kpi.value ?? '--')}
-              </p>
-            </div>
+            <p className="gf-kpi-label">{kpi.label}</p>
+            <p className="gf-kpi-value">{kpiLoading ? '--' : (kpi.value ?? '--')}</p>
 
             {/* Footer */}
-            <div style={{ borderTop: '1px solid #f0f2f5', paddingTop: 6, marginTop: 10 }}>
-              <p style={{ fontSize: 11, color: '#7b809a', margin: 0 }}>{kpi.footer}</p>
-            </div>
+            <p className="gf-kpi-footer">{kpi.footer}</p>
           </div>
         ))}
       </div>
@@ -312,44 +254,18 @@ export default function DashboardPage() {
         }}
       >
         {/* Left — Revenue AreaChart */}
-        <div style={{ paddingTop: 20 }}>
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: 12,
-              overflow: 'visible',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-            }}
-          >
+        <div className="gf-card-outer">
+          <div className="gf-card" style={{ overflow: 'visible' }}>
             {/* Floating blue header */}
-            <div
-              style={{
-                margin: '-20px 16px 0',
-                background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
-                borderRadius: 10,
-                padding: '16px 20px',
-                boxShadow:
-                  '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.4)',
-              }}
-            >
-              <p
-                style={{
-                  color: '#fff',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  margin: 0,
-                  lineHeight: 1.3,
-                }}
-              >
-                Revenus — 7 derniers jours
-              </p>
-              <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, margin: '3px 0 0' }}>
-                Connecté à /api/transactions
-              </p>
+            <div className="gf-card-header gf-card-header--info">
+              <div>
+                <p className="gf-card-header__title">Revenus — 7 derniers jours</p>
+                <p className="gf-card-header__sub">Connecté à /api/transactions</p>
+              </div>
             </div>
 
             {/* Chart body */}
-            <div style={{ padding: '28px 20px 16px' }}>
+            <div className="gf-card-body">
               {weeklyLoading ? (
                 <div
                   className="animate-pulse"
@@ -404,40 +320,14 @@ export default function DashboardPage() {
         </div>
 
         {/* Right — Expirations imminentes */}
-        <div style={{ paddingTop: 20 }}>
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: 12,
-              overflow: 'visible',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-            }}
-          >
+        <div className="gf-card-outer">
+          <div className="gf-card" style={{ overflow: 'visible' }}>
             {/* Floating orange header */}
-            <div
-              style={{
-                margin: '-20px 16px 0',
-                background: 'linear-gradient(195deg, #FFA726, #fb8c00)',
-                borderRadius: 10,
-                padding: '16px 20px',
-                boxShadow:
-                  '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(251,140,0,0.4)',
-              }}
-            >
-              <p
-                style={{
-                  color: '#fff',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  margin: 0,
-                  lineHeight: 1.3,
-                }}
-              >
-                Expirations imminentes
-              </p>
-              <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, margin: '3px 0 0' }}>
-                Abonnements à renouveler
-              </p>
+            <div className="gf-card-header gf-card-header--warning">
+              <div>
+                <p className="gf-card-header__title">Expirations imminentes</p>
+                <p className="gf-card-header__sub">Abonnements à renouveler</p>
+              </div>
             </div>
 
             {/* Expirations body */}
@@ -562,82 +452,33 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── BLOC 3 — Recent transactions (preserved exactly) ───────────────── */}
-      <div style={{ paddingTop: 20 }}>
-        <div
-          style={{
-            background: '#fff',
-            borderRadius: 12,
-            overflow: 'visible',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-          }}
-        >
+      {/* ── BLOC 3 — Recent transactions ───────────────────────────────────── */}
+      <div className="gf-card-outer">
+        <div className="gf-card" style={{ overflow: 'visible' }}>
           {/* Floating header */}
-          <div
-            style={{
-              margin: '-20px 16px 0',
-              background: 'linear-gradient(195deg, #42424a, #191919)',
-              borderRadius: 10,
-              padding: '16px 20px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(0,0,0,0.3)',
-            }}
-          >
-            <p
-              style={{
-                color: '#fff',
-                fontSize: 14,
-                fontWeight: 700,
-                margin: 0,
-                lineHeight: 1.3,
-              }}
-            >
-              Transactions récentes
-            </p>
-            <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 11, margin: '3px 0 0' }}>
-              Dernières ventes et activités
-            </p>
+          <div className="gf-card-header gf-card-header--dark">
+            <div>
+              <p className="gf-card-header__title">Transactions récentes</p>
+              <p className="gf-card-header__sub">Dernières ventes et activités</p>
+            </div>
           </div>
 
           {/* Body */}
-          <div style={{ padding: '28px 20px 16px' }}>
+          <div className="gf-card-body">
             {recentTx.length === 0 ? (
               <p style={{ textAlign: 'center', color: '#7b809a', fontSize: 13, margin: 0 }}>
                 Aucune transaction récente.
               </p>
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <table className="gf-table">
                   <thead>
-                    <tr
-                      style={{
-                        background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
-                        borderRadius: 8,
-                      }}
-                    >
-                      {(['Date', 'Membre', 'Type', 'Activité', 'Montant'] as const).map(
-                        (col, idx, arr) => (
-                          <th
-                            key={col}
-                            style={{
-                              textAlign: col === 'Montant' ? 'right' : 'left',
-                              padding: '10px 14px',
-                              fontSize: 11,
-                              fontWeight: 700,
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.06em',
-                              color: '#fff',
-                              borderRadius:
-                                idx === 0
-                                  ? '8px 0 0 8px'
-                                  : idx === arr.length - 1
-                                  ? '0 8px 8px 0'
-                                  : undefined,
-                            }}
-                          >
-                            {col}
-                          </th>
-                        )
-                      )}
+                    <tr>
+                      <th>Date</th>
+                      <th>Membre</th>
+                      <th>Type</th>
+                      <th>Activité</th>
+                      <th style={{ textAlign: 'right' }}>Montant</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -647,57 +488,20 @@ export default function DashboardPage() {
                         : '—';
                       const cat = getTxCategory(tx.libelle);
                       return (
-                        <tr
-                          key={tx.id}
-                          style={{ borderBottom: '1px solid #f0f2f5', cursor: 'default' }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = '#fafafa')
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = 'transparent')
-                          }
-                        >
-                          <td
-                            style={{ padding: '12px 14px', fontSize: 13, color: '#7b809a' }}
-                          >
+                        <tr key={tx.id}>
+                          <td style={{ color: '#7b809a' }}>
                             {new Date(tx.date).toLocaleDateString('fr-FR')}
                           </td>
-                          <td
-                            style={{
-                              padding: '12px 14px',
-                              fontSize: 13,
-                              color: '#344767',
-                              fontWeight: 500,
-                            }}
-                          >
-                            {memberName}
-                          </td>
-                          <td style={{ padding: '12px 14px' }}>
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                padding: '3px 9px',
-                                borderRadius: 10,
-                                fontSize: 10,
-                                fontWeight: 700,
-                                textTransform: 'uppercase',
-                                background: cat.bg,
-                                color: cat.color,
-                              }}
-                            >
+                          <td style={{ fontWeight: 500 }}>{memberName}</td>
+                          <td>
+                            <span className={`gf-badge gf-badge--${cat.badgeClass}`}>
                               {cat.label}
                             </span>
                           </td>
-                          <td
-                            style={{ padding: '12px 14px', fontSize: 13, color: '#344767' }}
-                          >
-                            {tx.libelle}
-                          </td>
+                          <td>{tx.libelle}</td>
                           <td
                             style={{
-                              padding: '12px 14px',
                               textAlign: 'right',
-                              fontSize: 13,
                               fontWeight: 700,
                               color: tx.type === 'REVENU' ? '#059669' : '#dc2626',
                             }}
