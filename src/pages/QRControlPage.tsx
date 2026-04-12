@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ScanLine, CheckCircle, XCircle, Users, Ticket } from 'lucide-react';
+import { CheckCircle, XCircle, Users, Ticket } from 'lucide-react';
 import api from '../api/axios';
 import Loader from '../components/Loader';
 import type { AccessLog } from '../types';
@@ -18,25 +18,22 @@ interface VerifyResult {
   };
 }
 
-interface KpiDef {
-  label: string;
-  value: string | null;
-  Icon: React.ElementType;
-  gradient: string;
-  shadow: string;
-  footer: string;
+interface KpiData {
+  total: number;
+  uniques: number;
+  tickets: number;
 }
 
-// ── SVG QR placeholder ────────────────────────────────────────────────────────
+// ── SVG icons ─────────────────────────────────────────────────────────────────
 
-function QrIcon() {
+function QrIcon({ size = 48, color = '#b0b7c3' }: { size?: number; color?: string }) {
   return (
     <svg
-      width="48"
-      height="48"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
-      stroke="#b0b7c3"
+      stroke={color}
       strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -44,9 +41,9 @@ function QrIcon() {
       <rect x="3" y="3" width="7" height="7" rx="1" />
       <rect x="14" y="3" width="7" height="7" rx="1" />
       <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="5" y="5" width="3" height="3" fill="#b0b7c3" stroke="none" />
-      <rect x="16" y="5" width="3" height="3" fill="#b0b7c3" stroke="none" />
-      <rect x="5" y="16" width="3" height="3" fill="#b0b7c3" stroke="none" />
+      <rect x="5" y="5" width="3" height="3" fill={color} stroke="none" />
+      <rect x="16" y="5" width="3" height="3" fill={color} stroke="none" />
+      <rect x="5" y="16" width="3" height="3" fill={color} stroke="none" />
       <path d="M14 14h2v2h-2z M18 14h3 M14 18h2 M18 18h3 M14 21h2 M20 21h1 M20 17v2" />
     </svg>
   );
@@ -80,31 +77,59 @@ export default function QRControlPage() {
   const [logs, setLogs] = useState<AccessLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [cameraActive, setCameraActive] = useState(false);
+  const [kpiData, setKpiData] = useState<KpiData | null>(null);
+  const [kpiLoading, setKpiLoading] = useState(true);
+  const [kpiError, setKpiError] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Data fetching ───────────────────────────────────────────────────────────
+  // ── KPI fetch (all records, no limit) ──────────────────────────────────────
 
-  const fetchLogs = async () => {
-    setLoadingLogs(true);
+  const fetchKpis = async (silent = false) => {
+    if (!silent) { setKpiLoading(true); setKpiError(false); }
     try {
-      const res = await api.get('/access-logs?period=today&sort=desc');
+      const res = await api.get('/access-logs?period=today');
+      const data: AccessLog[] = res.data?.data ?? res.data ?? [];
+      const total = Array.isArray(data) ? data.length : 0;
+      const uniques = new Set(
+        Array.isArray(data) ? data.map((l) => l.id_membre ?? l.id) : []
+      ).size;
+      const tickets = Array.isArray(data)
+        ? data.filter((l) => l.resultat === 'SUCCES' || l.resultat === 'SUCCESS').length
+        : 0;
+      setKpiData({ total, uniques, tickets });
+    } catch {
+      if (!silent) setKpiError(true);
+    } finally {
+      if (!silent) setKpiLoading(false);
+    }
+  };
+
+  // ── History fetch (limit 10, sort desc) ────────────────────────────────────
+
+  const fetchLogs = async (silent = false) => {
+    if (!silent) setLoadingLogs(true);
+    try {
+      const res = await api.get('/access-logs?period=today&limit=10&sort=desc');
       const data = res.data?.data ?? res.data;
       setLogs(Array.isArray(data) ? data : []);
     } catch {
       // silent — keep previous state
     } finally {
-      setLoadingLogs(false);
+      if (!silent) setLoadingLogs(false);
     }
   };
 
   useEffect(() => {
+    fetchKpis();
     fetchLogs();
     inputRef.current?.focus();
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
+      if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
     };
   }, []);
 
@@ -139,17 +164,37 @@ export default function QRControlPage() {
     if (!code.trim()) return;
     setValidating(true);
     setResult(null);
+    if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
+
     try {
       const res = await api.post('/access-logs/verify', { code: code.trim() });
       const data = res.data?.data ?? res.data;
-      setResult({
+
+      const newResult: VerifyResult = {
         success: true,
         message: data.message ?? 'Accès autorisé',
         membre: data.membre,
         subscription: data.subscription,
         ticket: data.ticket,
-      });
-      fetchLogs();
+      };
+      setResult(newResult);
+
+      // Optimistic prepend to history
+      const optimisticEntry: AccessLog = {
+        id: Date.now(),
+        date_scan: new Date().toISOString(),
+        resultat: 'SUCCES',
+        id_controller: 0,
+        id_ticket: data.ticket?.id,
+        id_membre: data.membre?.id,
+        membre: data.membre ? { nom: data.membre.nom, prenom: data.membre.prenom } : undefined,
+        ticket: data.ticket,
+      };
+      setLogs((prev) => [optimisticEntry, ...prev.slice(0, 9)]);
+
+      // Silent background refresh for accuracy
+      fetchKpis(true);
+      fetchLogs(true);
     } catch (err: unknown) {
       const errData = (err as { response?: { data?: { message?: string } } })?.response?.data;
       setResult({
@@ -159,24 +204,17 @@ export default function QRControlPage() {
     } finally {
       setValidating(false);
       setCode('');
+      resultTimerRef.current = setTimeout(() => setResult(null), 5000);
       inputRef.current?.focus();
     }
   };
 
-  // ── KPI computation ─────────────────────────────────────────────────────────
+  // ── KPI card definitions ────────────────────────────────────────────────────
 
-  const totalEntrees = logs.length;
-  const membresUniques = new Set(
-    logs.map((l) => (l as AccessLog & { id_membre?: number }).id_membre ?? l.id)
-  ).size;
-  const ticketsValides = logs.filter(
-    (l) => l.resultat === 'SUCCES' || l.resultat === 'SUCCESS'
-  ).length;
-
-  const kpiDefs: KpiDef[] = [
+  const kpiDefs = [
     {
       label: "Entrées aujourd'hui",
-      value: loadingLogs ? null : String(totalEntrees),
+      value: kpiLoading || kpiError ? null : String(kpiData?.total ?? 0),
       Icon: CheckCircle,
       gradient: 'linear-gradient(195deg, #66BB6A, #43A047)',
       shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(76,175,80,0.3)',
@@ -184,7 +222,7 @@ export default function QRControlPage() {
     },
     {
       label: 'Membres accédés',
-      value: loadingLogs ? null : String(membresUniques),
+      value: kpiLoading || kpiError ? null : String(kpiData?.uniques ?? 0),
       Icon: Users,
       gradient: 'linear-gradient(195deg, #FFA726, #fb8c00)',
       shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(251,140,0,0.3)',
@@ -192,7 +230,7 @@ export default function QRControlPage() {
     },
     {
       label: 'Tickets validés',
-      value: loadingLogs ? null : String(ticketsValides),
+      value: kpiLoading || kpiError ? null : String(kpiData?.tickets ?? 0),
       Icon: Ticket,
       gradient: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
       shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.3)',
@@ -349,7 +387,7 @@ export default function QRControlPage() {
               onClick={handleToggleCamera}
               style={{
                 background: 'rgba(255,255,255,0.2)',
-                border: '1px solid rgba(255,255,255,0.5)',
+                border: '1px solid rgba(255,255,255,0.4)',
                 borderRadius: 8,
                 padding: '7px 14px',
                 color: '#fff',
@@ -359,7 +397,6 @@ export default function QRControlPage() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                transition: 'background 0.2s',
                 whiteSpace: 'nowrap',
               }}
               onMouseEnter={(e) => {
@@ -369,7 +406,7 @@ export default function QRControlPage() {
                 e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
               }}
             >
-              <ScanLine size={14} />
+              <QrIcon size={14} color="#fff" />
               {cameraActive ? 'Arrêter' : 'Scanner le code QR'}
             </button>
           </div>
@@ -417,7 +454,7 @@ export default function QRControlPage() {
                 />
               ) : (
                 <>
-                  <QrIcon />
+                  <QrIcon size={48} color="#b0b7c3" />
                   <p
                     style={{
                       fontSize: 12,
@@ -467,7 +504,6 @@ export default function QRControlPage() {
                     fontFamily: 'monospace',
                     color: '#344767',
                     outline: 'none',
-                    transition: 'border-color 0.2s',
                   }}
                   onFocus={(e) => {
                     e.currentTarget.style.borderColor = '#1A73E8';
@@ -480,9 +516,10 @@ export default function QRControlPage() {
                   type="submit"
                   disabled={validating || !code.trim()}
                   style={{
-                    background: validating || !code.trim()
-                      ? '#a0aec0'
-                      : 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+                    background:
+                      validating || !code.trim()
+                        ? '#a0aec0'
+                        : 'linear-gradient(195deg, #49a3f1, #1A73E8)',
                     border: 'none',
                     borderRadius: 8,
                     padding: '9px 16px',
@@ -491,7 +528,6 @@ export default function QRControlPage() {
                     fontWeight: 600,
                     cursor: validating || !code.trim() ? 'not-allowed' : 'pointer',
                     whiteSpace: 'nowrap',
-                    transition: 'opacity 0.2s',
                   }}
                 >
                   {validating ? '…' : 'Valider'}
@@ -499,7 +535,7 @@ export default function QRControlPage() {
               </form>
             </div>
 
-            {/* Zone résultat */}
+            {/* Zone résultat — auto-reset 5s */}
             {result && (
               <div
                 style={{
@@ -514,11 +550,19 @@ export default function QRControlPage() {
                 }}
               >
                 {result.success ? (
-                  <CheckCircle size={20} color="#43A047" style={{ flexShrink: 0, marginTop: 1 }} />
+                  <CheckCircle
+                    size={36}
+                    color="#43A047"
+                    style={{ flexShrink: 0, marginTop: 1 }}
+                  />
                 ) : (
-                  <XCircle size={20} color="#F44335" style={{ flexShrink: 0, marginTop: 1 }} />
+                  <XCircle
+                    size={36}
+                    color="#F44335"
+                    style={{ flexShrink: 0, marginTop: 1 }}
+                  />
                 )}
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <p
                     style={{
                       fontSize: 13,
@@ -538,37 +582,40 @@ export default function QRControlPage() {
                   >
                     {result.message}
                   </p>
-                  {result.success && (result.membre || result.ticket || result.subscription) && (
-                    <div style={{ marginTop: 6 }}>
-                      {result.membre && (
-                        <p style={{ fontSize: 12, color: '#344767', margin: '2px 0' }}>
-                          <strong>Membre :</strong>{' '}
-                          {result.membre.prenom} {result.membre.nom}
-                        </p>
-                      )}
-                      {result.ticket && (
-                        <>
+                  {result.success &&
+                    (result.membre || result.ticket || result.subscription) && (
+                      <div style={{ marginTop: 6 }}>
+                        {result.membre && (
                           <p style={{ fontSize: 12, color: '#344767', margin: '2px 0' }}>
-                            <strong>Ticket :</strong>{' '}
-                            <span style={{ fontFamily: 'monospace' }}>
-                              {result.ticket.code_ticket}
-                            </span>
-                            {result.ticket.activity && ` — ${result.ticket.activity.nom}`}
+                            <strong>Membre :</strong>{' '}
+                            {result.membre.prenom} {result.membre.nom}
                           </p>
+                        )}
+                        {result.ticket && (
+                          <>
+                            <p style={{ fontSize: 12, color: '#344767', margin: '2px 0' }}>
+                              <strong>Ticket :</strong>{' '}
+                              <span style={{ fontFamily: 'monospace' }}>
+                                {result.ticket.code_ticket}
+                              </span>
+                              {result.ticket.activity && ` — ${result.ticket.activity.nom}`}
+                            </p>
+                            <p style={{ fontSize: 12, color: '#344767', margin: '2px 0' }}>
+                              <strong>Expiration :</strong>{' '}
+                              {new Date(result.ticket.date_expiration).toLocaleDateString('fr-FR')}
+                            </p>
+                          </>
+                        )}
+                        {result.subscription && (
                           <p style={{ fontSize: 12, color: '#344767', margin: '2px 0' }}>
-                            <strong>Expiration :</strong>{' '}
-                            {new Date(result.ticket.date_expiration).toLocaleDateString('fr-FR')}
+                            <strong>Abonnement :</strong> {result.subscription.type_forfait} —{' '}
+                            {new Date(
+                              result.subscription.date_prochain_paiement
+                            ).toLocaleDateString('fr-FR')}
                           </p>
-                        </>
-                      )}
-                      {result.subscription && (
-                        <p style={{ fontSize: 12, color: '#344767', margin: '2px 0' }}>
-                          <strong>Abonnement :</strong> {result.subscription.type_forfait} —{' '}
-                          {new Date(result.subscription.date_prochain_paiement).toLocaleDateString('fr-FR')}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                        )}
+                      </div>
+                    )}
                 </div>
               </div>
             )}
@@ -619,7 +666,9 @@ export default function QRControlPage() {
           {/* Body */}
           <div style={{ padding: '28px 16px 0' }}>
             {loadingLogs ? (
-              <Loader size="sm" />
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
+                <Loader size="sm" />
+              </div>
             ) : logs.length === 0 ? (
               <p
                 style={{
@@ -634,16 +683,15 @@ export default function QRControlPage() {
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {logs.slice(0, 10).map((log) => {
+                {logs.map((log) => {
                   const isSuccess =
                     log.resultat === 'SUCCES' || log.resultat === 'SUCCESS';
-                  const nomMembre =
-                    (log as AccessLog & { membre?: { nom: string; prenom: string } }).membre
-                      ? `${(log as AccessLog & { membre?: { nom: string; prenom: string } }).membre!.prenom} ${(log as AccessLog & { membre?: { nom: string; prenom: string } }).membre!.nom}`
-                      : log.ticket?.code_ticket ?? `Scan #${log.id}`;
-                  const detail = log.ticket?.code_ticket
-                    ? log.ticket.batch?.activity?.nom ?? log.ticket.code_ticket
-                    : `ID ${log.id}`;
+                  const nomMembre = log.membre
+                    ? `${log.membre.prenom} ${log.membre.nom}`
+                    : log.ticket?.code_ticket ?? `Scan #${log.id}`;
+                  const detail = log.ticket?.batch?.activity?.nom
+                    ?? log.ticket?.code_ticket
+                    ?? `Accès #${log.id}`;
                   const heure = new Date(log.date_scan).toLocaleTimeString('fr-FR', {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -660,7 +708,6 @@ export default function QRControlPage() {
                         alignItems: 'center',
                       }}
                     >
-                      {/* Status dot */}
                       <span
                         style={{
                           width: 8,
@@ -670,8 +717,6 @@ export default function QRControlPage() {
                           flexShrink: 0,
                         }}
                       />
-
-                      {/* Info */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p
                           style={{
@@ -699,8 +744,6 @@ export default function QRControlPage() {
                           {detail}
                         </p>
                       </div>
-
-                      {/* Heure */}
                       <p
                         style={{
                           fontSize: 11,

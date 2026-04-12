@@ -78,10 +78,12 @@ export interface Transaction {
 export interface AccessLog {
   id: number;
   id_ticket?: number;
+  id_membre?: number;
   date_scan: string;
   resultat: string;
   id_controller: number;
   ticket?: Ticket;
+  membre?: { nom: string; prenom: string };
 }
 
 export interface TransactionSummary {
