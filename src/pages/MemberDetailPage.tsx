@@ -1,7 +1,50 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import axios from 'axios';
 import api from '../api/axios';
-import type { Member } from '../types';
+import { useAuth } from '../context/AuthContext';
+import Loader from '../components/Loader';
+import type { AccessLog, Member, Subscription, Ticket, Transaction } from '../types';
+
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+type MemberStatus = 'ACTIF' | 'INACTIF' | 'EN_ATTENTE';
+
+/** Aligné sur MembersPage : dernier élément de la liste API (createdAt DESC) = abonnement le plus ancien ≈ id minimal. */
+function getMemberStatusFromSubscriptions(subs: Subscription[]): MemberStatus {
+  if (subs.length === 0) return 'EN_ATTENTE';
+  const oldest = subs.reduce((a, b) => (a.id < b.id ? a : b));
+  return new Date(oldest.date_prochain_paiement) >= new Date() ? 'ACTIF' : 'INACTIF';
+}
+
+function isSubActive(sub: Subscription): boolean {
+  return new Date(sub.date_prochain_paiement) >= new Date();
+}
+
+function daysUntil(dateStr: string): number {
+  const end = new Date(dateStr);
+  return Math.ceil((end.getTime() - Date.now()) / 86400000);
+}
+
+function getActiveSubscriptions(subs: Subscription[]): Subscription[] {
+  return subs.filter(isSubActive);
+}
+
+/** Abonnement actif affiché : date de fin la plus lointaine parmi les actifs */
+function pickPrimaryActive(subs: Subscription[]): Subscription | undefined {
+  const actives = getActiveSubscriptions(subs);
+  if (actives.length === 0) return undefined;
+  return [...actives].sort(
+    (a, b) => new Date(b.date_prochain_paiement).getTime() - new Date(a.date_prochain_paiement).getTime(),
+  )[0];
+}
+
+function subscriptionRowStatus(sub: Subscription): 'active' | 'expired' | 'soon' {
+  if (!isSubActive(sub)) return 'expired';
+  const d = daysUntil(sub.date_prochain_paiement);
+  if (d <= 30) return 'soon';
+  return 'active';
+}
 
 function fmtDate(dateStr: string | undefined): string {
   if (!dateStr) return '—';
@@ -9,6 +52,17 @@ function fmtDate(dateStr: string | undefined): string {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+  });
+}
+
+function fmtDateTime(dateStr: string | undefined): string {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
 
@@ -21,272 +75,721 @@ function getInitials(m: Member): string {
   return `${(m.prenom ?? '?').charAt(0)}${(m.nom ?? '?').charAt(0)}`.toUpperCase();
 }
 
-function isSubActive(dateStr: string): boolean {
-  return new Date(dateStr) >= new Date();
+function unwrapData<T>(res: { data?: { data?: T; success?: boolean } & T }): T {
+  const d = res.data as { data?: T };
+  return (d?.data ?? res.data) as T;
 }
+
+function unwrapList<T>(res: { data?: { data?: T[] } & { data?: T[] } }): T[] {
+  const raw = unwrapData<unknown>(res);
+  if (Array.isArray(raw)) return raw as T[];
+  return [];
+}
+
+function sortSubsByEndDesc(subs: Subscription[]): Subscription[] {
+  return [...subs].sort(
+    (a, b) => new Date(b.date_prochain_paiement).getTime() - new Date(a.date_prochain_paiement).getTime(),
+  );
+}
+
+function lastSuccessfulAccessDate(logs: AccessLog[]): string | undefined {
+  const ok = logs.filter((l) => l.resultat === 'SUCCES' || l.resultat === 'SUCCESS');
+  if (ok.length === 0) return undefined;
+  return [...ok].sort((a, b) => new Date(b.date_scan).getTime() - new Date(a.date_scan).getTime())[0]?.date_scan;
+}
+
+function logIsSuccess(log: AccessLog): boolean {
+  return log.resultat === 'SUCCES' || log.resultat === 'SUCCESS';
+}
+
+function logDetailLine(log: AccessLog): string {
+  const act = log.ticket?.batch?.activity?.nom;
+  if (act) return act;
+  if (log.ticket?.code_ticket) return log.ticket.code_ticket;
+  return '—';
+}
+
+const STATUS_MAP: Record<MemberStatus, { label: string; badgeClass: string }> = {
+  ACTIF: { label: 'Actif', badgeClass: 'active' },
+  INACTIF: { label: 'Inactif', badgeClass: 'inactive' },
+  EN_ATTENTE: { label: 'En attente', badgeClass: 'pending' },
+};
+
+function MemberStatusBadge({ status }: { status: MemberStatus }) {
+  const { label, badgeClass } = STATUS_MAP[status];
+  return <span className={`gf-badge gf-badge--${badgeClass}`}>{label}</span>;
+}
+
+const grid2: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+  gap: 20,
+  alignItems: 'start',
+};
+
+const infoRow: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  padding: '10px 0',
+  borderBottom: '1px solid #f0f2f5',
+  gap: 12,
+};
+
+// ─── page ───────────────────────────────────────────────────────────────────
 
 export default function MemberDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const role = user?.role ?? 'CONTROLLER';
+  const canAct = role === 'ADMIN' || role === 'CASHIER';
+
   const [member, setMember] = useState<Member | null>(null);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!id) return;
-    setLoading(true);
-    api
-      .get(`/members/${id}`)
-      .then((res) => {
-        const data = res.data?.data ?? res.data;
-        setMember(data);
-      })
-      .catch(() => setError('Impossible de charger ce membre.'))
-      .finally(() => setLoading(false));
-  }, [id]);
+  const load = useCallback(async () => {
+    if (!id || Number.isNaN(Number(id))) {
+      setNotFound(true);
+      setLoading(false);
+      return;
+    }
 
-  return (
-    <div
-      style={{
-        padding: '20px 24px 24px',
-        marginTop: 14,
-        background: '#f0f2f5',
-        minHeight: 'calc(100vh - 60px)',
-      }}
-    >
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: 12,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-          maxWidth: 720,
-        }}
-      >
-        {/* floating header */}
-        <div
-          style={{
-            margin: '-20px 16px 0',
-            background: 'linear-gradient(195deg,#49a3f1,#1A73E8)',
-            borderRadius: 10,
-            padding: '16px 20px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.4)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <div>
-            <div style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>Détail du membre</div>
-            <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 2 }}>
-              Profil complet et historique d'abonnements
+    setLoading(true);
+    setError('');
+    setNotFound(false);
+
+    try {
+      const mRes = await api.get(`/members/${id}`);
+      const m = unwrapData<Member>(mRes);
+      setMember(m);
+
+      const subsFromMember = m.subscriptions ?? [];
+      const financial = role === 'ADMIN' || role === 'CASHIER';
+
+      const logPromise = api
+        .get('/access-logs', { params: { memberId: id, limit: 10, sort: 'desc' } })
+        .then((r) => unwrapList<AccessLog>(r))
+        .catch(() => [] as AccessLog[]);
+
+      if (financial) {
+        const [logs, sRes, tRes, txRes] = await Promise.all([
+          logPromise,
+          api.get('/subscriptions', { params: { memberId: id } }).catch(() => ({ data: { data: [] } })),
+          api.get('/tickets', { params: { memberId: id } }).catch(() => ({ data: { data: [] } })),
+          api.get('/transactions', { params: { memberId: id } }).catch(() => ({ data: { data: [] } })),
+        ]);
+        setAccessLogs(logs);
+        setSubscriptions(sortSubsByEndDesc(unwrapList<Subscription>(sRes as never)));
+        setTickets(unwrapList<Ticket>(tRes as never));
+        setTransactions(unwrapList<Transaction>(txRes as never));
+      } else {
+        const logs = await logPromise;
+        setAccessLogs(logs);
+        setSubscriptions(sortSubsByEndDesc(subsFromMember));
+        setTickets([]);
+        setTransactions(m.transactions ?? []);
+      }
+    } catch (e: unknown) {
+      if (axios.isAxiosError(e) && e.response?.status === 404) {
+        setNotFound(true);
+      } else {
+        setError('Impossible de charger ce membre.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [id, role]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const pageStyle: React.CSSProperties = {
+    background: '#f0f2f5',
+    padding: '20px 24px 24px',
+    minHeight: 'calc(100vh - 60px)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 20,
+  };
+
+  if (loading) {
+    return (
+      <div style={{ ...pageStyle, justifyContent: 'center', alignItems: 'center' }}>
+        <Loader size="lg" />
+      </div>
+    );
+  }
+
+  if (notFound || !member) {
+    return (
+      <div style={pageStyle}>
+        <div className="gf-card-outer">
+          <div className="gf-card">
+            <div className="gf-card-header gf-card-header--info">
+              <div>
+                <p className="gf-card-header__title">Membre introuvable</p>
+                <p className="gf-card-header__sub">Aucune fiche ne correspond à cet identifiant</p>
+              </div>
+              <button type="button" className="gf-btn-header" onClick={() => navigate(-1)}>
+                ← Retour
+              </button>
+            </div>
+            <div className="gf-card-body" style={{ textAlign: 'center', paddingBottom: 28 }}>
+              <p style={{ color: '#7b809a', fontSize: 14, marginBottom: 16 }}>Erreur 404</p>
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                style={{
+                  border: '1px solid #d2d6da',
+                  background: '#fff',
+                  color: '#344767',
+                  padding: '8px 18px',
+                  borderRadius: 8,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                ← Retour
+              </button>
             </div>
           </div>
-          <button
-            onClick={() => navigate('/members')}
-            style={{
-              background: 'rgba(255,255,255,0.2)',
-              border: '1px solid rgba(255,255,255,0.4)',
-              color: '#fff',
-              fontSize: 12,
-              fontWeight: 700,
-              padding: '7px 14px',
-              borderRadius: 7,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            ← Retour
-          </button>
         </div>
+      </div>
+    );
+  }
 
-        <div style={{ padding: '28px 24px 24px' }}>
-          {loading && (
-            <p style={{ textAlign: 'center', color: '#7b809a', fontSize: 13 }}>Chargement…</p>
-          )}
+  if (error) {
+    return (
+      <div style={pageStyle}>
+        <div className="gf-card-outer">
+          <div className="gf-card">
+            <div className="gf-card-header gf-card-header--info">
+              <div>
+                <p className="gf-card-header__title">Erreur</p>
+                <p className="gf-card-header__sub">Chargement interrompu</p>
+              </div>
+              <button type="button" className="gf-btn-header" onClick={() => navigate(-1)}>
+                ← Retour
+              </button>
+            </div>
+            <div className="gf-card-body">
+              <p style={{ color: '#F44335', fontSize: 14 }}>{error}</p>
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                style={{
+                  marginTop: 16,
+                  border: '1px solid #d2d6da',
+                  background: '#fff',
+                  color: '#344767',
+                  padding: '8px 18px',
+                  borderRadius: 8,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                ← Retour
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-          {error && (
+  const subsForStatus = subscriptions.length ? subscriptions : member.subscriptions ?? [];
+  const displayStatus = getMemberStatusFromSubscriptions(subsForStatus);
+  const primaryActive = pickPrimaryActive(subsForStatus);
+  const daysLeftPrimary = primaryActive ? daysUntil(primaryActive.date_prochain_paiement) : null;
+  const showExpireBadge =
+    primaryActive && daysLeftPrimary != null && daysLeftPrimary <= 30 && daysLeftPrimary >= 0;
+
+  const lastVisit = lastSuccessfulAccessDate(accessLogs);
+
+  const btnTicket: React.CSSProperties = {
+    border: 'none',
+    borderRadius: 8,
+    padding: '8px 14px',
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#fff',
+    cursor: 'pointer',
+    background: 'linear-gradient(195deg, #66BB6A, #43A047)',
+    boxShadow: '0 4px 12px rgba(76,175,80,0.35)',
+    whiteSpace: 'nowrap',
+  };
+
+  const btnRenew: React.CSSProperties = {
+    ...btnTicket,
+    background: 'linear-gradient(195deg, #FFA726, #fb8c00)',
+    boxShadow: '0 4px 12px rgba(251,140,0,0.35)',
+  };
+
+  const btnEdit: React.CSSProperties = {
+    border: '1px solid #d2d6da',
+    background: '#fff',
+    color: '#344767',
+    borderRadius: 8,
+    padding: '8px 14px',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  };
+
+  return (
+    <div style={pageStyle}>
+      {/* BLOC 1 — Hero */}
+      <div className="gf-card-outer">
+        <div className="gf-card">
+          <div className="gf-card-header gf-card-header--info">
+            <div>
+              <p className="gf-card-header__title">Détail membre</p>
+              <p className="gf-card-header__sub">Fiche complète et historique</p>
+            </div>
+            <button type="button" className="gf-btn-header" onClick={() => navigate(-1)}>
+              ← Retour
+            </button>
+          </div>
+          <div className="gf-card-body">
             <div
               style={{
-                background: '#fde8e8',
-                color: '#F44335',
-                borderRadius: 8,
-                padding: '10px 14px',
-                fontSize: 13,
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                gap: 20,
               }}
             >
-              {error}
-            </div>
-          )}
-
-          {!loading && member && (
-            <>
-              {/* profile block */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28 }}>
+              <div style={{ display: 'flex', gap: 18, flex: '1 1 280px', minWidth: 0 }}>
                 <div
                   style={{
-                    width: 56,
-                    height: 56,
+                    width: 72,
+                    height: 72,
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg,#49a3f1,#1A73E8)',
+                    background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
                     color: '#fff',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 20,
+                    fontSize: 24,
                     fontWeight: 700,
                     flexShrink: 0,
+                    boxShadow: '0 4px 15px rgba(26,115,232,0.3)',
                   }}
                 >
                   {getInitials(member)}
                 </div>
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: '#344767' }}>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#344767' }}>
                     {member.prenom} {member.nom}
-                  </div>
-                  <div style={{ fontSize: 13, color: '#7b809a', marginTop: 2 }}>
-                    {member.email ?? 'Pas d\'email'}
+                  </p>
+                  <p style={{ margin: '6px 0 0', fontSize: 13, color: '#7b809a' }}>
+                    {member.email ?? '—'} · {member.phone ?? '—'}
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                    <MemberStatusBadge status={displayStatus} />
+                    {primaryActive && (
+                      <span className="gf-badge gf-badge--active">
+                        {primaryActive.activity?.nom ?? primaryActive.type_forfait}
+                      </span>
+                    )}
+                    {showExpireBadge && (
+                      <span className="gf-badge gf-badge--pending">Expire dans {daysLeftPrimary}j</span>
+                    )}
                   </div>
                 </div>
               </div>
-
-              {/* info grid */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 12,
-                  marginBottom: 28,
-                }}
-              >
-                {[
-                  { label: 'Téléphone', value: member.phone ?? '—' },
-                  { label: 'Inscription', value: fmtDate(member.date_inscription) },
-                  { label: 'Code QR', value: member.uuid_qr },
-                  { label: 'Slug', value: member.slug ?? '—' },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    style={{
-                      background: '#f8f9fa',
-                      borderRadius: 8,
-                      padding: '12px 14px',
-                    }}
+              {canAct && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    style={btnEdit}
+                    onClick={() => navigate('/members', { state: { editMemberId: member.id } })}
                   >
-                    <div style={{ fontSize: 11, color: '#7b809a', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>
-                      {item.label}
-                    </div>
-                    <div style={{ fontSize: 13, color: '#344767', fontWeight: 500, wordBreak: 'break-all' }}>
-                      {item.value}
-                    </div>
+                    ✏️ Modifier
+                  </button>
+                  <button
+                    type="button"
+                    style={btnTicket}
+                    onClick={() => navigate(`/tickets/new?memberId=${member.id}`)}
+                  >
+                    🎫 Ticket
+                  </button>
+                  {primaryActive && (
+                    <button
+                      type="button"
+                      style={btnRenew}
+                      onClick={() =>
+                        navigate(
+                          `/subscriptions/form?mode=renewal&memberId=${member.id}&subscriptionId=${primaryActive.id}`,
+                        )
+                      }
+                    >
+                      🔄 Renouveler
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* BLOC 2 */}
+      <div style={grid2}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div className="gf-card-outer">
+            <div className="gf-card">
+              <div className="gf-card-header gf-card-header--dark">
+                <div>
+                  <p className="gf-card-header__title">Informations</p>
+                  <p className="gf-card-header__sub">Données d&apos;identification</p>
+                </div>
+              </div>
+              <div className="gf-card-body">
+                {(
+                  [
+                    { label: 'Prénom', value: member.prenom },
+                    { label: 'Nom', value: member.nom },
+                    { label: 'Email', value: member.email ?? '—' },
+                    { label: 'Téléphone', value: member.phone ?? '—' },
+                    { label: 'Date inscription', value: fmtDate(member.date_inscription) },
+                    { label: 'Dernière visite', value: fmtDateTime(lastVisit) },
+                  ] as const
+                ).map((row) => (
+                  <div key={row.label} style={infoRow}>
+                    <span style={{ fontSize: 12, color: '#7b809a' }}>{row.label}</span>
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: '#344767',
+                        textAlign: 'right',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {row.value}
+                    </span>
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
 
-              {/* subscriptions */}
-              {(member.subscriptions ?? []).length > 0 && (
-                <>
+          <div className="gf-card-outer">
+            <div className="gf-card">
+              <div className="gf-card-header gf-card-header--success">
+                <div>
+                  <p className="gf-card-header__title">Abonnement actif</p>
+                  <p className="gf-card-header__sub">Forfait en cours</p>
+                </div>
+              </div>
+              <div className="gf-card-body">
+                {primaryActive ? (
                   <div
                     style={{
-                      fontSize: 13,
-                      fontWeight: 700,
-                      color: '#344767',
-                      marginBottom: 12,
+                      background: '#eaf7ea',
+                      borderLeft: '4px solid #43A047',
+                      borderRadius: 8,
+                      padding: '14px 16px',
                     }}
                   >
-                    Historique des abonnements
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#344767' }}>
+                      {primaryActive.activity?.nom ?? 'Activité'}
+                    </p>
+                    <p style={{ margin: '6px 0 0', fontSize: 13, color: '#7b809a' }}>
+                      Forfait {primaryActive.type_forfait} · Du {fmtDate(primaryActive.date_debut)} au{' '}
+                      {fmtDate(primaryActive.date_prochain_paiement)}
+                    </p>
+                    <div style={{ marginTop: 10 }}>
+                      <span className="gf-badge gf-badge--active">
+                        {daysLeftPrimary != null && daysLeftPrimary >= 0
+                          ? `${daysLeftPrimary} jour${daysLeftPrimary > 1 ? 's' : ''} restant${daysLeftPrimary > 1 ? 's' : ''}`
+                          : 'Actif'}
+                      </span>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {[...(member.subscriptions ?? [])].reverse().map((sub) => {
-                      const active = isSubActive(sub.date_prochain_paiement);
-                      return (
-                        <div
-                          key={sub.id}
-                          style={{
-                            border: `1px solid ${active ? '#c8e6c9' : '#f0f2f5'}`,
-                            borderRadius: 8,
-                            padding: '12px 16px',
-                            background: active ? '#f9fef9' : '#fff',
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'flex-start',
-                              marginBottom: 8,
-                            }}
-                          >
-                            <div>
-                              <span
-                                style={{
-                                  fontSize: 13,
-                                  fontWeight: 700,
-                                  color: '#344767',
-                                }}
-                              >
-                                {sub.activity?.nom ?? sub.type_forfait}
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: 11,
-                                  color: '#7b809a',
-                                  marginLeft: 8,
-                                }}
-                              >
-                                {sub.type_forfait}
-                              </span>
-                            </div>
-                            <span
-                              style={{
-                                background: active ? '#eaf7ea' : '#fde8e8',
-                                color: active ? '#43A047' : '#F44335',
-                                padding: '2px 8px',
-                                borderRadius: 20,
-                                fontSize: 11,
-                                fontWeight: 600,
-                              }}
-                            >
-                              {active ? 'Actif' : 'Expiré'}
-                            </span>
-                          </div>
-                          <div
-                            style={{
-                              display: 'grid',
-                              gridTemplateColumns: '1fr 1fr 1fr',
-                              gap: 8,
-                            }}
-                          >
-                            {[
-                              { label: 'Montant', value: fmtAmount(sub.montant_total) },
-                              { label: 'Début', value: fmtDate(sub.date_debut) },
-                              { label: 'Prochain paiement', value: fmtDate(sub.date_prochain_paiement) },
-                            ].map((item) => (
-                              <div key={item.label}>
-                                <div style={{ fontSize: 10, color: '#7b809a', fontWeight: 600, textTransform: 'uppercase' }}>
-                                  {item.label}
-                                </div>
-                                <div style={{ fontSize: 12, color: '#344767', fontWeight: 500, marginTop: 2 }}>
-                                  {item.value}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
+                ) : (
+                  <div>
+                    <p style={{ color: '#7b809a', fontSize: 13, margin: '0 0 12px' }}>
+                      Aucun abonnement actif.
+                    </p>
+                    {canAct && (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/subscriptions/form?memberId=${member.id}`)}
+                        style={{
+                          border: 'none',
+                          background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+                          color: '#fff',
+                          padding: '8px 16px',
+                          borderRadius: 8,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Créer un abonnement →
+                      </button>
+                    )}
                   </div>
-                </>
-              )}
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
 
-              {(member.subscriptions ?? []).length === 0 && (
-                <p style={{ color: '#7b809a', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
-                  Aucun abonnement enregistré pour ce membre.
-                </p>
+        <div className="gf-card-outer">
+          <div className="gf-card">
+            <div className="gf-card-header gf-card-header--dark">
+              <div>
+                <p className="gf-card-header__title">Accès récents</p>
+                <p className="gf-card-header__sub">Dix derniers scans</p>
+              </div>
+            </div>
+            <div className="gf-card-body">
+              {accessLogs.length === 0 ? (
+                <p style={{ color: '#7b809a', fontSize: 13, margin: 0 }}>Aucun accès enregistré.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {accessLogs.map((log) => {
+                    const ok = logIsSuccess(log);
+                    return (
+                      <div
+                        key={log.id}
+                        style={{
+                          background: '#f8f9fa',
+                          borderRadius: 8,
+                          padding: '9px 12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            background: ok ? '#43A047' : '#F44335',
+                            flexShrink: 0,
+                          }}
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#344767' }}>
+                            {ok ? 'Accès accordé' : 'Accès refusé'}
+                          </p>
+                          <p
+                            style={{
+                              margin: '2px 0 0',
+                              fontSize: 11,
+                              color: '#7b809a',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {logDetailLine(log)}
+                          </p>
+                        </div>
+                        <span style={{ fontSize: 11, color: '#7b809a', flexShrink: 0 }}>
+                          {fmtDateTime(log.date_scan)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
-            </>
-          )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* BLOC 3 — Historique abonnements */}
+      <div className="gf-card-outer">
+        <div className="gf-card">
+          <div className="gf-card-header gf-card-header--info">
+            <div>
+              <p className="gf-card-header__title">Historique des abonnements</p>
+              <p className="gf-card-header__sub">Tous les forfaits souscrits</p>
+            </div>
+          </div>
+          <div className="gf-card-body--table">
+            <table className="gf-table">
+              <thead>
+                <tr>
+                  <th>Activité</th>
+                  <th>Forfait</th>
+                  <th>Début</th>
+                  <th>Fin</th>
+                  <th>Montant</th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subscriptions.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', color: '#7b809a', padding: 24 }}>
+                      Aucun abonnement.
+                    </td>
+                  </tr>
+                ) : (
+                  subscriptions.map((sub) => {
+                    const row = subscriptionRowStatus(sub);
+                    return (
+                      <tr key={sub.id}>
+                        <td>{sub.activity?.nom ?? '—'}</td>
+                        <td>{sub.type_forfait}</td>
+                        <td>{fmtDate(sub.date_debut)}</td>
+                        <td>{fmtDate(sub.date_prochain_paiement)}</td>
+                        <td>{fmtAmount(Number(sub.montant_total))}</td>
+                        <td>
+                          {row === 'active' && <span className="gf-badge gf-badge--active">Actif</span>}
+                          {row === 'expired' && <span className="gf-badge gf-badge--inactive">Expiré</span>}
+                          {row === 'soon' && <span className="gf-badge gf-badge--pending">Bientôt</span>}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* BLOC 4 */}
+      <div style={grid2}>
+        <div className="gf-card-outer">
+          <div className="gf-card">
+            <div className="gf-card-header gf-card-header--warning">
+              <div>
+                <p className="gf-card-header__title">Tickets utilisés</p>
+                <p className="gf-card-header__sub">Achats liés au membre</p>
+              </div>
+            </div>
+            <div className="gf-card-body--table">
+              <table className="gf-table">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Activité</th>
+                    <th>Date achat</th>
+                    <th>Date utilisation</th>
+                    <th>Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!canAct && tickets.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', color: '#7b809a', padding: 24 }}>
+                        Non disponible pour votre rôle.
+                      </td>
+                    </tr>
+                  ) : tickets.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', color: '#7b809a', padding: 24 }}>
+                        Aucun ticket pour ce membre.
+                      </td>
+                    </tr>
+                  ) : (
+                    tickets.map((t) => (
+                      <tr key={t.id}>
+                        <td>
+                          <code
+                            style={{
+                              fontFamily: 'monospace',
+                              fontSize: 12,
+                              background: '#f0f2f5',
+                              padding: '3px 8px',
+                              borderRadius: 6,
+                            }}
+                          >
+                            {t.code_ticket}
+                          </code>
+                        </td>
+                        <td>{t.batch?.activity?.nom ?? '—'}</td>
+                        <td>{t.createdAt ? fmtDate(t.createdAt) : '—'}</td>
+                        <td>{t.status === 'UTILISE' && t.updatedAt ? fmtDate(t.updatedAt) : '—'}</td>
+                        <td>
+                          {t.status === 'DISPONIBLE' && (
+                            <span className="gf-badge gf-badge--active">Disponible</span>
+                          )}
+                          {t.status === 'UTILISE' && (
+                            <span className="gf-badge gf-badge--purple">Utilisé</span>
+                          )}
+                          {t.status === 'EXPIRE' && (
+                            <span className="gf-badge gf-badge--inactive">Expiré</span>
+                          )}
+                          {t.status === 'VENDU' && (
+                            <span className="gf-badge gf-badge--info">Vendu</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="gf-card-outer">
+          <div className="gf-card">
+            <div className="gf-card-header gf-card-header--dark">
+              <div>
+                <p className="gf-card-header__title">Transactions</p>
+                <p className="gf-card-header__sub">Mouvements enregistrés</p>
+              </div>
+            </div>
+            <div className="gf-card-body--table">
+              <table className="gf-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Montant</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} style={{ textAlign: 'center', color: '#7b809a', padding: 24 }}>
+                        Aucune transaction.
+                      </td>
+                    </tr>
+                  ) : (
+                    transactions.map((tx) => (
+                      <tr key={tx.id}>
+                        <td>{fmtDate(tx.date)}</td>
+                        <td>{tx.libelle}</td>
+                        <td
+                          style={
+                            tx.type === 'REVENU'
+                              ? { color: '#43A047', fontWeight: 700 }
+                              : { color: '#344767' }
+                          }
+                        >
+                          {tx.type === 'REVENU'
+                            ? `+${fmtAmount(Number(tx.montant))}`
+                            : fmtAmount(Number(tx.montant))}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>

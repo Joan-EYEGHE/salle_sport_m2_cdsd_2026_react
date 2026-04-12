@@ -31,6 +31,7 @@ export interface Member {
   initials?: string;
   date_inscription?: string;
   subscriptions?: Subscription[];
+  transactions?: Transaction[];
 }
 
 export interface Subscription {
@@ -43,6 +44,7 @@ export interface Subscription {
   montant_total: number;
   date_debut: string;
   date_prochain_paiement: string;
+  member?: Member;
   activity?: Activity;
 }
 
@@ -59,9 +61,12 @@ export interface Ticket {
   uuid_qr: string;
   code_ticket: string;
   id_batch: number;
+  id_membre?: number | null;
   status: 'DISPONIBLE' | 'VENDU' | 'UTILISE' | 'EXPIRE';
   date_expiration: string;
   batch?: Batch;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Transaction {

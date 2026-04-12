@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import type { Member, Subscription } from '../types';
@@ -204,6 +204,7 @@ const PAGE_SIZE = 10;
 
 export default function MembersPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const role = user?.role ?? 'CONTROLLER';
 
@@ -231,6 +232,16 @@ export default function MembersPage() {
   useEffect(() => {
     fetchMembers();
   }, []);
+
+  useEffect(() => {
+    const st = location.state as { editMemberId?: number } | null;
+    const editMemberId = st?.editMemberId;
+    if (editMemberId == null) return;
+    if (members.length === 0) return;
+    const m = members.find((x) => x.id === editMemberId);
+    if (m) setEditTarget(m);
+    navigate('.', { replace: true, state: {} });
+  }, [members, location.state, navigate]);
 
   // reset page on search change
   useEffect(() => {

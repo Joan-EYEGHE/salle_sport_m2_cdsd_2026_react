@@ -27,7 +27,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard',     path: '/dashboard',     icon: LayoutDashboard, roles: ['ADMIN', 'CASHIER'] },
   { label: 'Membres',       path: '/members',        icon: Users,           roles: ['ADMIN', 'CASHIER'] },
   { label: 'Activités',     path: '/activities',     icon: Dumbbell,        roles: ['ADMIN', 'CASHIER'] },
-  { label: 'Abonnements',   path: '/subscriptions/form',  icon: CalendarDays,    roles: ['ADMIN', 'CASHIER'] },
+  { label: 'Abonnements',   path: '/subscriptions',       icon: CalendarDays,    roles: ['ADMIN', 'CASHIER'] },
   { label: 'Expirations',   path: '/expirations',    icon: CalendarClock,   roles: ['ADMIN', 'CASHIER'] },
   { label: 'Tickets',       path: '/tickets',        icon: Ticket,          roles: ['ADMIN', 'CASHIER'] },
   { label: 'Transactions',  path: '/transactions',   icon: CreditCard,      roles: ['ADMIN', 'CASHIER'] },
@@ -43,6 +43,7 @@ const PAGE_LABELS: Record<string, string> = {
   '/subscriptions/form': 'Abonnements',
   '/expirations':   'Expirations',
   '/tickets':       'Tickets',
+  '/tickets/new':   'Tickets',
   '/transactions': 'Transactions',
   '/qr-control':   'Scan QR',
   '/users':        'Utilisateurs',
@@ -57,7 +58,7 @@ export default function MainLayout() {
 
   useEffect(() => {
     api
-      .get('/api/subscriptions/expiring-soon?days=7')
+      .get('/subscriptions/expiring-soon?days=7')
       .then((r) => {
         const data = r.data;
         const count = data?.count ?? (Array.isArray(data) ? data.length : 0);
@@ -373,7 +374,7 @@ export default function MainLayout() {
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '20px 24px 24px',
+            padding: '36px 24px 24px',
           }}
         >
           <Outlet />
