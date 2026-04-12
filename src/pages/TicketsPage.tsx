@@ -542,154 +542,279 @@ export default function TicketsPage() {
         )}
       </Modal>
 
-      {/* ── Modale : Générer ticket ── */}
-      <Modal
-        isOpen={generateOpen}
-        onClose={() => setGenerateOpen(false)}
-        title="Générer des tickets"
-        size="md"
-      >
-        <form
-          onSubmit={handleGenerateBatch}
-          style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+      {/* ── Modale : Générer ticket (Material Dashboard) ── */}
+      {generateOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '24px',
+          }}
+          onClick={() => setGenerateOpen(false)}
         >
-          {/* Activité */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#7b809a', textTransform: 'uppercase' }}>
-              Activité *
-            </label>
-            <select
-              value={batchActivityId}
-              onChange={(e) =>
-                setBatchActivityId(e.target.value === '' ? '' : Number(e.target.value))
-              }
-              required
+          <div
+            style={{
+              background: 'white',
+              borderRadius: 12,
+              boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+              width: '100%',
+              maxWidth: 440,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              paddingTop: 20,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
               style={{
-                border: '1px solid #d2d6da',
-                borderRadius: 8,
-                padding: '8px 12px',
-                fontSize: 13,
-                color: '#344767',
-                outline: 'none',
-                background: '#fff',
+                margin: '-20px 16px 0',
+                background: 'linear-gradient(195deg, #FFA726, #fb8c00)',
+                borderRadius: 10,
+                padding: '14px 20px',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(251,140,0,0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
               }}
             >
-              <option value="">-- Sélectionner une activité --</option>
-              {activities.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.nom}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Quantité */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#7b809a', textTransform: 'uppercase' }}>
-              Nombre de tickets *
-            </label>
-            <input
-              type="number"
-              min={1}
-              max={100}
-              value={batchQty}
-              onChange={(e) => setBatchQty(Number(e.target.value))}
-              style={{
-                border: '1px solid #d2d6da',
-                borderRadius: 8,
-                padding: '8px 12px',
-                fontSize: 13,
-                color: '#344767',
-                outline: 'none',
-              }}
-            />
-          </div>
-
-          {/* Prix */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#7b809a', textTransform: 'uppercase' }}>
-                Prix
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#7b809a', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={customPrice}
-                  onChange={(e) => setCustomPrice(e.target.checked)}
-                />
-                Prix personnalisé
-              </label>
-            </div>
-            {customPrice && (
-              <input
-                type="number"
-                min={0}
-                value={batchPrice}
-                onChange={(e) => setBatchPrice(e.target.value)}
-                placeholder="Prix unitaire (FCFA)"
+              <div>
+                <p style={{ color: 'white', fontSize: 14, fontWeight: 700, margin: 0 }}>Générer des tickets</p>
+                <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, margin: '3px 0 0' }}>
+                  Créer des tickets d&apos;accès séance
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGenerateOpen(false)}
                 style={{
-                  border: '1px solid #d2d6da',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  fontSize: 13,
-                  color: '#344767',
-                  outline: 'none',
+                  background: 'rgba(255,255,255,0.2)',
+                  border: '1px solid rgba(255,255,255,0.4)',
+                  color: 'white',
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
-              />
-            )}
-          </div>
+              >
+                ✕
+              </button>
+            </div>
 
-          {batchMsg && (
-            <p
-              style={{
-                fontSize: 13,
-                margin: 0,
-                color: batchMsg.includes('Erreur') ? '#F44335' : '#43A047',
-              }}
+            <form
+              onSubmit={handleGenerateBatch}
+              style={{ padding: '28px 20px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}
             >
-              {batchMsg}
-            </p>
-          )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <label
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#7b809a',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  Activité <span style={{ color: '#F44335' }}>*</span>
+                </label>
+                <select
+                  value={batchActivityId}
+                  onChange={(e) =>
+                    setBatchActivityId(e.target.value === '' ? '' : Number(e.target.value))
+                  }
+                  required
+                  style={{
+                    border: '1px solid #d2d6da',
+                    borderRadius: 8,
+                    padding: '10px 14px',
+                    fontSize: 13,
+                    color: '#344767',
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                    background: 'white',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#1A73E8';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#d2d6da';
+                  }}
+                >
+                  <option value="">-- Sélectionner une activité --</option>
+                  {activities.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.nom}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-            <button
-              type="button"
-              onClick={() => setGenerateOpen(false)}
-              style={{
-                flex: 1,
-                padding: '9px 0',
-                borderRadius: 8,
-                border: '1px solid #d2d6da',
-                background: '#fff',
-                color: '#7b809a',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={generating || !batchActivityId}
-              style={{
-                flex: 1,
-                padding: '9px 0',
-                borderRadius: 8,
-                border: 'none',
-                background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
-                color: '#fff',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: generating || !batchActivityId ? 'not-allowed' : 'pointer',
-                opacity: generating || !batchActivityId ? 0.7 : 1,
-              }}
-            >
-              {generating ? 'Génération…' : `+ Générer ${batchQty} ticket(s)`}
-            </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <label
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#7b809a',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  Nombre de tickets <span style={{ color: '#F44335' }}>*</span>
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={batchQty}
+                  onChange={(e) => setBatchQty(Number(e.target.value))}
+                  style={{
+                    border: '1px solid #d2d6da',
+                    borderRadius: 8,
+                    padding: '10px 14px',
+                    fontSize: 13,
+                    color: '#344767',
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#1A73E8';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#d2d6da';
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#7b809a',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  Prix
+                </span>
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: 13,
+                    color: '#344767',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={customPrice}
+                    onChange={(e) => setCustomPrice(e.target.checked)}
+                    style={{ width: 15, height: 15, accentColor: '#1A73E8' }}
+                  />
+                  Prix personnalisé
+                </label>
+              </div>
+
+              {customPrice && (
+                <input
+                  type="number"
+                  min={0}
+                  value={batchPrice}
+                  onChange={(e) => setBatchPrice(e.target.value)}
+                  placeholder="Prix unitaire (FCFA)"
+                  style={{
+                    border: '1px solid #d2d6da',
+                    borderRadius: 8,
+                    padding: '10px 14px',
+                    fontSize: 13,
+                    color: '#344767',
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#1A73E8';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#d2d6da';
+                  }}
+                />
+              )}
+
+              {batchMsg && (
+                <p
+                  style={{
+                    fontSize: 13,
+                    margin: 0,
+                    color: batchMsg.includes('Erreur') ? '#F44335' : '#43A047',
+                  }}
+                >
+                  {batchMsg}
+                </p>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, paddingTop: 8, borderTop: '1px solid #f0f2f5' }}>
+                <button
+                  type="button"
+                  onClick={() => setGenerateOpen(false)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 0',
+                    borderRadius: 8,
+                    border: '1px solid #d2d6da',
+                    background: 'white',
+                    color: '#7b809a',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={generating || !batchActivityId}
+                  style={{
+                    flex: 2,
+                    padding: '10px 0',
+                    borderRadius: 8,
+                    border: 'none',
+                    background:
+                      generating || !batchActivityId
+                        ? '#a0aec0'
+                        : 'linear-gradient(195deg, #FFA726, #fb8c00)',
+                    color: 'white',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: generating || !batchActivityId ? 'not-allowed' : 'pointer',
+                    boxShadow:
+                      generating || !batchActivityId ? 'none' : '0 3px 10px rgba(251,140,0,0.3)',
+                  }}
+                >
+                  {generating
+                    ? 'Génération…'
+                    : `+ Générer ${batchQty} ticket${batchQty > 1 ? 's' : ''}`}
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      </Modal>
+        </div>
+      )}
     </>
   );
 }
