@@ -64,7 +64,7 @@ export default function MainLayout() {
         setExpiring(count);
       })
       .catch(() => setExpiring('!'));
-  }, []);
+  }, [pathname]);
 
   const filteredNav = NAV_ITEMS.filter((item) =>
     user ? item.roles.includes(user.role) : false
