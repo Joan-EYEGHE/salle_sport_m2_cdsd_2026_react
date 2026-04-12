@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import type { Member, Subscription } from '../types';
@@ -60,130 +60,6 @@ function StatusBadge({ status }: { status: MemberStatus }) {
 }
 
 
-// ─── edit modal ──────────────────────────────────────────────────────────────
-
-interface EditModalProps {
-  member: Member;
-  onClose: () => void;
-  onSaved: () => void;
-}
-
-function EditModal({ member, onClose, onSaved }: EditModalProps) {
-  const [form, setForm] = useState({
-    prenom: member.prenom,
-    nom: member.nom,
-    email: member.email ?? '',
-    phone: member.phone ?? '',
-  });
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    setErr('');
-    try {
-      await api.put(`/members/${member.id}`, form);
-      onSaved();
-    } catch {
-      setErr('Impossible de sauvegarder les modifications.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.45)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: 12,
-          padding: '28px 32px',
-          width: 420,
-          maxWidth: '90vw',
-          boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700, color: '#344767' }}>
-          Modifier le membre
-        </h3>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {(['prenom', 'nom', 'email', 'phone'] as const).map((field) => (
-            <div key={field} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#7b809a', textTransform: 'uppercase' }}>
-                {field === 'prenom' ? 'Prénom' : field === 'nom' ? 'Nom' : field === 'email' ? 'Email' : 'Téléphone'}
-              </label>
-              <input
-                type={field === 'email' ? 'email' : 'text'}
-                value={form[field]}
-                onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
-                style={{
-                  border: '1px solid #d2d6da',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  fontSize: 13,
-                  color: '#344767',
-                  outline: 'none',
-                }}
-              />
-            </div>
-          ))}
-          {err && <p style={{ color: '#F44335', fontSize: 12, margin: 0 }}>{err}</p>}
-          <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                flex: 1,
-                padding: '9px 0',
-                borderRadius: 8,
-                border: '1px solid #d2d6da',
-                background: '#fff',
-                color: '#7b809a',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              style={{
-                flex: 1,
-                padding: '9px 0',
-                borderRadius: 8,
-                border: 'none',
-                background: 'linear-gradient(195deg,#49a3f1,#1A73E8)',
-                color: '#fff',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: saving ? 'not-allowed' : 'pointer',
-                opacity: saving ? 0.7 : 1,
-              }}
-            >
-              {saving ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
 // ─── skeleton ────────────────────────────────────────────────────────────────
 
 function SkeletonRow() {
@@ -204,7 +80,6 @@ const PAGE_SIZE = 10;
 
 export default function MembersPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { user } = useAuth();
   const role = user?.role ?? 'CONTROLLER';
 
@@ -213,7 +88,6 @@ export default function MembersPage() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [editTarget, setEditTarget] = useState<Member | null>(null);
 
   const fetchMembers = async () => {
     setLoading(true);
@@ -232,16 +106,6 @@ export default function MembersPage() {
   useEffect(() => {
     fetchMembers();
   }, []);
-
-  useEffect(() => {
-    const st = location.state as { editMemberId?: number } | null;
-    const editMemberId = st?.editMemberId;
-    if (editMemberId == null) return;
-    if (members.length === 0) return;
-    const m = members.find((x) => x.id === editMemberId);
-    if (m) setEditTarget(m);
-    navigate('.', { replace: true, state: {} });
-  }, [members, location.state, navigate]);
 
   // reset page on search change
   useEffect(() => {
@@ -289,7 +153,7 @@ export default function MembersPage() {
               <p className="gf-card-header__sub">Gestion des membres inscrits</p>
             </div>
             {canEditOrAdd && (
-              <button className="gf-btn-header" onClick={() => navigate('/members/subscribe')}>
+              <button className="gf-btn-header" onClick={() => navigate('/members/new')}>
                 <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
                 Ajouter
               </button>
@@ -391,7 +255,7 @@ export default function MembersPage() {
                         canEditOrAdd={canEditOrAdd}
                         canDelete={canDelete}
                         onView={() => navigate(`/members/${m.id}`)}
-                        onEdit={() => setEditTarget(m)}
+                        onEdit={() => navigate(`/members/${m.id}/edit`)}
                         onDelete={() => handleDelete(m)}
                         avatarBg={avatarGradient(m.id)}
                       />
@@ -428,18 +292,6 @@ export default function MembersPage() {
         </div>
         </div>
       </div>
-
-      {/* ── edit modal ── */}
-      {editTarget && (
-        <EditModal
-          member={editTarget}
-          onClose={() => setEditTarget(null)}
-          onSaved={() => {
-            setEditTarget(null);
-            fetchMembers();
-          }}
-        />
-      )}
     </>
   );
 

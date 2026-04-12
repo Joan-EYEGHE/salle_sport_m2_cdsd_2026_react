@@ -27,9 +27,12 @@ export interface Member {
   slug?: string;
   email?: string;
   phone?: string;
+  date_naissance?: string | null;
   uuid_qr: string;
   initials?: string;
+  /** Alias côté UI ; l’API renvoie souvent `createdAt`. */
   date_inscription?: string;
+  createdAt?: string;
   subscriptions?: Subscription[];
   transactions?: Transaction[];
 }

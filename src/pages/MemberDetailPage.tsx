@@ -413,7 +413,7 @@ export default function MemberDetailPage() {
                   <button
                     type="button"
                     style={btnEdit}
-                    onClick={() => navigate('/members', { state: { editMemberId: member.id } })}
+                    onClick={() => navigate(`/members/${member.id}/edit`)}
                   >
                     ✏️ Modifier
                   </button>

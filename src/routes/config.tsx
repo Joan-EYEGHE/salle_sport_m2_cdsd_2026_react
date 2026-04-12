@@ -10,6 +10,7 @@ const LoginPage = lazy(() => import('../pages/LoginPage'));
 const DashboardPage = lazy(() => import('../pages/DashboardPage'));
 const ActivitiesPage = lazy(() => import('../pages/ActivitiesPage'));
 const MembersPage = lazy(() => import('../pages/MembersPage'));
+const MemberFormPage = lazy(() => import('../pages/MemberFormPage'));
 const MemberDetailPage = lazy(() => import('../pages/MemberDetailPage'));
 const SubscriptionForm = lazy(() => import('../pages/SubscriptionForm'));
 const SubscriptionsPage = lazy(() => import('../pages/SubscriptionsPage'));
@@ -58,12 +59,20 @@ const routes: RouteObject[] = [
         element: guard(['ADMIN', 'CASHIER'], <MembersPage />),
       },
       {
-        path: 'members/:id',
-        element: guard(['ADMIN', 'CASHIER', 'CONTROLLER'], <MemberDetailPage />),
+        path: 'members/new',
+        element: guard(['ADMIN', 'CASHIER'], <MemberFormPage />),
       },
       {
         path: 'members/subscribe',
         element: guard(['ADMIN', 'CASHIER'], <SubscriptionForm />),
+      },
+      {
+        path: 'members/:id/edit',
+        element: guard(['ADMIN', 'CASHIER'], <MemberFormPage />),
+      },
+      {
+        path: 'members/:id',
+        element: guard(['ADMIN', 'CASHIER', 'CONTROLLER'], <MemberDetailPage />),
       },
       {
         path: 'tickets',
