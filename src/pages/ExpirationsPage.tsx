@@ -273,42 +273,45 @@ export default function ExpirationsPage() {
   };
 
   // ── KPI definitions ───────────────────────────────────────────────────────────
-  const kpiDefs = [
+  type KpiIconClass = 'gf-kpi-icon--error' | 'gf-kpi-icon--warning' | 'gf-kpi-icon--info';
+
+  const kpiDefs: {
+    label: string;
+    value: number | null;
+    Icon: typeof AlertTriangle;
+    iconClass: KpiIconClass;
+    footer: React.ReactNode;
+  }[] = [
     {
       label: 'Expirent dans 7j',
       value: loading ? null : urgent.length,
       Icon: AlertTriangle,
-      gradient: 'linear-gradient(195deg, #ef5350, #F44335)',
-      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(244,67,53,0.3)',
+      iconClass: 'gf-kpi-icon--error',
       footer: (
-        <p style={{ fontSize: 11, color: '#7b809a', margin: 0 }}>
-          <span style={{ color: '#fb8c00', fontWeight: 700 }}>Urgent</span>
+        <div className="gf-kpi-footer">
+          <span style={{ color: '#fb8c00', fontWeight: 600 }}>Urgent</span>
           {' — action requise'}
-        </p>
+        </div>
       ),
     },
     {
       label: 'Expirent dans 30j',
       value: loading ? null : allSubs.length,
       Icon: Clock,
-      gradient: 'linear-gradient(195deg, #FFA726, #fb8c00)',
-      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(251,140,0,0.3)',
+      iconClass: 'gf-kpi-icon--warning',
       footer: (
-        <p style={{ fontSize: 11, color: '#7b809a', margin: 0 }}>
+        <div className="gf-kpi-footer">
           {'À contacter '}
-          <span style={{ color: '#fb8c00', fontWeight: 700 }}>bientôt</span>
-        </p>
+          <span style={{ color: '#fb8c00', fontWeight: 600 }}>bientôt</span>
+        </div>
       ),
     },
     {
       label: 'Renouvelés ce mois',
       value: loading ? null : kpiRenewed,
       Icon: RefreshCw,
-      gradient: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
-      shadow: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.3)',
-      footer: (
-        <p style={{ fontSize: 11, color: '#7b809a', margin: 0 }}>Ce mois-ci</p>
-      ),
+      iconClass: 'gf-kpi-icon--info',
+      footer: <div className="gf-kpi-footer">Ce mois-ci</div>,
     },
   ];
 
@@ -330,112 +333,37 @@ export default function ExpirationsPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div
-      style={{
-        padding: '20px 24px 24px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 20,
-        background: '#f0f2f5',
-      }}
-    >
+    <div className="gf-page" style={{ minHeight: 'calc(100vh - 60px)' }}>
       {/* ── BLOC 1 — KPI cards ─────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-          gap: 16,
-          marginTop: 14,
-        }}
-      >
+      <div className="gf-kpi-grid-3 gf-page-top">
         {kpiDefs.map((kpi) => (
-          <div
-            key={kpi.label}
-            style={{
-              background: '#fff',
-              borderRadius: 12,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-              padding: '14px 16px 12px',
-              position: 'relative',
-            }}
-          >
-            {/* Floating icon */}
-            <div
-              style={{
-                position: 'absolute',
-                top: -14,
-                left: 16,
-                width: 48,
-                height: 48,
-                borderRadius: 10,
-                background: kpi.gradient,
-                boxShadow: kpi.shadow,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
+          <div key={kpi.label} className="gf-kpi-card">
+            <div className={`gf-kpi-icon ${kpi.iconClass}`}>
               <kpi.Icon size={22} color="#fff" />
             </div>
-
-            {/* Right-aligned label + value */}
-            <div style={{ textAlign: 'right', paddingTop: 6 }}>
-              <p
-                style={{
-                  fontSize: 11,
-                  color: '#7b809a',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                  margin: 0,
-                }}
-              >
-                {kpi.label}
-              </p>
-              <p style={{ fontSize: 20, fontWeight: 700, color: '#344767', margin: '4px 0 0' }}>
-                {loading ? '--' : kpi.value !== null ? String(kpi.value) : '--'}
-              </p>
-            </div>
-
-            {/* Footer */}
-            <div style={{ borderTop: '1px solid #f0f2f5', paddingTop: 6, marginTop: 10 }}>
-              {kpi.footer}
-            </div>
+            <p className="gf-kpi-label">{kpi.label}</p>
+            <p className="gf-kpi-value">
+              {loading ? '--' : kpi.value !== null ? String(kpi.value) : '--'}
+            </p>
+            {kpi.footer}
           </div>
         ))}
       </div>
 
       {/* ── BLOC 2 — Card liste ─────────────────────────────────────────────── */}
-      <div style={{ paddingTop: 20 }}>
-        <div
-          style={{
-            background: '#fff',
-            borderRadius: 12,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-            overflow: 'visible',
-          }}
-        >
-          {/* Floating header */}
-          <div
-            style={{
-              margin: '-20px 16px 0',
-              background: 'linear-gradient(195deg, #FFA726, #fb8c00)',
-              borderRadius: 10,
-              padding: '16px 20px',
-              boxShadow:
-                '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(251,140,0,0.4)',
-            }}
-          >
-            <p style={{ color: '#fff', fontSize: 14, fontWeight: 700, margin: 0 }}>
-              Expirations imminentes
-            </p>
-            <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, margin: '3px 0 0' }}>
-              Abonnements à renouveler — triés par urgence
-            </p>
+      <div className="gf-card-outer">
+        <div className="gf-card">
+          <div className="gf-card-header gf-card-header--warning">
+            <div>
+              <p className="gf-card-header__title">Expirations imminentes</p>
+              <p className="gf-card-header__sub">Abonnements à renouveler — triés par urgence</p>
+            </div>
           </div>
 
           {/* Loading state */}
           {loading && (
             <div
+              className="gf-card-body"
               style={{
                 padding: '60px 20px',
                 display: 'flex',
@@ -458,7 +386,7 @@ export default function ExpirationsPage() {
 
           {/* Error / endpoint not found */}
           {!loading && error && (
-            <div style={{ padding: '28px 20px' }}>
+            <div className="gf-card-body" style={{ padding: '28px 20px' }}>
               <div
                 style={{
                   background: '#fff8f0',
@@ -480,48 +408,35 @@ export default function ExpirationsPage() {
           {/* Content */}
           {!loading && !error && (
             <>
-              {/* Toolbar */}
-              <div
-                style={{
-                  padding: '28px 20px 0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  flexWrap: 'wrap',
-                }}
-              >
-                {/* Filter pills */}
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {pillConfig.map(({ key, label, activeColor }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setFilter(key)}
-                      style={{
-                        padding: '6px 14px',
-                        borderRadius: 20,
-                        fontSize: 12,
-                        fontWeight: 700,
-                        border: filter === key ? 'none' : '1px solid #d2d6da',
-                        background: filter === key ? activeColor : '#fff',
-                        color: filter === key ? '#fff' : '#7b809a',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s',
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
+              <div className="gf-card-body" style={{ padding: '28px 0 0' }}>
+                <div className="gf-toolbar">
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {pillConfig.map(({ key, label, activeColor }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setFilter(key)}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: 20,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          border: filter === key ? 'none' : '1px solid #d2d6da',
+                          background: filter === key ? activeColor : '#fff',
+                          color: filter === key ? '#fff' : '#7b809a',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="gf-count-label">
+                    {filtered.length} abonnement{filtered.length !== 1 ? 's' : ''}
+                  </span>
                 </div>
 
-                {/* Counter */}
-                <span style={{ fontSize: 12, color: '#7b809a', whiteSpace: 'nowrap' }}>
-                  {filtered.length} abonnement{filtered.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-
-              {/* Alert list */}
               <div
                 style={{
                   padding: '20px 20px 8px',
@@ -586,45 +501,32 @@ export default function ExpirationsPage() {
                   </>
                 )}
               </div>
+              </div>
 
-              {/* Pagination */}
               {totalPages > 1 && (
-                <div
-                  style={{
-                    padding: '12px 20px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    borderTop: '1px solid #f0f2f5',
-                    flexWrap: 'wrap',
-                    gap: 8,
-                  }}
-                >
-                  <span style={{ fontSize: 12, color: '#7b809a' }}>
+                <div className="gf-pagination">
+                  <span className="gf-pagination__info">
                     Affichage {pageStart + 1}–{pageEnd} sur {filtered.length}
                   </span>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setPage(p)}
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 8,
-                          border: 'none',
-                          background: p === safePage ? '#fb8c00' : '#f0f2f5',
-                          color: p === safePage ? '#fff' : '#344767',
-                          fontWeight: p === safePage ? 700 : 400,
-                          fontSize: 12,
-                          cursor: 'pointer',
-                          transition: 'all 0.15s',
-                        }}
-                      >
-                        {p}
-                      </button>
-                    ))}
+                  <div className="gf-pagination__btns">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
+                      const active = p === safePage;
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setPage(p)}
+                          className={`gf-page-btn${active ? ' gf-page-btn--active' : ''}`}
+                          style={
+                            active
+                              ? { background: '#fb8c00', borderColor: '#fb8c00' }
+                              : {}
+                          }
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}

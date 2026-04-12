@@ -39,34 +39,6 @@ function memberInitials(m: MemberSearchResult): string {
 // ─── styles ─────────────────────────────────────────────────────────────────
 
 const S = {
-  page: {
-    background: '#f0f2f5',
-    padding: '20px 24px 24px',
-    display: 'flex' as const,
-    flexDirection: 'column' as const,
-    gap: 20,
-    minHeight: '100%',
-  },
-  card: {
-    background: '#fff',
-    borderRadius: 12,
-    boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-    overflow: 'visible' as const,
-  },
-  headerCreation: {
-    margin: '-20px 16px 0',
-    borderRadius: 10,
-    padding: '16px 20px',
-    background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.4)',
-  },
-  headerRenewal: {
-    margin: '-20px 16px 0',
-    borderRadius: 10,
-    padding: '16px 20px',
-    background: 'linear-gradient(195deg, #66BB6A, #43A047)',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(67,160,71,0.4)',
-  },
   label: {
     display: 'block' as const,
     fontSize: 11,
@@ -408,14 +380,16 @@ export default function SubscriptionForm() {
   // ─── render ──────────────────────────────────────────────────────────────
   if (renewalLoading) {
     return (
-      <div style={{ ...S.page, alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        className="gf-page gf-page-top"
+        style={{ alignItems: 'center', justifyContent: 'center', minHeight: '100%' }}
+      >
         <div style={{ color: '#7b809a', fontSize: 14 }}>Chargement…</div>
       </div>
     );
   }
 
   const accentColor = mode === 'renewal' ? '#43A047' : '#1A73E8';
-  const headerStyle = mode === 'renewal' ? S.headerRenewal : S.headerCreation;
   const btnGradient = mode === 'renewal'
     ? 'linear-gradient(195deg, #66BB6A, #43A047)'
     : 'linear-gradient(195deg, #49a3f1, #1A73E8)';
@@ -424,9 +398,9 @@ export default function SubscriptionForm() {
     : '0 3px 12px rgba(26,115,232,0.35)';
 
   return (
-    <div style={S.page}>
+    <div className="gf-page gf-page-top" style={{ minHeight: '100%' }}>
       {/* ── switcher de mode ─────────────────────────────────────────── */}
-      <div style={{ marginTop: 14, display: 'flex' }}>
+      <div style={{ display: 'flex' }}>
         <div style={{ display: 'flex', border: '1px solid #d2d6da', borderRadius: 8, overflow: 'hidden' }}>
           {(['creation', 'renewal'] as Mode[]).map((m) => {
             const active = mode === m;
@@ -454,21 +428,29 @@ export default function SubscriptionForm() {
       </div>
 
       {/* ── card formulaire ──────────────────────────────────────────── */}
-      <div style={{ ...S.card, paddingTop: 20 }}>
-        {/* header flottant */}
-        <div style={headerStyle}>
-          <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, margin: 0 }}>
-            {mode === 'creation' ? 'Nouvel abonnement' : 'Renouvellement d\'abonnement'}
-          </p>
-          <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, margin: '4px 0 0' }}>
-            {mode === 'creation'
-              ? 'Renseignez les informations pour créer un abonnement'
-              : 'Renouvelez l\'abonnement d\'un membre existant'}
-          </p>
-        </div>
+      <div className="gf-card-outer">
+        <div className="gf-card">
+          <div
+            className={
+              mode === 'renewal'
+                ? 'gf-card-header gf-card-header--success'
+                : 'gf-card-header gf-card-header--info'
+            }
+          >
+            <div>
+              <p className="gf-card-header__title">
+                {mode === 'creation' ? 'Nouvel abonnement' : 'Renouvellement d\'abonnement'}
+              </p>
+              <p className="gf-card-header__sub">
+                {mode === 'creation'
+                  ? 'Créer un abonnement pour un membre'
+                  : 'Prolonger un abonnement existant'}
+              </p>
+            </div>
+          </div>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ padding: '28px 24px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div className="gf-card-body" style={{ padding: '28px 24px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
             {/* ── bannière renouvellement ─────────────────────────────── */}
             {mode === 'renewal' && renewalCtx && (
@@ -930,6 +912,7 @@ export default function SubscriptionForm() {
 
           </div>
         </form>
+        </div>
       </div>
 
       {/* ── toast ──────────────────────────────────────────────────────── */}
