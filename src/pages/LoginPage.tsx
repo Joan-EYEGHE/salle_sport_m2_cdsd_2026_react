@@ -58,62 +58,45 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center"
       style={{
+        minHeight: '100vh',
         background: 'linear-gradient(195deg, #42424a, #191919)',
-        padding: '40px 16px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '48px 24px 24px',
       }}
     >
-      {/* Wrapper — padding-top makes room for the floating header */}
-      <div style={{ width: 380, paddingTop: 40 }}>
-        {/* Card */}
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 380,
+          background: 'white',
+          borderRadius: 12,
+          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        }}
+      >
         <div
           style={{
-            background: '#fff',
-            borderRadius: 12,
-            overflow: 'visible',
+            margin: '-28px 20px 0',
+            background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+            borderRadius: 10,
+            padding: '20px 24px',
             boxShadow:
-              '0 20px 27px rgba(0,0,0,0.05), 0 8px 32px rgba(0,0,0,0.18)',
+              '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.4)',
+            textAlign: 'center',
           }}
         >
-          {/* Floating header */}
-          <div
-            style={{
-              marginTop: -28,
-              marginLeft: 24,
-              marginRight: 24,
-              background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
-              borderRadius: 10,
-              padding: '20px 24px',
-              boxShadow:
-                '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.4)',
-            }}
-          >
-            <p
-              style={{
-                color: '#fff',
-                fontSize: 18,
-                fontWeight: 700,
-                margin: 0,
-                lineHeight: 1.3,
-              }}
-            >
-              Connexion
-            </p>
-            <p
-              style={{
-                color: 'rgba(255,255,255,0.75)',
-                fontSize: 13,
-                margin: '4px 0 0',
-              }}
-            >
-              Entrez vos identifiants pour accéder à GymFlow
-            </p>
-          </div>
+          <h1 style={{ color: 'white', fontSize: 18, fontWeight: 700, margin: 0 }}>
+            Connexion
+          </h1>
+          <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, margin: '2px 0 0' }}>
+            Entrez vos identifiants pour accéder à GymFlow
+          </p>
+        </div>
 
-          {/* Form body */}
-          <div style={{ padding: '28px 32px 24px' }}>
-            <form onSubmit={handleSubmit}>
+        <div style={{ padding: '24px 24px 20px' }}>
+          <form onSubmit={handleSubmit}>
               {/* Email */}
               <div style={{ marginBottom: 18 }}>
                 <label
@@ -267,15 +250,9 @@ export default function LoginPage() {
                 )}
               </button>
             </form>
+        </div>
 
-            {/* Demo accounts */}
-            <div
-              style={{
-                marginTop: 24,
-                paddingTop: 20,
-                borderTop: '1px solid #f0f2f5',
-              }}
-            >
+        <div style={{ padding: '16px 24px 20px', borderTop: '1px solid #f0f2f5' }}>
               <p
                 style={{
                   fontSize: 11,
@@ -365,8 +342,6 @@ export default function LoginPage() {
                   </button>
                 ))}
               </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
