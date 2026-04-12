@@ -1,24 +1,33 @@
 import { useNavigate } from 'react-router-dom';
 import { Dumbbell, Calendar, Users, DollarSign, ArrowRight } from 'lucide-react';
 
+const kpiIconShadow = {
+  info: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.3)',
+  success: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(76,175,80,0.3)',
+  warning: '0 4px 15px rgba(0,0,0,0.14), 0 7px 10px rgba(251,140,0,0.3)',
+} as const;
+
 const modules = [
   {
     icon: Calendar,
-    iconBg: 'bg-amber-500',
-    title: 'Gestion des activités',
-    description: 'Gérer les types d\'activités et leur prix',
+    title: 'Activités',
+    description: "Gérer les types d'activités et leur prix",
+    gradient: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+    iconShadow: kpiIconShadow.info,
   },
   {
     icon: Users,
-    iconBg: 'bg-orange-500',
-    title: 'Gestion des membres',
+    title: 'Membres',
     description: 'Suivre les adhésions et les données clients',
+    gradient: 'linear-gradient(195deg, #66BB6A, #43A047)',
+    iconShadow: kpiIconShadow.success,
   },
   {
     icon: DollarSign,
-    iconBg: 'bg-amber-600',
-    title: 'Suivi financier',
+    title: 'Finances',
     description: 'Suivre les revenus et dépenses',
+    gradient: 'linear-gradient(195deg, #FFA726, #fb8c00)',
+    iconShadow: kpiIconShadow.warning,
   },
 ];
 
@@ -27,47 +36,189 @@ export default function LandingPage() {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-4 py-12"
       style={{
-        background: 'radial-gradient(ellipse at center top, #2a2a2a 0%, #111111 70%, #000000 100%)',
+        minHeight: '100vh',
+        background: '#f0f2f5',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '48px 24px',
       }}
     >
-      {/* Logo */}
-      <div className="flex flex-col items-center mb-10">
-        <div className="bg-amber-500 rounded-2xl p-4 mb-5 shadow-lg shadow-amber-500/30">
-          <Dumbbell className="w-10 h-10 text-white" />
+      <div
+        style={{
+          background: '#fff',
+          borderRadius: 12,
+          boxShadow: '0 20px 60px rgba(0,0,0,0.08)',
+          maxWidth: 480,
+          width: '100%',
+          padding: '48px 40px',
+          textAlign: 'center',
+        }}
+      >
+        <div
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: 16,
+            background: 'linear-gradient(195deg, #EC407A, #D81B60)',
+            boxShadow: '0 4px 20px rgba(233,30,99,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 20px',
+          }}
+        >
+          <Dumbbell size={32} color="#fff" />
         </div>
-        <h1 className="text-white text-4xl font-bold tracking-tight">GymFlow</h1>
-        <p className="text-gray-400 text-lg mt-1">Système de gestion</p>
+
+        <h1
+          style={{
+            fontSize: 36,
+            fontWeight: 700,
+            color: '#344767',
+            margin: '0 0 8px',
+          }}
+        >
+          GymFlow
+        </h1>
+        <p
+          style={{
+            fontSize: 16,
+            color: '#7b809a',
+            margin: '0 0 32px',
+          }}
+        >
+          La gestion de salle, simplifiée.
+        </p>
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            margin: '0 0 32px',
+          }}
+        >
+          <div style={{ flex: 1, height: 1, background: '#dee2e6' }} />
+          <span
+            style={{
+              fontSize: 11,
+              color: '#7b809a',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.6px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Accès réservé au personnel
+          </span>
+          <div style={{ flex: 1, height: 1, background: '#dee2e6' }} />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => navigate('/login')}
+          style={{
+            width: '100%',
+            background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
+            border: 'none',
+            borderRadius: 8,
+            padding: '14px',
+            color: 'white',
+            fontSize: 15,
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 4px 15px rgba(26,115,232,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            transition: 'opacity 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = '0.9';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = '1';
+          }}
+        >
+          Accéder à l&apos;application
+          <ArrowRight size={18} />
+        </button>
       </div>
 
-      {/* Module cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl w-full mb-10">
+      <div
+        style={{
+          maxWidth: 560,
+          width: '100%',
+          marginTop: 24,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 16,
+        }}
+      >
         {modules.map((mod) => (
           <div
             key={mod.title}
-            className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-xl p-6 text-center"
+            style={{
+              background: '#fff',
+              borderRadius: 12,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+              padding: '20px 16px',
+              textAlign: 'center',
+            }}
           >
-            <div className={`inline-flex items-center justify-center w-12 h-12 ${mod.iconBg} rounded-xl mb-4`}>
-              <mod.icon className="w-6 h-6 text-white" />
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 10,
+                margin: '0 auto 12px',
+                background: mod.gradient,
+                boxShadow: mod.iconShadow,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <mod.icon size={22} color="#fff" />
             </div>
-            <h3 className="text-white font-semibold text-base mb-1">{mod.title}</h3>
-            <p className="text-gray-400 text-sm leading-relaxed">{mod.description}</p>
+            <h3
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: '#344767',
+                margin: '0 0 6px',
+              }}
+            >
+              {mod.title}
+            </h3>
+            <p
+              style={{
+                fontSize: 12,
+                color: '#7b809a',
+                lineHeight: 1.5,
+                margin: 0,
+              }}
+            >
+              {mod.description}
+            </p>
           </div>
         ))}
       </div>
 
-      {/* CTA button */}
-      <button
-        onClick={() => navigate('/login')}
-        className="group flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-gray-900 font-semibold px-8 py-3 rounded-lg transition-all duration-200 shadow-lg hover:shadow-amber-500/40"
+      <p
+        style={{
+          fontSize: 12,
+          color: '#7b809a',
+          marginTop: 32,
+          textAlign: 'center',
+        }}
       >
-        Commencer
-        <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-      </button>
-
-      {/* Footer */}
-      <p className="text-gray-500 text-sm mt-12">© 2026 GymFlow. Tous droits réservés.</p>
+        © 2026 GymFlow. Tous droits réservés.
+      </p>
     </div>
   );
 }
