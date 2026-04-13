@@ -134,9 +134,10 @@ export default function MembersPage() {
 
   const handleDelete = async (m: Member) => {
     if (!window.confirm(`Supprimer le membre "${m.prenom} ${m.nom}" ? Cette action est irréversible.`)) return;
+    const deletedId = Number(m.id);
     try {
-      await api.delete(`/members/${m.id}`);
-      await fetchMembers();
+      await api.delete(`/members/${deletedId}`);
+      setMembers((prev) => prev.filter((x) => Number(x.id) !== deletedId));
     } catch {
       alert('Impossible de supprimer ce membre.');
     }

@@ -274,9 +274,10 @@ export default function SubscriptionsPage() {
     const m = getMember(sub);
     const name = m ? `${m.prenom} ${m.nom}` : `abonnement #${sub.id}`;
     if (!window.confirm(`Supprimer l'abonnement de ${name} ? Cette action est irréversible.`)) return;
+    const deletedId = Number(sub.id);
     try {
-      await api.delete(`/subscriptions/${sub.id}`);
-      await fetchSubs();
+      await api.delete(`/subscriptions/${deletedId}`);
+      setRows((prev) => prev.filter((x) => Number(x.id) !== deletedId));
     } catch {
       alert('Impossible de supprimer cet abonnement.');
     }

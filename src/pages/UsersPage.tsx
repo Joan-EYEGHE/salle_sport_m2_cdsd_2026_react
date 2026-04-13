@@ -17,7 +17,7 @@ type UserFormData = {
   fullName: string;
   email: string;
   role: 'ADMIN' | 'CASHIER' | 'CONTROLLER';
-  isActive: boolean;
+  active: boolean;
   password: string;
 };
 
@@ -61,7 +61,7 @@ function displayFullName(u: ExtUser): string {
 }
 
 function userIsActive(u: ExtUser): boolean {
-  return u.isActive === true;
+  return u.active === true;
 }
 
 // ─── StatusBadge ─────────────────────────────────────────────────────────────
@@ -195,7 +195,7 @@ const EMPTY_FORM: UserFormData = {
   fullName: '',
   email: '',
   role: 'CASHIER',
-  isActive: true,
+  active: true,
   password: '',
 };
 
@@ -208,7 +208,7 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
           fullName: editTarget.fullName ?? '',
           email: editTarget.email,
           role: editTarget.role,
-          isActive: editTarget.isActive !== false,
+          active: editTarget.active !== false,
           password: '',
         }
       : EMPTY_FORM
@@ -267,12 +267,13 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
         const { password: _pw, ...payload } = form;
         await api.put(`/users/${editTarget.id}`, payload);
       } else {
-        const { isActive: _a, ...createBody } = form;
+        const { password, ...rest } = form;
         await api.post('/users', {
-          fullName: createBody.fullName.trim(),
-          email: createBody.email.trim(),
-          role: createBody.role,
-          password: createBody.password,
+          fullName: rest.fullName.trim(),
+          email: rest.email.trim(),
+          role: rest.role,
+          password,
+          active: rest.active,
         });
       }
       onSaved();
@@ -454,8 +455,8 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
           >
             <input
               type="checkbox"
-              checked={form.isActive}
-              onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+              checked={form.active}
+              onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
               style={{ width: 15, height: 15, accentColor: '#1A73E8' }}
             />
             Compte actif
@@ -533,7 +534,13 @@ export default function UsersPage() {
       });
       const payload = res.data?.data ?? res.data;
       const list = Array.isArray(payload) ? payload : (payload?.items ?? []);
-      setUsers(Array.isArray(list) ? list : []);
+      const arr = Array.isArray(list) ? list : [];
+      setUsers(
+        arr.map((raw: ExtUser & { isActive?: boolean }) => ({
+          ...raw,
+          active: raw.active ?? raw.isActive ?? true,
+        })),
+      );
     } catch {
       setError('Impossible de charger les utilisateurs.');
     } finally {
@@ -564,9 +571,10 @@ export default function UsersPage() {
     }
     const name = displayFullName(u);
     if (!window.confirm(`Supprimer l'utilisateur "${name}" ? Cette action est irréversible.`)) return;
+    const deletedId = Number(u.id);
     try {
-      await api.delete(`/users/${u.id}`);
-      await fetchUsers();
+      await api.delete(`/users/${deletedId}`);
+      setUsers((prev) => prev.filter((x) => Number(x.id) !== deletedId));
     } catch {
       window.alert('Impossible de supprimer cet utilisateur.');
     }

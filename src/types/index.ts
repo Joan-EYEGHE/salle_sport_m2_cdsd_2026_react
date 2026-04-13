@@ -3,12 +3,13 @@ export interface User {
   fullName: string;
   email: string;
   role: 'ADMIN' | 'CASHIER' | 'CONTROLLER';
-  isActive: boolean;
+  active: boolean;
 }
 
 export interface Activity {
   id: number;
   nom: string;
+  active?: boolean;
   status: boolean;
   frais_inscription: number;
   prix_ticket: number;
@@ -21,6 +22,7 @@ export interface Activity {
 
 export interface Member {
   id: number;
+  active?: boolean;
   nom: string;
   prenom: string;
   slug?: string;
@@ -39,6 +41,7 @@ export interface Member {
 /** Aligné sur l’API Sequelize : fin = date_prochain_paiement (pas end_date). */
 export interface Subscription {
   id: number;
+  active?: boolean;
   id_membre: number;
   id_activity: number;
   type_forfait: 'HEBDO' | 'MENSUEL' | 'TRIMESTRIEL' | 'ANNUEL';
@@ -56,6 +59,7 @@ export interface Subscription {
 
 export interface Batch {
   id: number;
+  active?: boolean;
   id_activity: number;
   quantite: number;
   prix_unitaire_applique: number;
@@ -64,6 +68,7 @@ export interface Batch {
 
 export interface Ticket {
   id: number;
+  active?: boolean;
   /** API Sequelize (`qr_code`) ; `uuid_qr` reste pour compatibilité typage ancien. */
   qr_code?: string;
   uuid_qr?: string;

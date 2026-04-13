@@ -496,9 +496,10 @@ export default function ActivitiesPage() {
 
   const handleDelete = async (a: ExtActivity) => {
     if (!window.confirm(`Supprimer l'activité "${a.nom}" ? Cette action est irréversible.`)) return;
+    const deletedId = Number(a.id);
     try {
-      await api.delete(`/activities/${a.id}`);
-      await fetchActivities();
+      await api.delete(`/activities/${deletedId}`);
+      setActivities((prev) => prev.filter((x) => Number(x.id) !== deletedId));
     } catch {
       alert('Impossible de supprimer cette activité.');
     }
