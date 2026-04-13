@@ -17,7 +17,16 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import api from '../api/axios';
-import type { Transaction } from '../types';
+import type { Member, Transaction } from '../types';
+
+/** Sequelize : include sous `member` (as) ou `Member` (sérialisation). */
+function normalizeTransactionRow(raw: unknown): Transaction {
+  const r = raw as Transaction & { Member?: Member };
+  return {
+    ...r,
+    member: r.member ?? r.Member,
+  };
+}
 
 function fmt(n: number) {
   return new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
@@ -175,7 +184,8 @@ export default function DashboardPage() {
       }
       if (txRes.status === 'fulfilled') {
         const d = txRes.value.data?.data ?? txRes.value.data;
-        setRecentTx(Array.isArray(d) ? d.slice(0, 5) : d?.items?.slice(0, 5) ?? []);
+        const slice = Array.isArray(d) ? d.slice(0, 5) : d?.items?.slice(0, 5) ?? [];
+        setRecentTx(slice.map((row: unknown) => normalizeTransactionRow(row)));
       }
     }).finally(() => setKpiLoading(false));
   }, []);
