@@ -1,3 +1,9 @@
+/*
+AUDIT CSS GYMFLOW - DashboardPage.tsx
+Problème 1 : overflow visible redondant sur .gf-card (déjà en CSS)
+Problème 2 : Couleurs #7b809a, #344767, #f0f2f5, #fff en inline
+Total : 2 problèmes trouvés
+*/
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, DollarSign, Ticket, TrendingUp } from 'lucide-react';
@@ -255,7 +261,7 @@ export default function DashboardPage() {
       >
         {/* Left — Revenue AreaChart */}
         <div className="gf-card-outer">
-          <div className="gf-card" style={{ overflow: 'visible' }}>
+          <div className="gf-card">
             {/* Floating blue header */}
             <div className="gf-card-header gf-card-header--info">
               <div>
@@ -321,7 +327,7 @@ export default function DashboardPage() {
 
         {/* Right — Expirations imminentes */}
         <div className="gf-card-outer">
-          <div className="gf-card" style={{ overflow: 'visible' }}>
+          <div className="gf-card">
             {/* Floating orange header */}
             <div className="gf-card-header gf-card-header--warning">
               <div>
@@ -362,7 +368,7 @@ export default function DashboardPage() {
                   >
                     Endpoint à connecter
                   </p>
-                  <p style={{ fontSize: 11, color: '#7b809a', margin: '2px 0 0' }}>
+                  <p style={{ fontSize: 11, color: 'var(--gf-muted)', margin: '2px 0 0' }}>
                     GET /api/subscriptions/expiring-soon
                   </p>
                 </div>
@@ -399,13 +405,13 @@ export default function DashboardPage() {
                             style={{
                               fontSize: 12,
                               fontWeight: 600,
-                              color: '#344767',
+                              color: 'var(--gf-dark)',
                               margin: 0,
                             }}
                           >
                             {memberName}
                           </p>
-                          <p style={{ fontSize: 11, color: '#7b809a', margin: '2px 0 0' }}>
+                          <p style={{ fontSize: 11, color: 'var(--gf-muted)', margin: '2px 0 0' }}>
                             Expire dans {sub.daysLeft}j
                           </p>
                         </div>
@@ -438,7 +444,7 @@ export default function DashboardPage() {
                   border: 'none',
                   borderRadius: 8,
                   padding: '10px',
-                  color: '#fff',
+                  color: 'var(--gf-white)',
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -454,7 +460,7 @@ export default function DashboardPage() {
 
       {/* ── BLOC 3 — Recent transactions ───────────────────────────────────── */}
       <div className="gf-card-outer">
-        <div className="gf-card" style={{ overflow: 'visible' }}>
+        <div className="gf-card">
           {/* Floating header */}
           <div className="gf-card-header gf-card-header--dark">
             <div>
@@ -466,7 +472,7 @@ export default function DashboardPage() {
           {/* Body */}
           <div className="gf-card-body">
             {recentTx.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#7b809a', fontSize: 13, margin: 0 }}>
+              <p style={{ textAlign: 'center', color: 'var(--gf-muted)', fontSize: 13, margin: 0 }}>
                 Aucune transaction récente.
               </p>
             ) : (
@@ -489,7 +495,7 @@ export default function DashboardPage() {
                       const cat = getTxCategory(tx.libelle);
                       return (
                         <tr key={tx.id}>
-                          <td style={{ color: '#7b809a' }}>
+                          <td style={{ color: 'var(--gf-muted)' }}>
                             {new Date(tx.date).toLocaleDateString('fr-FR')}
                           </td>
                           <td style={{ fontWeight: 500 }}>{memberName}</td>
@@ -521,7 +527,7 @@ export default function DashboardPage() {
             <div
               style={{
                 marginTop: 14,
-                borderTop: '1px solid #f0f2f5',
+                borderTop: '1px solid var(--gf-bg)',
                 paddingTop: 12,
                 textAlign: 'right',
               }}

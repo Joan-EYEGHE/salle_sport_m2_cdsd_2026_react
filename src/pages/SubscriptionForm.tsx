@@ -1,3 +1,9 @@
+/*
+AUDIT CSS GYMFLOW - SubscriptionForm.tsx
+Problème 1 : Objet S et nombreux blocs JSX en palette hex ; onBlur sur hex bordure
+Problème 2 : Mode switcher et totaux sans variables CSS
+Total : 2 problèmes trouvés
+*/
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
@@ -45,29 +51,29 @@ const S = {
     fontWeight: 700,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.06em',
-    color: '#7b809a',
+    color: 'var(--gf-muted)',
     marginBottom: 6,
   },
   input: {
     width: '100%',
     boxSizing: 'border-box' as const,
-    border: '1px solid #d2d6da',
+    border: '1px solid var(--gf-border)',
     borderRadius: 8,
     padding: '10px 14px',
     fontSize: 13,
-    color: '#344767',
+    color: 'var(--gf-dark)',
     outline: 'none',
-    background: '#fff',
+    background: 'var(--gf-white)',
     transition: 'border-color 0.2s',
   },
   inputDisabled: {
     width: '100%',
     boxSizing: 'border-box' as const,
-    border: '1px solid #d2d6da',
+    border: '1px solid var(--gf-border)',
     borderRadius: 8,
     padding: '10px 14px',
     fontSize: 13,
-    color: '#7b809a',
+    color: 'var(--gf-muted)',
     background: '#f8f9fa',
     outline: 'none',
   },
@@ -77,13 +83,13 @@ const S = {
   select: {
     width: '100%',
     boxSizing: 'border-box' as const,
-    border: '1px solid #d2d6da',
+    border: '1px solid var(--gf-border)',
     borderRadius: 8,
     padding: '10px 14px',
     fontSize: 13,
-    color: '#344767',
+    color: 'var(--gf-dark)',
     outline: 'none',
-    background: '#fff',
+    background: 'var(--gf-white)',
     cursor: 'pointer',
     transition: 'border-color 0.2s',
     appearance: 'none' as const,
@@ -374,17 +380,17 @@ export default function SubscriptionForm() {
     e.currentTarget.style.borderColor = mode === 'renewal' ? '#43A047' : '#1A73E8';
   }
   function onBlur(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
-    e.currentTarget.style.borderColor = '#d2d6da';
+    e.currentTarget.style.borderColor = 'var(--gf-border)';
   }
 
   // ─── render ──────────────────────────────────────────────────────────────
   if (renewalLoading) {
     return (
       <div
-        className="gf-page gf-page-top"
+        className="gf-page"
         style={{ alignItems: 'center', justifyContent: 'center', minHeight: '100%' }}
       >
-        <div style={{ color: '#7b809a', fontSize: 14 }}>Chargement…</div>
+        <div style={{ color: 'var(--gf-muted)', fontSize: 14 }}>Chargement…</div>
       </div>
     );
   }
@@ -398,10 +404,10 @@ export default function SubscriptionForm() {
     : '0 3px 12px rgba(26,115,232,0.35)';
 
   return (
-    <div className="gf-page gf-page-top" style={{ minHeight: '100%' }}>
+    <div className="gf-page" style={{ minHeight: '100%' }}>
       {/* ── switcher de mode ─────────────────────────────────────────── */}
       <div style={{ display: 'flex' }}>
-        <div style={{ display: 'flex', border: '1px solid #d2d6da', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', border: '1px solid var(--gf-border)', borderRadius: 8, overflow: 'hidden' }}>
           {(['creation', 'renewal'] as Mode[]).map((m) => {
             const active = mode === m;
             return (
@@ -413,8 +419,8 @@ export default function SubscriptionForm() {
                   padding: '8px 18px',
                   fontSize: 13,
                   fontWeight: active ? 700 : 400,
-                  color: active ? '#fff' : '#7b809a',
-                  background: active ? '#1A73E8' : '#fff',
+                  color: active ? 'var(--gf-white)' : 'var(--gf-muted)',
+                  background: active ? '#1A73E8' : 'var(--gf-white)',
                   border: 'none',
                   cursor: 'pointer',
                   transition: 'background 0.2s, color 0.2s',
@@ -486,7 +492,7 @@ export default function SubscriptionForm() {
                   alignItems: 'center',
                   gap: 10,
                   padding: '8px 14px',
-                  border: '1px solid #d2d6da',
+                  border: '1px solid var(--gf-border)',
                   borderRadius: 8,
                   background: '#f8f9fa',
                 }}>
@@ -498,7 +504,7 @@ export default function SubscriptionForm() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#fff',
+                    color: 'var(--gf-white)',
                     fontSize: 13,
                     fontWeight: 700,
                     flexShrink: 0,
@@ -506,11 +512,11 @@ export default function SubscriptionForm() {
                     {memberInitials(selectedMember)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#344767' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gf-dark)' }}>
                       {selectedMember.prenom} {selectedMember.nom}
                     </div>
                     {selectedMember.email && (
-                      <div style={{ fontSize: 12, color: '#7b809a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: 12, color: 'var(--gf-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {selectedMember.email}
                       </div>
                     )}
@@ -523,7 +529,7 @@ export default function SubscriptionForm() {
                   alignItems: 'center',
                   gap: 10,
                   padding: '8px 14px',
-                  border: '1px solid #d2d6da',
+                  border: '1px solid var(--gf-border)',
                   borderRadius: 8,
                   background: '#f8f9fa',
                 }}>
@@ -535,7 +541,7 @@ export default function SubscriptionForm() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#fff',
+                    color: 'var(--gf-white)',
                     fontSize: 13,
                     fontWeight: 700,
                     flexShrink: 0,
@@ -543,11 +549,11 @@ export default function SubscriptionForm() {
                     {memberInitials(selectedMember)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#344767' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gf-dark)' }}>
                       {selectedMember.prenom} {selectedMember.nom}
                     </div>
                     {selectedMember.email && (
-                      <div style={{ fontSize: 12, color: '#7b809a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: 12, color: 'var(--gf-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {selectedMember.email}
                       </div>
                     )}
@@ -596,8 +602,8 @@ export default function SubscriptionForm() {
                       top: '100%',
                       left: 0,
                       right: 0,
-                      background: '#fff',
-                      border: '1px solid #d2d6da',
+                      background: 'var(--gf-white)',
+                      border: '1px solid var(--gf-border)',
                       borderRadius: 8,
                       boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
                       zIndex: 100,
@@ -605,7 +611,7 @@ export default function SubscriptionForm() {
                       overflow: 'hidden',
                     }}>
                       {memberSearching ? (
-                        <div style={{ padding: '12px 14px', fontSize: 13, color: '#7b809a' }}>Recherche…</div>
+                        <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--gf-muted)' }}>Recherche…</div>
                       ) : memberResults.map((m) => (
                         <button
                           key={m.id}
@@ -625,7 +631,7 @@ export default function SubscriptionForm() {
                             padding: '10px 14px',
                             background: 'none',
                             border: 'none',
-                            borderBottom: '1px solid #f0f2f5',
+                            borderBottom: '1px solid var(--gf-bg)',
                             cursor: 'pointer',
                             textAlign: 'left',
                           }}
@@ -640,7 +646,7 @@ export default function SubscriptionForm() {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: '#fff',
+                            color: 'var(--gf-white)',
                             fontSize: 11,
                             fontWeight: 700,
                             flexShrink: 0,
@@ -648,11 +654,11 @@ export default function SubscriptionForm() {
                             {memberInitials(m)}
                           </div>
                           <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: '#344767' }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gf-dark)' }}>
                               {m.prenom} {m.nom}
                             </div>
                             {m.email && (
-                              <div style={{ fontSize: 11, color: '#7b809a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <div style={{ fontSize: 11, color: 'var(--gf-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {m.email}
                               </div>
                             )}
@@ -839,20 +845,20 @@ export default function SubscriptionForm() {
                 borderRadius: 10,
                 padding: '16px 18px',
               }}>
-                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7b809a', marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--gf-muted)', marginBottom: 12 }}>
                   Récapitulatif
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#344767' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--gf-dark)' }}>
                     <span>Abonnement {selectedActivity?.nom ?? ''} ({selectedBatch.name})</span>
                     <span style={{ fontWeight: 600 }}>{fmt(subscriptionAmount)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#344767' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--gf-dark)' }}>
                     <span>Frais d'inscription</span>
                     <span style={{ fontWeight: 600 }}>{fmt(feeAmount)}</span>
                   </div>
                   <div style={{ borderTop: '1px solid #e0e0e0', paddingTop: 10, marginTop: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#344767' }}>Total à payer</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gf-dark)' }}>Total à payer</span>
                     <span style={{ fontSize: 16, fontWeight: 700, color: accentColor }}>{fmt(total)}</span>
                   </div>
                 </div>
@@ -873,15 +879,15 @@ export default function SubscriptionForm() {
                   padding: '10px 20px',
                   fontSize: 13,
                   fontWeight: 600,
-                  color: '#7b809a',
-                  background: '#fff',
-                  border: '1px solid #d2d6da',
+                  color: 'var(--gf-muted)',
+                  background: 'var(--gf-white)',
+                  border: '1px solid var(--gf-border)',
                   borderRadius: 8,
                   cursor: 'pointer',
                   transition: 'background 0.2s',
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = '#f8f9fa'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--gf-white)'; }}
               >
                 Annuler
               </button>
@@ -892,7 +898,7 @@ export default function SubscriptionForm() {
                   padding: '10px 22px',
                   fontSize: 13,
                   fontWeight: 700,
-                  color: '#fff',
+                  color: 'var(--gf-white)',
                   background: btnGradient,
                   border: 'none',
                   borderRadius: 8,
@@ -922,7 +928,7 @@ export default function SubscriptionForm() {
           bottom: 24,
           right: 24,
           background: mode === 'renewal' ? '#43A047' : '#1A73E8',
-          color: '#fff',
+          color: 'var(--gf-white)',
           borderRadius: 10,
           padding: '14px 20px',
           fontSize: 14,
@@ -935,7 +941,7 @@ export default function SubscriptionForm() {
           maxWidth: 320,
         }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <path d="M20 6L9 17L4 12" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M20 6L9 17L4 12" stroke="var(--gf-white)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
           {toastMsg}
         </div>

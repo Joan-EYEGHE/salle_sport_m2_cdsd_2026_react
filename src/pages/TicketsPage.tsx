@@ -1,3 +1,10 @@
+/*
+AUDIT CSS GYMFLOW - TicketsPage.tsx
+Problème 1 : @keyframes shimmer dupliqués (inline + balise style) — L48-66, L287-291
+Problème 2 : Couleurs hex en inline (#f0f2f5, #344767, #7b809a, #d2d6da, white, #fff) — multiples lignes
+Problème 3 : Focus modale génération — onBlur utilisait #d2d6da au lieu de var(--gf-border)
+Total : 3 problèmes trouvés
+*/
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
@@ -50,16 +57,7 @@ function SkeletonRow() {
     <tr>
       {[100, 140, 120, 100, 100, 80, 72].map((w, i) => (
         <td key={i} style={{ padding: '14px 14px' }}>
-          <div
-            style={{
-              height: 14,
-              width: w,
-              borderRadius: 4,
-              background: 'linear-gradient(90deg,#f0f2f5 25%,#e8ebf0 50%,#f0f2f5 75%)',
-              backgroundSize: '200% 100%',
-              animation: 'shimmer 1.4s infinite',
-            }}
-          />
+          <div className="gf-skeleton" style={{ width: w }} />
         </td>
       ))}
     </tr>
@@ -103,10 +101,10 @@ function KpiMini({ label, value, gradient, icon }: KpiMiniProps) {
         {icon}
       </div>
       <div>
-        <div style={{ fontSize: 11, color: '#7b809a', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+        <div style={{ fontSize: 11, color: 'var(--gf-muted)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
           {label}
         </div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: '#344767' }}>{value}</div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--gf-dark)' }}>{value}</div>
       </div>
     </div>
   );
@@ -122,12 +120,12 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '8px 0',
-        borderBottom: '1px solid #f0f2f5',
+        borderBottom: '1px solid var(--gf-bg)',
         fontSize: 13,
       }}
     >
-      <span style={{ color: '#7b809a', fontWeight: 500 }}>{label}</span>
-      <span style={{ color: '#344767', fontWeight: 600 }}>{value}</span>
+      <span style={{ color: 'var(--gf-muted)', fontWeight: 500 }}>{label}</span>
+      <span style={{ color: 'var(--gf-dark)', fontWeight: 600 }}>{value}</span>
     </div>
   );
 }
@@ -284,13 +282,6 @@ export default function TicketsPage() {
 
   return (
     <>
-      <style>{`
-        @keyframes shimmer {
-          0%   { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-      `}</style>
-
       <div className="gf-page" style={{ minHeight: 'calc(100vh - 60px)' }}>
         {/* ── BLOC 1 : KPI mini row ── */}
         <div className="gf-kpi-grid-4 gf-page-top">
@@ -350,7 +341,7 @@ export default function TicketsPage() {
                   height="14"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="#7b809a"
+                  stroke="var(--gf-muted)"
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -382,9 +373,9 @@ export default function TicketsPage() {
                         fontWeight: 600,
                         cursor: 'pointer',
                         transition: 'all 0.15s',
-                        border: active ? 'none' : '1px solid #d2d6da',
-                        background: active ? '#344767' : 'transparent',
-                        color: active ? '#fff' : '#7b809a',
+                        border: active ? 'none' : '1px solid var(--gf-border)',
+                        background: active ? 'var(--gf-dark)' : 'transparent',
+                        color: active ? 'var(--gf-white)' : 'var(--gf-muted)',
                       }}
                     >
                       {STATUS_LABELS[s]}
@@ -437,7 +428,7 @@ export default function TicketsPage() {
                       style={{
                         textAlign: 'center',
                         padding: '48px 0',
-                        color: '#7b809a',
+                        color: 'var(--gf-muted)',
                         fontSize: 13,
                       }}
                     >
@@ -504,8 +495,8 @@ export default function TicketsPage() {
                   fontFamily: 'monospace',
                   fontSize: 15,
                   fontWeight: 700,
-                  color: '#344767',
-                  background: '#f0f2f5',
+                  color: 'var(--gf-dark)',
+                  background: 'var(--gf-bg)',
                   borderRadius: 6,
                   padding: '4px 12px',
                   display: 'inline-block',
@@ -559,7 +550,7 @@ export default function TicketsPage() {
         >
           <div
             style={{
-              background: 'white',
+              background: 'var(--gf-white)',
               borderRadius: 12,
               boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
               width: '100%',
@@ -583,7 +574,7 @@ export default function TicketsPage() {
               }}
             >
               <div>
-                <p style={{ color: 'white', fontSize: 14, fontWeight: 700, margin: 0 }}>Générer des tickets</p>
+                <p style={{ color: 'var(--gf-white)', fontSize: 14, fontWeight: 700, margin: 0 }}>Générer des tickets</p>
                 <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, margin: '3px 0 0' }}>
                   Créer des tickets d&apos;accès séance
                 </p>
@@ -594,7 +585,7 @@ export default function TicketsPage() {
                 style={{
                   background: 'rgba(255,255,255,0.2)',
                   border: '1px solid rgba(255,255,255,0.4)',
-                  color: 'white',
+                  color: 'var(--gf-white)',
                   width: 28,
                   height: 28,
                   borderRadius: 6,
@@ -618,7 +609,7 @@ export default function TicketsPage() {
                   style={{
                     fontSize: 11,
                     fontWeight: 700,
-                    color: '#7b809a',
+                    color: 'var(--gf-muted)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
                   }}
@@ -632,14 +623,14 @@ export default function TicketsPage() {
                   }
                   required
                   style={{
-                    border: '1px solid #d2d6da',
+                    border: '1px solid var(--gf-border)',
                     borderRadius: 8,
                     padding: '10px 14px',
                     fontSize: 13,
-                    color: '#344767',
+                    color: 'var(--gf-dark)',
                     outline: 'none',
                     fontFamily: 'inherit',
-                    background: 'white',
+                    background: 'var(--gf-white)',
                     width: '100%',
                     boxSizing: 'border-box',
                   }}
@@ -647,7 +638,7 @@ export default function TicketsPage() {
                     e.currentTarget.style.borderColor = '#1A73E8';
                   }}
                   onBlur={(e) => {
-                    e.currentTarget.style.borderColor = '#d2d6da';
+                    e.currentTarget.style.borderColor = 'var(--gf-border)';
                   }}
                 >
                   <option value="">-- Sélectionner une activité --</option>
@@ -664,7 +655,7 @@ export default function TicketsPage() {
                   style={{
                     fontSize: 11,
                     fontWeight: 700,
-                    color: '#7b809a',
+                    color: 'var(--gf-muted)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
                   }}
@@ -678,11 +669,11 @@ export default function TicketsPage() {
                   value={batchQty}
                   onChange={(e) => setBatchQty(Number(e.target.value))}
                   style={{
-                    border: '1px solid #d2d6da',
+                    border: '1px solid var(--gf-border)',
                     borderRadius: 8,
                     padding: '10px 14px',
                     fontSize: 13,
-                    color: '#344767',
+                    color: 'var(--gf-dark)',
                     outline: 'none',
                     fontFamily: 'inherit',
                     width: '100%',
@@ -692,7 +683,7 @@ export default function TicketsPage() {
                     e.currentTarget.style.borderColor = '#1A73E8';
                   }}
                   onBlur={(e) => {
-                    e.currentTarget.style.borderColor = '#d2d6da';
+                    e.currentTarget.style.borderColor = 'var(--gf-border)';
                   }}
                 />
               </div>
@@ -702,7 +693,7 @@ export default function TicketsPage() {
                   style={{
                     fontSize: 11,
                     fontWeight: 700,
-                    color: '#7b809a',
+                    color: 'var(--gf-muted)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
                   }}
@@ -715,7 +706,7 @@ export default function TicketsPage() {
                     alignItems: 'center',
                     gap: 8,
                     fontSize: 13,
-                    color: '#344767',
+                    color: 'var(--gf-dark)',
                     cursor: 'pointer',
                   }}
                 >
@@ -737,11 +728,11 @@ export default function TicketsPage() {
                   onChange={(e) => setBatchPrice(e.target.value)}
                   placeholder="Prix unitaire (FCFA)"
                   style={{
-                    border: '1px solid #d2d6da',
+                    border: '1px solid var(--gf-border)',
                     borderRadius: 8,
                     padding: '10px 14px',
                     fontSize: 13,
-                    color: '#344767',
+                    color: 'var(--gf-dark)',
                     outline: 'none',
                     fontFamily: 'inherit',
                     width: '100%',
@@ -751,7 +742,7 @@ export default function TicketsPage() {
                     e.currentTarget.style.borderColor = '#1A73E8';
                   }}
                   onBlur={(e) => {
-                    e.currentTarget.style.borderColor = '#d2d6da';
+                    e.currentTarget.style.borderColor = 'var(--gf-border)';
                   }}
                 />
               )}
@@ -768,7 +759,7 @@ export default function TicketsPage() {
                 </p>
               )}
 
-              <div style={{ display: 'flex', gap: 10, paddingTop: 8, borderTop: '1px solid #f0f2f5' }}>
+              <div style={{ display: 'flex', gap: 10, paddingTop: 8, borderTop: '1px solid var(--gf-bg)' }}>
                 <button
                   type="button"
                   onClick={() => setGenerateOpen(false)}
@@ -776,9 +767,9 @@ export default function TicketsPage() {
                     flex: 1,
                     padding: '10px 0',
                     borderRadius: 8,
-                    border: '1px solid #d2d6da',
-                    background: 'white',
-                    color: '#7b809a',
+                    border: '1px solid var(--gf-border)',
+                    background: 'var(--gf-white)',
+                    color: 'var(--gf-muted)',
                     fontSize: 13,
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -798,7 +789,7 @@ export default function TicketsPage() {
                       generating || !batchActivityId
                         ? '#a0aec0'
                         : 'linear-gradient(195deg, #FFA726, #fb8c00)',
-                    color: 'white',
+                    color: 'var(--gf-white)',
                     fontSize: 13,
                     fontWeight: 600,
                     cursor: generating || !batchActivityId ? 'not-allowed' : 'pointer',
@@ -844,12 +835,12 @@ function TicketRow({ ticket: t, canWrite, onView, onDelete, iconEye, iconTrash }
       <td>
         <span
           style={{
-            background: '#f0f2f5',
+            background: 'var(--gf-bg)',
             borderRadius: 6,
             padding: '4px 10px',
             fontSize: 12,
             fontWeight: 700,
-            color: '#344767',
+            color: 'var(--gf-dark)',
             fontFamily: 'monospace',
             whiteSpace: 'nowrap',
           }}
@@ -859,22 +850,22 @@ function TicketRow({ ticket: t, canWrite, onView, onDelete, iconEye, iconTrash }
       </td>
 
       {/* Membre */}
-      <td style={{ fontSize: 13, color: '#344767' }}>
+      <td style={{ fontSize: 13, color: 'var(--gf-dark)' }}>
         {memberName}
       </td>
 
       {/* Activité */}
-      <td style={{ fontSize: 13, color: '#344767' }}>
+      <td style={{ fontSize: 13, color: 'var(--gf-dark)' }}>
         {t.batch?.activity?.nom ?? '—'}
       </td>
 
       {/* Date achat */}
-      <td style={{ fontSize: 13, color: '#344767' }}>
+      <td style={{ fontSize: 13, color: 'var(--gf-dark)' }}>
         {fmtDate(ext.created_at)}
       </td>
 
       {/* Date utilisation */}
-      <td style={{ fontSize: 13, color: '#344767' }}>
+      <td style={{ fontSize: 13, color: 'var(--gf-dark)' }}>
         {fmtDate(ext.date_utilisation)}
       </td>
 

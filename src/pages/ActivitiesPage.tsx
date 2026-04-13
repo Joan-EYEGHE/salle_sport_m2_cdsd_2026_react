@@ -1,3 +1,8 @@
+/*
+AUDIT CSS GYMFLOW - ActivitiesPage.tsx
+Problème 1 : couleurs palette et bordures en dur (modale, filtres, tableau, icône recherche)
+Total : 1 problème trouvé
+*/
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
@@ -98,7 +103,7 @@ function ActivityRow({ activity: a, isAdmin, onEdit, onDelete }: ActivityRowProp
               height: 32,
               borderRadius: 8,
               background: iconGradient(a.id),
-              color: '#fff',
+              color: 'var(--gf-white)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -110,9 +115,9 @@ function ActivityRow({ activity: a, isAdmin, onEdit, onDelete }: ActivityRowProp
             {a.nom.charAt(0).toUpperCase()}
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#344767' }}>{a.nom}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gf-dark)' }}>{a.nom}</div>
             {subLabel && (
-              <div style={{ fontSize: 11, color: '#7b809a' }}>{subLabel}</div>
+              <div style={{ fontSize: 11, color: 'var(--gf-muted)' }}>{subLabel}</div>
             )}
           </div>
         </div>
@@ -208,17 +213,17 @@ function ActivityModal({ editTarget, form, onChange, onClose, onSaved }: Activit
   const fieldLabelStyle: React.CSSProperties = {
     fontSize: 11,
     fontWeight: 700,
-    color: '#7b809a',
+    color: 'var(--gf-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
   };
 
   const inputBaseStyle: React.CSSProperties = {
-    border: '1px solid #d2d6da',
+    border: '1px solid var(--gf-border)',
     borderRadius: 8,
     padding: '10px 14px',
     fontSize: 13,
-    color: '#344767',
+    color: 'var(--gf-dark)',
     outline: 'none',
     fontFamily: 'inherit',
     width: '100%',
@@ -230,7 +235,7 @@ function ActivityModal({ editTarget, form, onChange, onClose, onSaved }: Activit
       e.currentTarget.style.borderColor = '#1A73E8';
     },
     onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
-      e.currentTarget.style.borderColor = '#d2d6da';
+      e.currentTarget.style.borderColor = 'var(--gf-border)';
     },
   };
 
@@ -250,7 +255,7 @@ function ActivityModal({ editTarget, form, onChange, onClose, onSaved }: Activit
     >
       <div
         style={{
-          background: 'white',
+          background: 'var(--gf-white)',
           borderRadius: 12,
           boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
           width: '100%',
@@ -274,7 +279,7 @@ function ActivityModal({ editTarget, form, onChange, onClose, onSaved }: Activit
           }}
         >
           <div>
-            <p style={{ color: 'white', fontSize: 14, fontWeight: 700, margin: 0 }}>
+            <p style={{ color: 'var(--gf-white)', fontSize: 14, fontWeight: 700, margin: 0 }}>
               {isEdit ? "Modifier l'activité" : 'Nouvelle activité'}
             </p>
             <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, margin: '3px 0 0' }}>
@@ -287,7 +292,7 @@ function ActivityModal({ editTarget, form, onChange, onClose, onSaved }: Activit
             style={{
               background: 'rgba(255,255,255,0.2)',
               border: '1px solid rgba(255,255,255,0.4)',
-              color: 'white',
+              color: 'var(--gf-white)',
               width: 28,
               height: 28,
               borderRadius: 6,
@@ -343,7 +348,7 @@ function ActivityModal({ editTarget, form, onChange, onClose, onSaved }: Activit
                 alignItems: 'center',
                 gap: 8,
                 fontSize: 13,
-                color: '#344767',
+                color: 'var(--gf-dark)',
                 cursor: 'pointer',
               }}
             >
@@ -361,7 +366,7 @@ function ActivityModal({ editTarget, form, onChange, onClose, onSaved }: Activit
                 alignItems: 'center',
                 gap: 8,
                 fontSize: 13,
-                color: '#344767',
+                color: 'var(--gf-dark)',
                 cursor: 'pointer',
               }}
             >
@@ -377,7 +382,7 @@ function ActivityModal({ editTarget, form, onChange, onClose, onSaved }: Activit
 
           {err && <p style={{ color: '#F44335', fontSize: 12, margin: 0 }}>{err}</p>}
 
-          <div style={{ display: 'flex', gap: 10, paddingTop: 8, borderTop: '1px solid #f0f2f5' }}>
+          <div style={{ display: 'flex', gap: 10, paddingTop: 8, borderTop: '1px solid var(--gf-bg)' }}>
             <button
               type="button"
               onClick={onClose}
@@ -385,9 +390,9 @@ function ActivityModal({ editTarget, form, onChange, onClose, onSaved }: Activit
                 flex: 1,
                 padding: '10px 0',
                 borderRadius: 8,
-                border: '1px solid #d2d6da',
-                background: 'white',
-                color: '#7b809a',
+                border: '1px solid var(--gf-border)',
+                background: 'var(--gf-white)',
+                color: 'var(--gf-muted)',
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -404,7 +409,7 @@ function ActivityModal({ editTarget, form, onChange, onClose, onSaved }: Activit
                 borderRadius: 8,
                 border: 'none',
                 background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
-                color: 'white',
+                color: 'var(--gf-white)',
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: saving ? 'not-allowed' : 'pointer',
@@ -503,7 +508,7 @@ export default function ActivitiesPage() {
 
   return (
     <>
-      <div className="gf-page gf-page-top" style={{ minHeight: 'calc(100vh - 60px)' }}>
+      <div className="gf-page" style={{ minHeight: 'calc(100vh - 60px)' }}>
         {/* ── card wrapper ── */}
         <div className="gf-card-outer">
           <div className="gf-card">
@@ -529,7 +534,7 @@ export default function ActivitiesPage() {
                   height="14"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="#7b809a"
+                  stroke="var(--gf-muted)"
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -586,7 +591,7 @@ export default function ActivitiesPage() {
                         style={{
                           textAlign: 'center',
                           padding: '48px 0',
-                          color: '#7b809a',
+                          color: 'var(--gf-muted)',
                           fontSize: 13,
                         }}
                       >

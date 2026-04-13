@@ -1,3 +1,9 @@
+/*
+AUDIT CSS GYMFLOW - LandingPage.tsx
+Problème 1 : Couleurs #f0f2f5, #fff, #344767, #7b809a, white en inline
+Problème 2 : Grille 3 colonnes dupliquée — remplacée par gf-kpi-grid-3 (conteneur dédié)
+Total : 2 problèmes trouvés
+*/
 import { useNavigate } from 'react-router-dom';
 import { Dumbbell, Calendar, Users, DollarSign, ArrowRight } from 'lucide-react';
 
@@ -38,7 +44,7 @@ export default function LandingPage() {
     <div
       style={{
         minHeight: '100vh',
-        background: '#f0f2f5',
+        background: 'var(--gf-bg)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -48,7 +54,7 @@ export default function LandingPage() {
     >
       <div
         style={{
-          background: '#fff',
+          background: 'var(--gf-white)',
           borderRadius: 12,
           boxShadow: '0 20px 60px rgba(0,0,0,0.08)',
           maxWidth: 480,
@@ -70,14 +76,14 @@ export default function LandingPage() {
             margin: '0 auto 20px',
           }}
         >
-          <Dumbbell size={32} color="#fff" />
+          <Dumbbell size={32} color="var(--gf-white)" />
         </div>
 
         <h1
           style={{
             fontSize: 36,
             fontWeight: 700,
-            color: '#344767',
+            color: 'var(--gf-dark)',
             margin: '0 0 8px',
           }}
         >
@@ -86,7 +92,7 @@ export default function LandingPage() {
         <p
           style={{
             fontSize: 16,
-            color: '#7b809a',
+            color: 'var(--gf-muted)',
             margin: '0 0 32px',
           }}
         >
@@ -105,7 +111,7 @@ export default function LandingPage() {
           <span
             style={{
               fontSize: 11,
-              color: '#7b809a',
+              color: 'var(--gf-muted)',
               fontWeight: 600,
               textTransform: 'uppercase',
               letterSpacing: '0.6px',
@@ -126,7 +132,7 @@ export default function LandingPage() {
             border: 'none',
             borderRadius: 8,
             padding: '14px',
-            color: 'white',
+            color: 'var(--gf-white)',
             fontSize: 15,
             fontWeight: 700,
             cursor: 'pointer',
@@ -149,21 +155,13 @@ export default function LandingPage() {
         </button>
       </div>
 
-      <div
-        style={{
-          maxWidth: 560,
-          width: '100%',
-          marginTop: 24,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 16,
-        }}
-      >
+      <div style={{ maxWidth: 560, width: '100%', marginTop: 24 }}>
+        <div className="gf-kpi-grid-3">
         {modules.map((mod) => (
           <div
             key={mod.title}
             style={{
-              background: '#fff',
+              background: 'var(--gf-white)',
               borderRadius: 12,
               boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
               padding: '20px 16px',
@@ -183,13 +181,13 @@ export default function LandingPage() {
                 justifyContent: 'center',
               }}
             >
-              <mod.icon size={22} color="#fff" />
+              <mod.icon size={22} color="var(--gf-white)" />
             </div>
             <h3
               style={{
                 fontSize: 13,
                 fontWeight: 700,
-                color: '#344767',
+                color: 'var(--gf-dark)',
                 margin: '0 0 6px',
               }}
             >
@@ -198,7 +196,7 @@ export default function LandingPage() {
             <p
               style={{
                 fontSize: 12,
-                color: '#7b809a',
+                color: 'var(--gf-muted)',
                 lineHeight: 1.5,
                 margin: 0,
               }}
@@ -207,12 +205,13 @@ export default function LandingPage() {
             </p>
           </div>
         ))}
+        </div>
       </div>
 
       <p
         style={{
           fontSize: 12,
-          color: '#7b809a',
+          color: 'var(--gf-muted)',
           marginTop: 32,
           textAlign: 'center',
         }}

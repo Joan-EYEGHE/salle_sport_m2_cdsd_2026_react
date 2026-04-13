@@ -1,3 +1,10 @@
+/*
+AUDIT CSS GYMFLOW - SubscriptionsPage.tsx
+Problème 1 : PILL_INACTIVE, KPI, tableau et filtres en palette hex
+Problème 2 : stroke recherche et avatars texte blanc en dur
+Problème 3 : Conteneur page — gap 20px et doublons gf-page-top / KPI
+Total : 3 problèmes trouvés
+*/
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, CircleCheck, Info, XCircle } from 'lucide-react';
@@ -114,9 +121,9 @@ const PILL_BASE: React.CSSProperties = {
 
 const PILL_INACTIVE: React.CSSProperties = {
   ...PILL_BASE,
-  background: '#fff',
-  borderColor: '#d2d6da',
-  color: '#7b809a',
+  background: 'var(--gf-white)',
+  borderColor: 'var(--gf-border)',
+  color: 'var(--gf-muted)',
 };
 
 function filterPillStyle(active: boolean, color: string): React.CSSProperties {
@@ -124,7 +131,7 @@ function filterPillStyle(active: boolean, color: string): React.CSSProperties {
   return {
     ...PILL_BASE,
     background: color,
-    color: '#fff',
+    color: 'var(--gf-white)',
     borderColor: color,
   };
 }
@@ -164,10 +171,10 @@ function KpiMini({ label, value, gradient, icon }: KpiMiniProps) {
         {icon}
       </div>
       <div>
-        <div style={{ fontSize: 11, color: '#7b809a', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+        <div style={{ fontSize: 11, color: 'var(--gf-muted)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
           {label}
         </div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: '#344767' }}>{value}</div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--gf-dark)' }}>{value}</div>
       </div>
     </div>
   );
@@ -277,41 +284,36 @@ export default function SubscriptionsPage() {
 
   return (
     <div
-      className="gf-page gf-page-top"
+      className="gf-page"
       style={{
-        background: '#f0f2f5',
-        padding: '20px 24px 24px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 20,
         minHeight: 'calc(100vh - 60px)',
       }}
     >
       {/* KPI */}
-      <div className="gf-kpi-grid-4 gf-page-top" style={{ gap: 14, marginTop: 14 }}>
+      <div className="gf-kpi-grid-4 gf-page-top">
         <KpiMini
           label="Total"
           value={kpi.total}
           gradient="linear-gradient(195deg, #49a3f1, #1A73E8)"
-          icon={<Info size={18} color="#fff" />}
+          icon={<Info size={18} color="var(--gf-white)" />}
         />
         <KpiMini
           label="Actifs"
           value={kpi.actifs}
           gradient="linear-gradient(195deg, #66BB6A, #43A047)"
-          icon={<CircleCheck size={18} color="#fff" />}
+          icon={<CircleCheck size={18} color="var(--gf-white)" />}
         />
         <KpiMini
           label="Expirés"
           value={kpi.expires}
           gradient="linear-gradient(195deg, #ef5350, #F44335)"
-          icon={<XCircle size={18} color="#fff" />}
+          icon={<XCircle size={18} color="var(--gf-white)" />}
         />
         <KpiMini
           label="Expirent bientôt"
           value={kpi.bientot}
           gradient="linear-gradient(195deg, #FFA726, #fb8c00)"
-          icon={<AlertTriangle size={18} color="#fff" />}
+          icon={<AlertTriangle size={18} color="var(--gf-white)" />}
         />
       </div>
 
@@ -337,7 +339,7 @@ export default function SubscriptionsPage() {
                   height="14"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="#7b809a"
+                  stroke="var(--gf-muted)"
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -356,7 +358,7 @@ export default function SubscriptionsPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <button
                   type="button"
-                  style={filterPillStyle(statusFilter === 'ALL', '#344767')}
+                  style={filterPillStyle(statusFilter === 'ALL', 'var(--gf-dark)')}
                   onClick={() => setStatusFilter('ALL')}
                 >
                   Tous
@@ -427,7 +429,7 @@ export default function SubscriptionsPage() {
                       style={{
                         textAlign: 'center',
                         padding: '48px 0',
-                        color: '#7b809a',
+                        color: 'var(--gf-muted)',
                         fontSize: 13,
                       }}
                     >
@@ -453,7 +455,7 @@ export default function SubscriptionsPage() {
                                 height: 32,
                                 borderRadius: '50%',
                                 background: avatarGradient(gradId),
-                                color: '#fff',
+                                color: 'var(--gf-white)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -465,10 +467,10 @@ export default function SubscriptionsPage() {
                               {initials}
                             </div>
                             <div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: '#344767' }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gf-dark)' }}>
                                 {m ? `${m.prenom} ${m.nom}` : `Membre #${sub.id_membre}`}
                               </div>
-                              <div style={{ fontSize: 11, color: '#7b809a' }}>{m?.email ?? '—'}</div>
+                              <div style={{ fontSize: 11, color: 'var(--gf-muted)' }}>{m?.email ?? '—'}</div>
                             </div>
                           </div>
                         </td>
@@ -527,7 +529,7 @@ export default function SubscriptionsPage() {
                                 }}
                                 onMouseEnter={(e) => {
                                   e.currentTarget.style.background = '#fb8c00';
-                                  e.currentTarget.style.color = '#fff';
+                                  e.currentTarget.style.color = 'var(--gf-white)';
                                 }}
                                 onMouseLeave={(e) => {
                                   e.currentTarget.style.background = '#fef3e2';

@@ -1,3 +1,8 @@
+/*
+AUDIT CSS GYMFLOW - MembersPage.tsx
+Problème 1 : stroke/icône recherche et textes en #7b809a / #344767 / #fff en dur
+Total : 1 problème trouvé
+*/
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
@@ -142,7 +147,7 @@ export default function MembersPage() {
 
   return (
     <>
-      <div className="gf-page gf-page-top" style={{ minHeight: 'calc(100vh - 60px)' }}>
+      <div className="gf-page" style={{ minHeight: 'calc(100vh - 60px)' }}>
         {/* ── card wrapper ── */}
         <div className="gf-card-outer">
         <div className="gf-card">
@@ -169,7 +174,7 @@ export default function MembersPage() {
                 height="14"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="#7b809a"
+                stroke="var(--gf-muted)"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -230,7 +235,7 @@ export default function MembersPage() {
                       style={{
                         textAlign: 'center',
                         padding: '48px 0',
-                        color: '#7b809a',
+                        color: 'var(--gf-muted)',
                         fontSize: 13,
                       }}
                     >
@@ -337,7 +342,7 @@ function MemberRow({
               height: 32,
               borderRadius: '50%',
               background: avatarBg,
-              color: '#fff',
+              color: 'var(--gf-white)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -349,10 +354,10 @@ function MemberRow({
             {initials}
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#344767' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gf-dark)' }}>
               {m.prenom} {m.nom}
             </div>
-            <div style={{ fontSize: 11, color: '#7b809a' }}>{m.email ?? '—'}</div>
+            <div style={{ fontSize: 11, color: 'var(--gf-muted)' }}>{m.email ?? '—'}</div>
           </div>
         </div>
       </td>

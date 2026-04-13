@@ -1,3 +1,9 @@
+/*
+AUDIT CSS GYMFLOW - MainLayout.tsx
+Problème 1 : Couleurs palette (#f0f2f5, #7b809a, #344767, white) en inline — zone principale et header
+Problème 2 : Item nav actif background white — remplacé par var(--gf-white)
+Total : 2 problèmes trouvés
+*/
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -144,9 +150,9 @@ export default function MainLayout() {
               flexShrink: 0,
             }}
           >
-            <Dumbbell size={18} color="white" />
+            <Dumbbell size={18} color="var(--gf-white)" />
           </div>
-          <span style={{ color: 'white', fontSize: 15, fontWeight: 600 }}>GymFlow</span>
+          <span style={{ color: 'var(--gf-white)', fontSize: 15, fontWeight: 600 }}>GymFlow</span>
         </div>
 
         {/* Nav items */}
@@ -164,7 +170,7 @@ export default function MainLayout() {
                       margin: '2px 12px',
                       padding: '10px 14px',
                       borderRadius: 8,
-                      background: 'white',
+                      background: 'var(--gf-white)',
                       boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(0,187,212,0.2)',
                       textDecoration: 'none',
                     }
@@ -186,13 +192,13 @@ export default function MainLayout() {
                 <>
                   <item.icon
                     size={18}
-                    style={{ color: isActive ? '#344767' : 'rgba(255,255,255,0.75)', flexShrink: 0 }}
+                    style={{ color: isActive ? 'var(--gf-dark)' : 'rgba(255,255,255,0.75)', flexShrink: 0 }}
                   />
                   <span
                     style={{
                       fontSize: 13,
                       fontWeight: isActive ? 600 : 500,
-                      color: isActive ? '#344767' : 'rgba(255,255,255,0.75)',
+                      color: isActive ? 'var(--gf-dark)' : 'rgba(255,255,255,0.75)',
                       whiteSpace: 'nowrap',
                     }}
                   >
@@ -235,7 +241,7 @@ export default function MainLayout() {
               flexShrink: 0,
             }}
           >
-            <span style={{ color: 'white', fontSize: 12, fontWeight: 700 }}>
+            <span style={{ color: 'var(--gf-white)', fontSize: 12, fontWeight: 700 }}>
               {initials || displayName.charAt(0).toUpperCase()}
             </span>
           </div>
@@ -244,7 +250,7 @@ export default function MainLayout() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <p
               style={{
-                color: 'white',
+                color: 'var(--gf-white)',
                 fontSize: 12,
                 fontWeight: 600,
                 margin: 0,
@@ -293,7 +299,7 @@ export default function MainLayout() {
       {/* ── MAIN CONTENT ────────────────────────────────────────────── */}
       <div
         className="flex flex-col min-h-screen"
-        style={{ marginLeft: 260, flex: 1, background: '#f0f2f5' }}
+        style={{ marginLeft: 260, flex: 1, background: 'var(--gf-bg)' }}
       >
         {/* Header */}
         <header
@@ -309,23 +315,23 @@ export default function MainLayout() {
         >
           {/* Left: breadcrumb + title */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 11, color: '#7b809a' }}>
+            <span style={{ fontSize: 11, color: 'var(--gf-muted)' }}>
               GymFlow
               {pageLabel && (
                 <>
                   {' / '}
-                  <span style={{ color: '#344767', fontWeight: 500 }}>{pageLabel}</span>
+                  <span style={{ color: 'var(--gf-dark)', fontWeight: 500 }}>{pageLabel}</span>
                 </>
               )}
             </span>
-            <span style={{ fontSize: 16, fontWeight: 700, color: '#344767' }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--gf-dark)' }}>
               {pageLabel}
             </span>
           </div>
 
           {/* Right: date + bell */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <span style={{ fontSize: 12, color: '#7b809a' }}>{today}</span>
+            <span style={{ fontSize: 12, color: 'var(--gf-muted)' }}>{today}</span>
 
             {/* Bell */}
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -338,7 +344,7 @@ export default function MainLayout() {
                   padding: 4,
                   display: 'flex',
                   alignItems: 'center',
-                  color: '#7b809a',
+                  color: 'var(--gf-muted)',
                 }}
               >
                 <Bell size={20} />
@@ -350,7 +356,7 @@ export default function MainLayout() {
                     top: 0,
                     right: 0,
                     background: '#e91e63',
-                    color: 'white',
+                    color: 'var(--gf-white)',
                     borderRadius: '50%',
                     width: 16,
                     height: 16,

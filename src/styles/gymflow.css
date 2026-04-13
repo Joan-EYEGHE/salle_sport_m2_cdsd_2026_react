@@ -1,3 +1,7 @@
+/* AUDIT CSS GYMFLOW - gymflow.css
+ * Problème 1 : dégradé .gf-skeleton en #f0f2f5 codé en dur — anciennement ~L371
+ * Total : 1 problème trouvé
+ */
 /* ============================================================
    GymFlow — Design System CSS
    Variables, utilitaires et classes partagées entre les pages
@@ -368,7 +372,7 @@
 .gf-skeleton {
   height: 14px;
   border-radius: 4px;
-  background: linear-gradient(90deg, #f0f2f5 25%, #e8ebf0 50%, #f0f2f5 75%);
+  background: linear-gradient(90deg, var(--gf-bg) 25%, #e8ebf0 50%, var(--gf-bg) 75%);
   background-size: 200% 100%;
   animation: gf-shimmer 1.4s infinite;
 }

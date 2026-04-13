@@ -1,3 +1,9 @@
+/*
+AUDIT CSS GYMFLOW - QRControlPage.tsx
+Problème 1 : Couleurs palette et bordures en dur (zone scan, saisie manuelle, liste)
+Problème 2 : onBlur sur champ manuel utilisait hex bordure
+Total : 2 problèmes trouvés
+*/
 import { useEffect, useRef, useState } from 'react';
 import { CheckCircle, XCircle, Users, Ticket } from 'lucide-react';
 import api from '../api/axios';
@@ -302,8 +308,8 @@ export default function QRControlPage() {
                 width: 200,
                 height: 200,
                 borderRadius: 12,
-                background: '#f0f2f5',
-                border: '2px dashed #d2d6da',
+                background: 'var(--gf-bg)',
+                border: '2px dashed var(--gf-border)',
                 position: 'relative',
                 display: 'flex',
                 flexDirection: 'column',
@@ -333,7 +339,7 @@ export default function QRControlPage() {
                   <p
                     style={{
                       fontSize: 12,
-                      color: '#7b809a',
+                      color: 'var(--gf-muted)',
                       margin: '10px 0 0',
                       textAlign: 'center',
                       padding: '0 16px',
@@ -354,7 +360,7 @@ export default function QRControlPage() {
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
-                  color: '#7b809a',
+                  color: 'var(--gf-muted)',
                   margin: '0 0 6px',
                 }}
               >
@@ -372,19 +378,19 @@ export default function QRControlPage() {
                   placeholder="ex: TKT-0041 ou SUB-0012"
                   style={{
                     flex: 1,
-                    border: '1px solid #d2d6da',
+                    border: '1px solid var(--gf-border)',
                     borderRadius: 8,
                     padding: '9px 12px',
                     fontSize: 13,
                     fontFamily: 'monospace',
-                    color: '#344767',
+                    color: 'var(--gf-dark)',
                     outline: 'none',
                   }}
                   onFocus={(e) => {
                     e.currentTarget.style.borderColor = '#1A73E8';
                   }}
                   onBlur={(e) => {
-                    e.currentTarget.style.borderColor = '#d2d6da';
+                    e.currentTarget.style.borderColor = 'var(--gf-border)';
                   }}
                 />
                 <button
@@ -461,28 +467,28 @@ export default function QRControlPage() {
                     (result.membre || result.ticket || result.subscription) && (
                       <div style={{ marginTop: 6 }}>
                         {result.membre && (
-                          <p style={{ fontSize: 12, color: '#344767', margin: '2px 0' }}>
+                          <p style={{ fontSize: 12, color: 'var(--gf-dark)', margin: '2px 0' }}>
                             <strong>Membre :</strong>{' '}
                             {result.membre.prenom} {result.membre.nom}
                           </p>
                         )}
                         {result.ticket && (
                           <>
-                            <p style={{ fontSize: 12, color: '#344767', margin: '2px 0' }}>
+                            <p style={{ fontSize: 12, color: 'var(--gf-dark)', margin: '2px 0' }}>
                               <strong>Ticket :</strong>{' '}
                               <span style={{ fontFamily: 'monospace' }}>
                                 {result.ticket.code_ticket}
                               </span>
                               {result.ticket.activity && ` — ${result.ticket.activity.nom}`}
                             </p>
-                            <p style={{ fontSize: 12, color: '#344767', margin: '2px 0' }}>
+                            <p style={{ fontSize: 12, color: 'var(--gf-dark)', margin: '2px 0' }}>
                               <strong>Expiration :</strong>{' '}
                               {new Date(result.ticket.date_expiration).toLocaleDateString('fr-FR')}
                             </p>
                           </>
                         )}
                         {result.subscription && (
-                          <p style={{ fontSize: 12, color: '#344767', margin: '2px 0' }}>
+                          <p style={{ fontSize: 12, color: 'var(--gf-dark)', margin: '2px 0' }}>
                             <strong>Abonnement :</strong> {result.subscription.type_forfait} —{' '}
                             {new Date(
                               result.subscription.date_prochain_paiement
@@ -519,7 +525,7 @@ export default function QRControlPage() {
               <p
                 style={{
                   textAlign: 'center',
-                  color: '#7b809a',
+                  color: 'var(--gf-muted)',
                   fontSize: 13,
                   padding: '24px 0',
                   margin: 0,
@@ -568,7 +574,7 @@ export default function QRControlPage() {
                           style={{
                             fontSize: 12,
                             fontWeight: 700,
-                            color: '#344767',
+                            color: 'var(--gf-dark)',
                             margin: 0,
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -580,7 +586,7 @@ export default function QRControlPage() {
                         <p
                           style={{
                             fontSize: 11,
-                            color: '#7b809a',
+                            color: 'var(--gf-muted)',
                             margin: '1px 0 0',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -593,7 +599,7 @@ export default function QRControlPage() {
                       <p
                         style={{
                           fontSize: 11,
-                          color: '#7b809a',
+                          color: 'var(--gf-muted)',
                           margin: 0,
                           flexShrink: 0,
                         }}

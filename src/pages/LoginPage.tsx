@@ -1,3 +1,9 @@
+/*
+AUDIT CSS GYMFLOW - LoginPage.tsx
+Problème 1 : Couleurs #7b809a, #344767, #d2d6da, #f0f2f5, white, #fff en inline
+Problème 2 : onBlur utilisait #d2d6da — aligné sur var(--gf-border)
+Total : 2 problèmes trouvés
+*/
 import { useState } from 'react';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -71,7 +77,7 @@ export default function LoginPage() {
         style={{
           width: '100%',
           maxWidth: 380,
-          background: 'white',
+          background: 'var(--gf-white)',
           borderRadius: 12,
           boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
         }}
@@ -87,7 +93,7 @@ export default function LoginPage() {
             textAlign: 'center',
           }}
         >
-          <h1 style={{ color: 'white', fontSize: 18, fontWeight: 700, margin: 0 }}>
+          <h1 style={{ color: 'var(--gf-white)', fontSize: 18, fontWeight: 700, margin: 0 }}>
             Connexion
           </h1>
           <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, margin: '2px 0 0' }}>
@@ -107,7 +113,7 @@ export default function LoginPage() {
                     fontWeight: 700,
                     textTransform: 'uppercase',
                     letterSpacing: '0.06em',
-                    color: '#7b809a',
+                    color: 'var(--gf-muted)',
                     marginBottom: 6,
                   }}
                 >
@@ -123,16 +129,16 @@ export default function LoginPage() {
                   style={{
                     width: '100%',
                     boxSizing: 'border-box',
-                    border: '1px solid #d2d6da',
+                    border: '1px solid var(--gf-border)',
                     borderRadius: 8,
                     padding: '10px 14px',
                     fontSize: 14,
-                    color: '#344767',
+                    color: 'var(--gf-dark)',
                     outline: 'none',
                     transition: 'border-color 0.2s',
                   }}
                   onFocus={(e) => (e.currentTarget.style.borderColor = '#1A73E8')}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = '#d2d6da')}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--gf-border)')}
                 />
               </div>
 
@@ -146,7 +152,7 @@ export default function LoginPage() {
                     fontWeight: 700,
                     textTransform: 'uppercase',
                     letterSpacing: '0.06em',
-                    color: '#7b809a',
+                    color: 'var(--gf-muted)',
                     marginBottom: 6,
                   }}
                 >
@@ -163,16 +169,16 @@ export default function LoginPage() {
                     style={{
                       width: '100%',
                       boxSizing: 'border-box',
-                      border: '1px solid #d2d6da',
+                      border: '1px solid var(--gf-border)',
                       borderRadius: 8,
                       padding: '10px 42px 10px 14px',
                       fontSize: 14,
-                      color: '#344767',
+                      color: 'var(--gf-dark)',
                       outline: 'none',
                       transition: 'border-color 0.2s',
                     }}
                     onFocus={(e) => (e.currentTarget.style.borderColor = '#1A73E8')}
-                    onBlur={(e) => (e.currentTarget.style.borderColor = '#d2d6da')}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--gf-border)')}
                   />
                   <button
                     type="button"
@@ -186,7 +192,7 @@ export default function LoginPage() {
                       border: 'none',
                       padding: 0,
                       cursor: 'pointer',
-                      color: '#7b809a',
+                      color: 'var(--gf-muted)',
                       display: 'flex',
                       alignItems: 'center',
                     }}
@@ -226,7 +232,7 @@ export default function LoginPage() {
                   border: 'none',
                   borderRadius: 8,
                   padding: '12px',
-                  color: '#fff',
+                  color: 'var(--gf-white)',
                   fontSize: 14,
                   fontWeight: 700,
                   cursor: loading ? 'not-allowed' : 'pointer',
@@ -252,14 +258,14 @@ export default function LoginPage() {
             </form>
         </div>
 
-        <div style={{ padding: '16px 24px 20px', borderTop: '1px solid #f0f2f5' }}>
+        <div style={{ padding: '16px 24px 20px', borderTop: '1px solid var(--gf-bg)' }}>
               <p
                 style={{
                   fontSize: 11,
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '0.06em',
-                  color: '#7b809a',
+                  color: 'var(--gf-muted)',
                   textAlign: 'center',
                   marginBottom: 12,
                 }}
@@ -278,7 +284,7 @@ export default function LoginPage() {
                       gap: 10,
                       width: '100%',
                       background: 'none',
-                      border: '1px solid #f0f2f5',
+                      border: '1px solid var(--gf-bg)',
                       borderRadius: 8,
                       padding: '9px 12px',
                       cursor: 'pointer',
@@ -291,7 +297,7 @@ export default function LoginPage() {
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = 'none';
-                      e.currentTarget.style.borderColor = '#f0f2f5';
+                      e.currentTarget.style.borderColor = 'var(--gf-bg)';
                     }}
                   >
                     {/* Colored dot */}
@@ -309,7 +315,7 @@ export default function LoginPage() {
                       style={{
                         fontSize: 12,
                         fontWeight: 700,
-                        color: '#344767',
+                        color: 'var(--gf-dark)',
                         minWidth: 68,
                       }}
                     >
@@ -319,7 +325,7 @@ export default function LoginPage() {
                     <span
                       style={{
                         fontSize: 12,
-                        color: '#7b809a',
+                        color: 'var(--gf-muted)',
                         flex: 1,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',

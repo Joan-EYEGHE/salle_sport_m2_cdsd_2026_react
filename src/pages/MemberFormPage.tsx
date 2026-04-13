@@ -1,3 +1,9 @@
+/*
+AUDIT CSS GYMFLOW - MemberFormPage.tsx
+Problème 1 : Styles partagés et inline en palette hex (#7b809a, #344767, #d2d6da, #f0f2f5, #fff)
+Problème 2 : Inputs sans onFocus bordure #1A73E8 (blur existant + borderFor)
+Total : 2 problèmes trouvés
+*/
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -61,13 +67,13 @@ const labelStyle: CSSProperties = {
   fontWeight: 700,
   textTransform: 'uppercase',
   letterSpacing: '0.06em',
-  color: '#7b809a',
+  color: 'var(--gf-muted)',
   marginBottom: 6,
 };
 
 const hintStyle: CSSProperties = {
   fontSize: 11,
-  color: '#7b809a',
+  color: 'var(--gf-muted)',
   margin: '4px 0 0',
 };
 
@@ -78,7 +84,7 @@ const errStyle: CSSProperties = {
 };
 
 function borderFor(field: FieldKey, errors: Partial<Record<FieldKey, string>>): CSSProperties {
-  return { border: errors[field] ? '1px solid #F44335' : '1px solid #d2d6da' };
+  return { border: errors[field] ? '1px solid #F44335' : '1px solid var(--gf-border)' };
 }
 
 const baseInput: CSSProperties = {
@@ -87,9 +93,9 @@ const baseInput: CSSProperties = {
   borderRadius: 8,
   padding: '10px 14px',
   fontSize: 13,
-  color: '#344767',
+  color: 'var(--gf-dark)',
   outline: 'none',
-  background: '#fff',
+  background: 'var(--gf-white)',
 };
 
 export default function MemberFormPage() {
@@ -256,7 +262,7 @@ export default function MemberFormPage() {
 
   if (isEdit && loadState === 'loading') {
     return (
-      <div className="gf-page gf-page-top" style={{ padding: '20px 24px 24px', minHeight: 'calc(100vh - 60px)' }}>
+      <div className="gf-page" style={{ padding: '20px 24px 24px', minHeight: 'calc(100vh - 60px)' }}>
         <div className="gf-card-outer">
           <div className="gf-card">
             <div className="gf-card-body" style={{ display: 'flex', justifyContent: 'center', padding: '80px 20px' }}>
@@ -270,7 +276,7 @@ export default function MemberFormPage() {
 
   if (isEdit && loadState === 'error') {
     return (
-      <div className="gf-page gf-page-top" style={{ padding: '20px 24px 24px', minHeight: 'calc(100vh - 60px)' }}>
+      <div className="gf-page" style={{ padding: '20px 24px 24px', minHeight: 'calc(100vh - 60px)' }}>
         <div className="gf-card-outer">
           <div className="gf-card">
             <div className="gf-card-body" style={{ textAlign: 'center', padding: '48px 24px' }}>
@@ -288,7 +294,7 @@ export default function MemberFormPage() {
   }
 
   return (
-    <div className="gf-page gf-page-top" style={{ padding: '20px 24px 24px', minHeight: 'calc(100vh - 60px)' }}>
+    <div className="gf-page" style={{ padding: '20px 24px 24px', minHeight: 'calc(100vh - 60px)' }}>
       <div className="gf-card-outer">
         <div className="gf-card">
           <div className={`gf-card-header ${isEdit ? 'gf-card-header--success' : 'gf-card-header--info'}`}>
@@ -315,7 +321,7 @@ export default function MemberFormPage() {
                   gap: 16,
                   marginBottom: 28,
                   paddingBottom: 20,
-                  borderBottom: '1px solid #f0f2f5',
+                  borderBottom: '1px solid var(--gf-bg)',
                 }}
               >
                 <div
@@ -324,7 +330,7 @@ export default function MemberFormPage() {
                     height: 64,
                     borderRadius: '50%',
                     background: avatarBg,
-                    color: '#fff',
+                    color: 'var(--gf-white)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -336,9 +342,9 @@ export default function MemberFormPage() {
                   {initials}
                 </div>
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: '#344767' }}>{fullName}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--gf-dark)' }}>{fullName}</div>
                   {isEdit && dateInscription && (
-                    <p style={{ fontSize: 12, color: '#7b809a', margin: '6px 0 0' }}>
+                    <p style={{ fontSize: 12, color: 'var(--gf-muted)', margin: '6px 0 0' }}>
                       Membre depuis le {fmtLongDate(dateInscription)}
                     </p>
                   )}
@@ -357,12 +363,12 @@ export default function MemberFormPage() {
                     gridColumn: '1 / -1',
                     fontSize: 11,
                     fontWeight: 700,
-                    color: '#7b809a',
+                    color: 'var(--gf-muted)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.06em',
                     margin: 0,
                     paddingBottom: 8,
-                    borderBottom: '1px solid #f0f2f5',
+                    borderBottom: '1px solid var(--gf-bg)',
                   }}
                 >
                   Informations personnelles
@@ -379,6 +385,9 @@ export default function MemberFormPage() {
                       if (touched.prenom) validateField('prenom', { ...values, prenom: e.target.value });
                     }}
                     onBlur={() => blur('prenom')}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#1A73E8';
+                    }}
                     style={{ ...baseInput, ...borderFor('prenom', errors) }}
                   />
                   {touched.prenom && errors.prenom && <p style={errStyle}>{errors.prenom}</p>}
@@ -395,6 +404,9 @@ export default function MemberFormPage() {
                       if (touched.nom) validateField('nom', { ...values, nom: e.target.value });
                     }}
                     onBlur={() => blur('nom')}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#1A73E8';
+                    }}
                     style={{ ...baseInput, ...borderFor('nom', errors) }}
                   />
                   {touched.nom && errors.nom && <p style={errStyle}>{errors.nom}</p>}
@@ -411,6 +423,9 @@ export default function MemberFormPage() {
                       if (touched.email) validateField('email', { ...values, email: e.target.value });
                     }}
                     onBlur={() => blur('email')}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#1A73E8';
+                    }}
                     style={{ ...baseInput, ...borderFor('email', errors) }}
                   />
                   <p style={hintStyle}>Optionnel — pour les notifications</p>
@@ -428,6 +443,9 @@ export default function MemberFormPage() {
                       if (touched.phone) validateField('phone', { ...values, phone: e.target.value });
                     }}
                     onBlur={() => blur('phone')}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#1A73E8';
+                    }}
                     style={{ ...baseInput, ...borderFor('phone', errors) }}
                   />
                   {touched.phone && errors.phone && <p style={errStyle}>{errors.phone}</p>}
@@ -438,12 +456,12 @@ export default function MemberFormPage() {
                     gridColumn: '1 / -1',
                     fontSize: 11,
                     fontWeight: 700,
-                    color: '#7b809a',
+                    color: 'var(--gf-muted)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.06em',
                     margin: '8px 0 0',
                     paddingBottom: 8,
-                    borderBottom: '1px solid #f0f2f5',
+                    borderBottom: '1px solid var(--gf-bg)',
                   }}
                 >
                   Informations complémentaires
@@ -456,6 +474,9 @@ export default function MemberFormPage() {
                     value={dateNaissance}
                     onChange={(e) => setDateNaissance(e.target.value)}
                     onBlur={() => blur('date_naissance')}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#1A73E8';
+                    }}
                     style={{ ...baseInput, ...borderFor('date_naissance', errors) }}
                   />
                   <p style={hintStyle}>Optionnel</p>
@@ -472,6 +493,9 @@ export default function MemberFormPage() {
                         validateField('date_inscription', { ...values, date_inscription: e.target.value });
                     }}
                     onBlur={() => blur('date_inscription')}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#1A73E8';
+                    }}
                     style={{ ...baseInput, ...borderFor('date_inscription', errors) }}
                   />
                   {touched.date_inscription && errors.date_inscription && (
@@ -484,7 +508,7 @@ export default function MemberFormPage() {
                 style={{
                   marginTop: 8,
                   paddingTop: 16,
-                  borderTop: '1px solid #f0f2f5',
+                  borderTop: '1px solid var(--gf-bg)',
                   display: 'flex',
                   justifyContent: 'flex-end',
                   gap: 10,
@@ -497,9 +521,9 @@ export default function MemberFormPage() {
                   style={{
                     padding: '10px 20px',
                     borderRadius: 8,
-                    border: '1px solid #d2d6da',
-                    background: '#fff',
-                    color: '#7b809a',
+                    border: '1px solid var(--gf-border)',
+                    background: 'var(--gf-white)',
+                    color: 'var(--gf-muted)',
                     fontSize: 13,
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -515,7 +539,7 @@ export default function MemberFormPage() {
                     borderRadius: 8,
                     border: 'none',
                     background: isEdit ? GRAD_SUCCESS : GRAD_INFO,
-                    color: '#fff',
+                    color: 'var(--gf-white)',
                     fontSize: 13,
                     fontWeight: 600,
                     cursor: submitDisabled ? 'not-allowed' : 'pointer',
@@ -545,7 +569,7 @@ export default function MemberFormPage() {
             bottom: 24,
             right: 24,
             background: '#43A047',
-            color: '#fff',
+            color: 'var(--gf-white)',
             borderRadius: 10,
             padding: '14px 20px',
             fontSize: 14,
@@ -561,7 +585,7 @@ export default function MemberFormPage() {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
             <path
               d="M20 6L9 17L4 12"
-              stroke="#fff"
+              stroke="var(--gf-white)"
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"

@@ -1,3 +1,9 @@
+/*
+AUDIT CSS GYMFLOW - TransactionsPage.tsx
+Problème 1 : Filtres, champs date et cellules tableau en palette hex
+Problème 2 : Inputs filtres sans focus bordure bleue explicite
+Total : 2 problèmes trouvés
+*/
 import { useEffect, useState, useCallback } from 'react';
 import api from '../api/axios';
 import type { Transaction } from '../types';
@@ -90,7 +96,7 @@ function exportCsv(txs: Transaction[]) {
 
 function IconTrending() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gf-white)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
       <polyline points="17 6 23 6 23 12" />
     </svg>
@@ -99,7 +105,7 @@ function IconTrending() {
 
 function IconHash() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gf-white)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="4" y1="9" x2="20" y2="9" />
       <line x1="4" y1="15" x2="20" y2="15" />
       <line x1="10" y1="3" x2="8" y2="21" />
@@ -110,7 +116,7 @@ function IconHash() {
 
 function IconUsers() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gf-white)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />
       <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -298,7 +304,7 @@ export default function TransactionsPage() {
                 <div
                   style={{
                     fontSize: 11,
-                    color: '#7b809a',
+                    color: 'var(--gf-muted)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.4px',
                     marginBottom: 2,
@@ -310,7 +316,7 @@ export default function TransactionsPage() {
                   style={{
                     fontSize: 16,
                     fontWeight: 700,
-                    color: '#344767',
+                    color: 'var(--gf-dark)',
                     lineHeight: 1.2,
                   }}
                 >
@@ -345,9 +351,9 @@ export default function TransactionsPage() {
                     style={{
                       padding: '6px 14px',
                       borderRadius: 20,
-                      border: `1px solid ${active ? '#1A73E8' : '#d2d6da'}`,
-                      background: active ? '#1A73E8' : '#fff',
-                      color: active ? '#fff' : '#7b809a',
+                      border: `1px solid ${active ? '#1A73E8' : 'var(--gf-border)'}`,
+                      background: active ? '#1A73E8' : 'var(--gf-white)',
+                      color: active ? 'var(--gf-white)' : 'var(--gf-muted)',
                       fontSize: 12,
                       fontWeight: 700,
                       cursor: 'pointer',
@@ -366,14 +372,20 @@ export default function TransactionsPage() {
                 value={period}
                 onChange={(e) => handlePeriod(e.target.value as PeriodFilter)}
                 style={{
-                  border: '1px solid #d2d6da',
+                  border: '1px solid var(--gf-border)',
                   borderRadius: 8,
                   padding: '7px 10px',
                   fontSize: 12,
-                  color: '#344767',
-                  background: '#fff',
+                  color: 'var(--gf-dark)',
+                  background: 'var(--gf-white)',
                   cursor: 'pointer',
                   outline: 'none',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#1A73E8';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--gf-border)';
                 }}
               >
                 {periodOptions.map((o) => (
@@ -389,13 +401,19 @@ export default function TransactionsPage() {
                     value={dateStart}
                     onChange={(e) => setDateStart(e.target.value)}
                     style={{
-                      border: '1px solid #d2d6da',
+                      border: '1px solid var(--gf-border)',
                       borderRadius: 8,
                       padding: '7px 10px',
                       fontSize: 12,
-                      color: '#344767',
-                      background: '#fff',
+                      color: 'var(--gf-dark)',
+                      background: 'var(--gf-white)',
                       outline: 'none',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#1A73E8';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--gf-border)';
                     }}
                   />
                   <input
@@ -403,13 +421,19 @@ export default function TransactionsPage() {
                     value={dateEnd}
                     onChange={(e) => setDateEnd(e.target.value)}
                     style={{
-                      border: '1px solid #d2d6da',
+                      border: '1px solid var(--gf-border)',
                       borderRadius: 8,
                       padding: '7px 10px',
                       fontSize: 12,
-                      color: '#344767',
-                      background: '#fff',
+                      color: 'var(--gf-dark)',
+                      background: 'var(--gf-white)',
                       outline: 'none',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#1A73E8';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--gf-border)';
                     }}
                   />
                 </>
@@ -423,10 +447,10 @@ export default function TransactionsPage() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 6,
-                  border: '1px solid #d2d6da',
+                  border: '1px solid var(--gf-border)',
                   borderRadius: 8,
-                  background: '#fff',
-                  color: '#344767',
+                  background: 'var(--gf-white)',
+                  color: 'var(--gf-dark)',
                   fontSize: 12,
                   fontWeight: 700,
                   padding: '7px 12px',
@@ -434,7 +458,7 @@ export default function TransactionsPage() {
                   transition: 'background 0.15s',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = '#f8f9fa')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--gf-white)')}
               >
                 <IconDownload />
                 Exporter
@@ -478,7 +502,7 @@ export default function TransactionsPage() {
                   <tr>
                     <td
                       colSpan={5}
-                      style={{ textAlign: 'center', padding: '48px 0', color: '#7b809a', fontSize: 13 }}
+                      style={{ textAlign: 'center', padding: '48px 0', color: 'var(--gf-muted)', fontSize: 13 }}
                     >
                       Chargement…
                     </td>
@@ -487,7 +511,7 @@ export default function TransactionsPage() {
                   <tr>
                     <td
                       colSpan={5}
-                      style={{ textAlign: 'center', padding: '48px 0', color: '#7b809a', fontSize: 13 }}
+                      style={{ textAlign: 'center', padding: '48px 0', color: 'var(--gf-muted)', fontSize: 13 }}
                     >
                       Aucune transaction trouvée.
                     </td>
@@ -560,12 +584,12 @@ function TxRow({ tx, isRevenu, membre }: TxRowProps) {
   return (
     <tr>
       {/* Date */}
-      <td style={{ ...tdBase, color: '#7b809a', whiteSpace: 'nowrap' }}>
+      <td style={{ ...tdBase, color: 'var(--gf-muted)', whiteSpace: 'nowrap' }}>
         {fmtDate(tx.date)}
       </td>
 
       {/* Membre */}
-      <td style={{ ...tdBase, color: '#344767' }}>
+      <td style={{ ...tdBase, color: 'var(--gf-dark)' }}>
         {membre}
       </td>
 
@@ -579,7 +603,7 @@ function TxRow({ tx, isRevenu, membre }: TxRowProps) {
       </td>
 
       {/* Description */}
-      <td style={{ ...tdBase, color: '#344767', maxWidth: 260 }}>
+      <td style={{ ...tdBase, color: 'var(--gf-dark)', maxWidth: 260 }}>
         {tx.libelle ?? '—'}
       </td>
 

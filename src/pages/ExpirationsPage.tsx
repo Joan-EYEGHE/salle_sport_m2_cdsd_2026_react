@@ -1,3 +1,8 @@
+/*
+AUDIT CSS GYMFLOW - ExpirationsPage.tsx
+Problème 1 : KPI, cartes membre et filtres en palette hex (blanc, gris, bordures)
+Total : 1 problème trouvé
+*/
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Clock, RefreshCw } from 'lucide-react';
@@ -92,7 +97,7 @@ function AlertRow({ sub, isUrgent, onDismiss, onRenew }: AlertRowProps) {
           justifyContent: 'center',
         }}
       >
-        <span style={{ color: '#fff', fontSize: 12, fontWeight: 700 }}>
+        <span style={{ color: 'var(--gf-white)', fontSize: 12, fontWeight: 700 }}>
           {getInitiales(sub.membre)}
         </span>
       </div>
@@ -103,7 +108,7 @@ function AlertRow({ sub, isUrgent, onDismiss, onRenew }: AlertRowProps) {
           style={{
             fontSize: 13,
             fontWeight: 700,
-            color: '#344767',
+            color: 'var(--gf-dark)',
             margin: 0,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -115,7 +120,7 @@ function AlertRow({ sub, isUrgent, onDismiss, onRenew }: AlertRowProps) {
         <p
           style={{
             fontSize: 11,
-            color: '#7b809a',
+            color: 'var(--gf-muted)',
             margin: '3px 0 0',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -153,7 +158,7 @@ function AlertRow({ sub, isUrgent, onDismiss, onRenew }: AlertRowProps) {
           onClick={() => onRenew(sub)}
           style={{
             background: isUrgent ? '#F44335' : '#fb8c00',
-            color: '#fff',
+            color: 'var(--gf-white)',
             border: 'none',
             borderRadius: 7,
             padding: '6px 14px',
@@ -317,7 +322,7 @@ export default function ExpirationsPage() {
 
   // ── Filter pill config ────────────────────────────────────────────────────────
   const pillConfig: { key: Filter; label: string; activeColor: string }[] = [
-    { key: 'all',    label: `Tous (${allSubs.length})`,        activeColor: '#344767' },
+    { key: 'all',    label: `Tous (${allSubs.length})`,        activeColor: 'var(--gf-dark)' },
     { key: 'urgent', label: `Urgent — 7j (${urgent.length})`,  activeColor: '#F44335' },
     { key: 'soon',   label: `Bientôt — 30j (${soon.length})`,  activeColor: '#fb8c00' },
   ];
@@ -325,7 +330,7 @@ export default function ExpirationsPage() {
   const sectionLabelStyle: React.CSSProperties = {
     fontSize: 11,
     fontWeight: 700,
-    color: '#7b809a',
+    color: 'var(--gf-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
     margin: '4px 0 2px',
@@ -339,7 +344,7 @@ export default function ExpirationsPage() {
         {kpiDefs.map((kpi) => (
           <div key={kpi.label} className="gf-kpi-card">
             <div className={`gf-kpi-icon ${kpi.iconClass}`}>
-              <kpi.Icon size={22} color="#fff" />
+              <kpi.Icon size={22} color="var(--gf-white)" />
             </div>
             <p className="gf-kpi-label">{kpi.label}</p>
             <p className="gf-kpi-value">
@@ -376,7 +381,7 @@ export default function ExpirationsPage() {
                 style={{
                   width: 36,
                   height: 36,
-                  border: '3px solid #f0f2f5',
+                  border: '3px solid var(--gf-bg)',
                   borderTopColor: '#fb8c00',
                   borderRadius: '50%',
                 }}
@@ -398,7 +403,7 @@ export default function ExpirationsPage() {
                 <p style={{ fontSize: 13, fontWeight: 600, color: '#fb8c00', margin: 0 }}>
                   Endpoint à connecter
                 </p>
-                <p style={{ fontSize: 11, color: '#7b809a', margin: '4px 0 0' }}>
+                <p style={{ fontSize: 11, color: 'var(--gf-muted)', margin: '4px 0 0' }}>
                   GET /api/subscriptions/expiring-soon — vérifiez que l&apos;endpoint est disponible.
                 </p>
               </div>
@@ -421,9 +426,9 @@ export default function ExpirationsPage() {
                           borderRadius: 20,
                           fontSize: 12,
                           fontWeight: 700,
-                          border: filter === key ? 'none' : '1px solid #d2d6da',
-                          background: filter === key ? activeColor : '#fff',
-                          color: filter === key ? '#fff' : '#7b809a',
+                          border: filter === key ? 'none' : '1px solid var(--gf-border)',
+                          background: filter === key ? activeColor : 'var(--gf-white)',
+                          color: filter === key ? 'var(--gf-white)' : 'var(--gf-muted)',
                           cursor: 'pointer',
                           transition: 'all 0.15s',
                         }}
@@ -449,7 +454,7 @@ export default function ExpirationsPage() {
                   <p
                     style={{
                       textAlign: 'center',
-                      color: '#7b809a',
+                      color: 'var(--gf-muted)',
                       fontSize: 13,
                       margin: '16px 0',
                     }}

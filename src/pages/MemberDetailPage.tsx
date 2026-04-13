@@ -1,3 +1,8 @@
+/*
+AUDIT CSS GYMFLOW - MemberDetailPage.tsx
+Problème 1 : Nombreux textes, bordures et fonds en palette hex (tableaux, fiches, boutons)
+Total : 1 problème trouvé
+*/
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
@@ -132,7 +137,7 @@ const infoRow: React.CSSProperties = {
   justifyContent: 'space-between',
   alignItems: 'center',
   padding: '10px 0',
-  borderBottom: '1px solid #f0f2f5',
+  borderBottom: '1px solid var(--gf-bg)',
   gap: 12,
 };
 
@@ -212,7 +217,7 @@ export default function MemberDetailPage() {
   }, [load]);
 
   const pageStyle: React.CSSProperties = {
-    background: '#f0f2f5',
+    background: 'var(--gf-bg)',
     padding: '20px 24px 24px',
     minHeight: 'calc(100vh - 60px)',
     display: 'flex',
@@ -243,14 +248,14 @@ export default function MemberDetailPage() {
               </button>
             </div>
             <div className="gf-card-body" style={{ textAlign: 'center', paddingBottom: 28 }}>
-              <p style={{ color: '#7b809a', fontSize: 14, marginBottom: 16 }}>Erreur 404</p>
+              <p style={{ color: 'var(--gf-muted)', fontSize: 14, marginBottom: 16 }}>Erreur 404</p>
               <button
                 type="button"
                 onClick={() => navigate(-1)}
                 style={{
-                  border: '1px solid #d2d6da',
+                  border: '1px solid var(--gf-border)',
                   background: '#fff',
-                  color: '#344767',
+                  color: 'var(--gf-dark)',
                   padding: '8px 18px',
                   borderRadius: 8,
                   fontWeight: 600,
@@ -287,9 +292,9 @@ export default function MemberDetailPage() {
                 onClick={() => navigate(-1)}
                 style={{
                   marginTop: 16,
-                  border: '1px solid #d2d6da',
+                  border: '1px solid var(--gf-border)',
                   background: '#fff',
-                  color: '#344767',
+                  color: 'var(--gf-dark)',
                   padding: '8px 18px',
                   borderRadius: 8,
                   fontWeight: 600,
@@ -334,9 +339,9 @@ export default function MemberDetailPage() {
   };
 
   const btnEdit: React.CSSProperties = {
-    border: '1px solid #d2d6da',
+    border: '1px solid var(--gf-border)',
     background: '#fff',
-    color: '#344767',
+    color: 'var(--gf-dark)',
     borderRadius: 8,
     padding: '8px 14px',
     fontSize: 12,
@@ -389,10 +394,10 @@ export default function MemberDetailPage() {
                   {getInitials(member)}
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#344767' }}>
+                  <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--gf-dark)' }}>
                     {member.prenom} {member.nom}
                   </p>
-                  <p style={{ margin: '6px 0 0', fontSize: 13, color: '#7b809a' }}>
+                  <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--gf-muted)' }}>
                     {member.email ?? '—'} · {member.phone ?? '—'}
                   </p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
@@ -467,12 +472,12 @@ export default function MemberDetailPage() {
                   ] as const
                 ).map((row) => (
                   <div key={row.label} style={infoRow}>
-                    <span style={{ fontSize: 12, color: '#7b809a' }}>{row.label}</span>
+                    <span style={{ fontSize: 12, color: 'var(--gf-muted)' }}>{row.label}</span>
                     <span
                       style={{
                         fontSize: 13,
                         fontWeight: 700,
-                        color: '#344767',
+                        color: 'var(--gf-dark)',
                         textAlign: 'right',
                         wordBreak: 'break-word',
                       }}
@@ -503,10 +508,10 @@ export default function MemberDetailPage() {
                       padding: '14px 16px',
                     }}
                   >
-                    <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#344767' }}>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--gf-dark)' }}>
                       {primaryActive.activity?.nom ?? 'Activité'}
                     </p>
-                    <p style={{ margin: '6px 0 0', fontSize: 13, color: '#7b809a' }}>
+                    <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--gf-muted)' }}>
                       Forfait {primaryActive.type_forfait} · Du {fmtDate(primaryActive.date_debut)} au{' '}
                       {fmtDate(primaryActive.date_prochain_paiement)}
                     </p>
@@ -520,7 +525,7 @@ export default function MemberDetailPage() {
                   </div>
                 ) : (
                   <div>
-                    <p style={{ color: '#7b809a', fontSize: 13, margin: '0 0 12px' }}>
+                    <p style={{ color: 'var(--gf-muted)', fontSize: 13, margin: '0 0 12px' }}>
                       Aucun abonnement actif.
                     </p>
                     {canAct && (
@@ -558,7 +563,7 @@ export default function MemberDetailPage() {
             </div>
             <div className="gf-card-body">
               {accessLogs.length === 0 ? (
-                <p style={{ color: '#7b809a', fontSize: 13, margin: 0 }}>Aucun accès enregistré.</p>
+                <p style={{ color: 'var(--gf-muted)', fontSize: 13, margin: 0 }}>Aucun accès enregistré.</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {accessLogs.map((log) => {
@@ -585,14 +590,14 @@ export default function MemberDetailPage() {
                           }}
                         />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#344767' }}>
+                          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: 'var(--gf-dark)' }}>
                             {ok ? 'Accès accordé' : 'Accès refusé'}
                           </p>
                           <p
                             style={{
                               margin: '2px 0 0',
                               fontSize: 11,
-                              color: '#7b809a',
+                              color: 'var(--gf-muted)',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
@@ -601,7 +606,7 @@ export default function MemberDetailPage() {
                             {logDetailLine(log)}
                           </p>
                         </div>
-                        <span style={{ fontSize: 11, color: '#7b809a', flexShrink: 0 }}>
+                        <span style={{ fontSize: 11, color: 'var(--gf-muted)', flexShrink: 0 }}>
                           {fmtDateTime(log.date_scan)}
                         </span>
                       </div>
@@ -638,7 +643,7 @@ export default function MemberDetailPage() {
               <tbody>
                 {subscriptions.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', color: '#7b809a', padding: 24 }}>
+                    <td colSpan={6} style={{ textAlign: 'center', color: 'var(--gf-muted)', padding: 24 }}>
                       Aucun abonnement.
                     </td>
                   </tr>
@@ -691,13 +696,13 @@ export default function MemberDetailPage() {
                 <tbody>
                   {!canAct && tickets.length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', color: '#7b809a', padding: 24 }}>
+                      <td colSpan={5} style={{ textAlign: 'center', color: 'var(--gf-muted)', padding: 24 }}>
                         Non disponible pour votre rôle.
                       </td>
                     </tr>
                   ) : tickets.length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', color: '#7b809a', padding: 24 }}>
+                      <td colSpan={5} style={{ textAlign: 'center', color: 'var(--gf-muted)', padding: 24 }}>
                         Aucun ticket pour ce membre.
                       </td>
                     </tr>
@@ -709,7 +714,7 @@ export default function MemberDetailPage() {
                             style={{
                               fontFamily: 'monospace',
                               fontSize: 12,
-                              background: '#f0f2f5',
+                              background: 'var(--gf-bg)',
                               padding: '3px 8px',
                               borderRadius: 6,
                             }}
@@ -763,7 +768,7 @@ export default function MemberDetailPage() {
                 <tbody>
                   {transactions.length === 0 ? (
                     <tr>
-                      <td colSpan={3} style={{ textAlign: 'center', color: '#7b809a', padding: 24 }}>
+                      <td colSpan={3} style={{ textAlign: 'center', color: 'var(--gf-muted)', padding: 24 }}>
                         Aucune transaction.
                       </td>
                     </tr>
@@ -776,7 +781,7 @@ export default function MemberDetailPage() {
                           style={
                             tx.type === 'REVENU'
                               ? { color: '#43A047', fontWeight: 700 }
-                              : { color: '#344767' }
+                              : { color: 'var(--gf-dark)' }
                           }
                         >
                           {tx.type === 'REVENU'

@@ -1,3 +1,9 @@
+/*
+AUDIT CSS GYMFLOW - NotFound.tsx
+Problème 1 : Carte blanche en inline identique à .gf-card — doublon
+Problème 2 : Couleurs #f0f2f5, #ffffff, #344767, #7b809a en inline
+Total : 2 problèmes trouvés
+*/
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -16,15 +22,13 @@ export default function NotFound() {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        background: '#f0f2f5',
+        background: 'var(--gf-bg)',
         padding: '24px',
       }}
     >
       <div
+        className="gf-card"
         style={{
-          background: '#ffffff',
-          borderRadius: '12px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
           maxWidth: '440px',
           width: '100%',
           padding: '48px 40px',
@@ -55,7 +59,7 @@ export default function NotFound() {
         <hr
           style={{
             border: 'none',
-            borderTop: '2px solid #f0f2f5',
+            borderTop: '2px solid var(--gf-bg)',
             width: '60px',
             margin: '0 auto',
           }}
@@ -66,7 +70,7 @@ export default function NotFound() {
           style={{
             fontSize: '20px',
             fontWeight: 700,
-            color: '#344767',
+            color: 'var(--gf-dark)',
             margin: 0,
           }}
         >
@@ -77,7 +81,7 @@ export default function NotFound() {
         <p
           style={{
             fontSize: '13px',
-            color: '#7b809a',
+            color: 'var(--gf-muted)',
             lineHeight: 1.6,
             margin: 0,
           }}
@@ -90,7 +94,7 @@ export default function NotFound() {
           onClick={handleAction}
           style={{
             background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
-            color: '#ffffff',
+            color: 'var(--gf-white)',
             fontSize: '14px',
             fontWeight: 700,
             padding: '11px 28px',

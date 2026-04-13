@@ -1,3 +1,8 @@
+/*
+AUDIT CSS GYMFLOW - UsersPage.tsx
+Problème 1 : Palette GymFlow en hex et white en inline (toolbar, modale, tableau) + blur sur #d2d6da
+Total : 1 problème trouvé
+*/
 import { useCallback, useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import api from '../api/axios';
@@ -121,7 +126,7 @@ function UserRow({ user: u, isAdmin, isSelf, onEdit, onDelete }: UserRowProps) {
               height: 32,
               borderRadius: '50%',
               background: avatarGradient(u.role),
-              color: '#fff',
+              color: 'var(--gf-white)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -133,10 +138,10 @@ function UserRow({ user: u, isAdmin, isSelf, onEdit, onDelete }: UserRowProps) {
             {initials}
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#344767' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gf-dark)' }}>
               {name}
             </div>
-            <div style={{ fontSize: 11, color: '#7b809a' }}>{u.email}</div>
+            <div style={{ fontSize: 11, color: 'var(--gf-muted)' }}>{u.email}</div>
           </div>
         </div>
       </td>
@@ -150,7 +155,7 @@ function UserRow({ user: u, isAdmin, isSelf, onEdit, onDelete }: UserRowProps) {
       <td>{fmtDate(u.createdAt)}</td>
 
       {/* Dernière connexion */}
-      <td style={{ color: '#7b809a' }}>{fmtDateTime(u.lastLogin)}</td>
+      <td style={{ color: 'var(--gf-muted)' }}>{fmtDateTime(u.lastLogin)}</td>
 
       {/* Statut */}
       <td><StatusBadge active={active} /></td>
@@ -229,17 +234,17 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
   const fieldLabelStyle: React.CSSProperties = {
     fontSize: 11,
     fontWeight: 700,
-    color: '#7b809a',
+    color: 'var(--gf-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
   };
 
   const inputBaseStyle: React.CSSProperties = {
-    border: '1px solid #d2d6da',
+    border: '1px solid var(--gf-border)',
     borderRadius: 8,
     padding: '10px 14px',
     fontSize: 13,
-    color: '#344767',
+    color: 'var(--gf-dark)',
     outline: 'none',
     fontFamily: 'inherit',
     width: '100%',
@@ -251,7 +256,7 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
       e.currentTarget.style.borderColor = '#1A73E8';
     },
     onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
-      e.currentTarget.style.borderColor = '#d2d6da';
+      e.currentTarget.style.borderColor = 'var(--gf-border)';
     },
   };
 
@@ -260,7 +265,7 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
       e.currentTarget.style.borderColor = '#1A73E8';
     },
     onBlur: (e: React.FocusEvent<HTMLSelectElement>) => {
-      e.currentTarget.style.borderColor = '#d2d6da';
+      e.currentTarget.style.borderColor = 'var(--gf-border)';
     },
   };
 
@@ -308,7 +313,7 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
     >
       <div
         style={{
-          background: 'white',
+          background: 'var(--gf-white)',
           borderRadius: 12,
           boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
           width: '100%',
@@ -332,7 +337,7 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
           }}
         >
           <div>
-            <p style={{ color: 'white', fontSize: 14, fontWeight: 700, margin: 0 }}>
+            <p style={{ color: 'var(--gf-white)', fontSize: 14, fontWeight: 700, margin: 0 }}>
               {isEdit ? "Modifier l'utilisateur" : 'Nouvel utilisateur'}
             </p>
             <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, margin: '3px 0 0' }}>
@@ -345,7 +350,7 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
             style={{
               background: 'rgba(255,255,255,0.2)',
               border: '1px solid rgba(255,255,255,0.4)',
-              color: 'white',
+              color: 'var(--gf-white)',
               width: 28,
               height: 28,
               borderRadius: 6,
@@ -421,7 +426,7 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
                     border: 'none',
                     padding: 0,
                     cursor: 'pointer',
-                    color: '#7b809a',
+                    color: 'var(--gf-muted)',
                     display: 'flex',
                     alignItems: 'center',
                   }}
@@ -441,7 +446,7 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
               style={{
                 ...inputBaseStyle,
                 cursor: 'pointer',
-                background: 'white',
+                background: 'var(--gf-white)',
               }}
               {...selectFocusBlur}
             >
@@ -457,7 +462,7 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
               alignItems: 'center',
               gap: 8,
               fontSize: 13,
-              color: '#344767',
+              color: 'var(--gf-dark)',
               cursor: 'pointer',
             }}
           >
@@ -472,7 +477,7 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
 
           {err && <p style={{ color: '#F44335', fontSize: 12, margin: 0 }}>{err}</p>}
 
-          <div style={{ display: 'flex', gap: 10, paddingTop: 8, borderTop: '1px solid #f0f2f5' }}>
+          <div style={{ display: 'flex', gap: 10, paddingTop: 8, borderTop: '1px solid var(--gf-bg)' }}>
             <button
               type="button"
               onClick={onClose}
@@ -480,9 +485,9 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
                 flex: 1,
                 padding: '10px 0',
                 borderRadius: 8,
-                border: '1px solid #d2d6da',
-                background: 'white',
-                color: '#7b809a',
+                border: '1px solid var(--gf-border)',
+                background: 'var(--gf-white)',
+                color: 'var(--gf-muted)',
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -499,7 +504,7 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
                 borderRadius: 8,
                 border: 'none',
                 background: saving ? '#a0aec0' : 'linear-gradient(195deg, #EC407A, #D81B60)',
-                color: 'white',
+                color: 'var(--gf-white)',
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: saving ? 'not-allowed' : 'pointer',
@@ -596,7 +601,7 @@ export default function UsersPage() {
 
   return (
     <>
-      <div className="gf-page gf-page-top" style={{ minHeight: 'calc(100vh - 60px)' }}>
+      <div className="gf-page" style={{ minHeight: 'calc(100vh - 60px)' }}>
         {/* ── card wrapper ── */}
         <div className="gf-card-outer">
           <div className="gf-card">
@@ -622,7 +627,7 @@ export default function UsersPage() {
                   height="14"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="#7b809a"
+                  stroke="var(--gf-muted)"
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -645,7 +650,7 @@ export default function UsersPage() {
                   gap: 8,
                   cursor: 'pointer',
                   fontSize: 12,
-                  color: '#7b809a',
+                  color: 'var(--gf-muted)',
                   userSelect: 'none',
                   whiteSpace: 'nowrap',
                 }}
@@ -699,7 +704,7 @@ export default function UsersPage() {
                         style={{
                           textAlign: 'center',
                           padding: '48px 0',
-                          color: '#7b809a',
+                          color: 'var(--gf-muted)',
                           fontSize: 13,
                         }}
                       >
