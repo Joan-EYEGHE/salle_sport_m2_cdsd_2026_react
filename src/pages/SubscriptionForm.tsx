@@ -7,7 +7,32 @@ Total : 2 problèmes trouvés
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
-import type { Activity, BatchFormOption, MemberSearchResult } from '../types';
+import type { Activity, MemberSearchResult, Subscription } from '../types';
+
+type TypeForfait = Subscription['type_forfait'];
+
+const FORFAIT_DAYS: Record<TypeForfait, number> = {
+  HEBDO: 7,
+  MENSUEL: 30,
+  TRIMESTRIEL: 90,
+  ANNUEL: 365,
+};
+
+const FORFAIT_PRICE_KEY: Record<TypeForfait, keyof Activity> = {
+  HEBDO: 'prix_hebdomadaire',
+  MENSUEL: 'prix_mensuel',
+  TRIMESTRIEL: 'prix_trimestriel',
+  ANNUEL: 'prix_annuel',
+};
+
+const FORFAIT_LABEL: Record<TypeForfait, string> = {
+  HEBDO: 'Hebdomadaire',
+  MENSUEL: 'Mensuel',
+  TRIMESTRIEL: 'Trimestriel',
+  ANNUEL: 'Annuel',
+};
+
+const ALL_FORFAITS: TypeForfait[] = ['HEBDO', 'MENSUEL', 'TRIMESTRIEL', 'ANNUEL'];
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -25,17 +50,15 @@ function addDays(date: string, days: number): string {
   return d.toISOString().split('T')[0];
 }
 
-function calcEndDate(start: string, batch: BatchFormOption): string {
-  if (!start || !batch) return '';
-  const d = new Date(start);
-  if (batch.duration_days) {
-    d.setDate(d.getDate() + batch.duration_days);
-  } else {
-    const map: Record<string, number> = { MENSUEL: 1, TRIMESTRIEL: 3, ANNUEL: 12 };
-    const months = map[batch.duration_type ?? 'MENSUEL'] ?? 1;
-    d.setMonth(d.getMonth() + months);
-  }
-  return d.toISOString().split('T')[0];
+function calcEndDateFromForfait(start: string, type: TypeForfait): string {
+  if (!start || !type) return '';
+  const [y, m, d0] = start.split('-').map(Number);
+  const d = new Date(y, m - 1, d0);
+  d.setDate(d.getDate() + FORFAIT_DAYS[type]);
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
 }
 
 function memberInitials(m: MemberSearchResult): string {
@@ -135,18 +158,15 @@ export default function SubscriptionForm() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [selectedActivityId, setSelectedActivityId] = useState<number | ''>('');
 
-  // ── batches ──
-  const [batches, setBatches] = useState<BatchFormOption[]>([]);
-  const [selectedBatchId, setSelectedBatchId] = useState<number | ''>('');
-  const [batchesLoading, setBatchesLoading] = useState(false);
+  // ── forfait (aligné POST /api/subscriptions : type_forfait + grille tarifaire activité) ──
+  const [typeForfait, setTypeForfait] = useState<TypeForfait | ''>('');
 
   // ── dates ──
   const [startDate, setStartDate] = useState(today());
   const [endDate, setEndDate] = useState('');
 
-  // ── payment ──
+  // ── frais d'inscription (création uniquement ; non envoyés au backend en renouvellement) ──
   const [inscriptionFee, setInscriptionFee] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState('');
 
   // ── renewal context ──
   const [renewalCtx, setRenewalCtx] = useState<RenewalContext | null>(null);
@@ -171,32 +191,14 @@ export default function SubscriptionForm() {
       .catch(() => {});
   }, []);
 
-  // ─── load batches when activity changes ──────────────────────────────────
+  // ─── recalcul date de fin affichée (aperçu = même pas que le backend) ─────
   useEffect(() => {
-    if (!selectedActivityId) {
-      setBatches([]);
-      setSelectedBatchId('');
+    if (!typeForfait || !startDate) {
       setEndDate('');
       return;
     }
-    setBatchesLoading(true);
-    api.get(`/batches?activityId=${selectedActivityId}`)
-      .then((res) => {
-        const data = res.data?.data ?? res.data;
-        setBatches(Array.isArray(data) ? data : []);
-        setSelectedBatchId('');
-        setEndDate('');
-      })
-      .catch(() => setBatches([]))
-      .finally(() => setBatchesLoading(false));
-  }, [selectedActivityId]);
-
-  // ─── recalculate end date ────────────────────────────────────────────────
-  useEffect(() => {
-    if (!selectedBatchId || !startDate) { setEndDate(''); return; }
-    const batch = batches.find((b) => b.id === selectedBatchId);
-    if (batch) setEndDate(calcEndDate(startDate, batch));
-  }, [selectedBatchId, startDate, batches]);
+    setEndDate(calcEndDateFromForfait(startDate, typeForfait));
+  }, [typeForfait, startDate]);
 
   // ─── check active subscription warning ──────────────────────────────────
   useEffect(() => {
@@ -236,6 +238,7 @@ export default function SubscriptionForm() {
 
         const actId = sub.id_activity ?? sub.activity_id;
         if (actId) setSelectedActivityId(actId);
+        if (sub.type_forfait) setTypeForfait(sub.type_forfait as TypeForfait);
 
         const oldEnd = sub.date_prochain_paiement ?? sub.end_date ?? sub.date_fin ?? '';
         let newStart: string;
@@ -253,9 +256,12 @@ export default function SubscriptionForm() {
         setStartDate(newStart);
         setInscriptionFee(0);
 
+        const subRec = sub as Record<string, unknown>;
+        const actNested = (subRec.activity ?? subRec.Activity) as { nom?: string } | undefined;
+
         setRenewalCtx({
           memberName: `${member.prenom} ${member.nom}`,
-          activityName: sub.activity?.nom ?? '',
+          activityName: actNested?.nom ?? '',
           oldEndDate: oldEnd,
         });
       })
@@ -302,12 +308,10 @@ export default function SubscriptionForm() {
       setMemberQuery('');
       setMemberResults([]);
       setSelectedActivityId('');
-      setBatches([]);
-      setSelectedBatchId('');
+      setTypeForfait('');
       setStartDate(today());
       setEndDate('');
       setInscriptionFee(0);
-      setPaymentMethod('');
       setActiveSubWarning(false);
       setRenewalCtx(null);
       setFieldErrors({});
@@ -316,27 +320,30 @@ export default function SubscriptionForm() {
   }
 
   // ─── derived ─────────────────────────────────────────────────────────────
-  const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? null;
   const selectedActivity = activities.find((a) => a.id === selectedActivityId) ?? null;
-  const subscriptionAmount = selectedBatch?.amount ?? 0;
+  const forfaitOptions: TypeForfait[] = selectedActivity?.isMonthlyOnly
+    ? ALL_FORFAITS.filter((t) => t !== 'HEBDO')
+    : ALL_FORFAITS;
+  const subscriptionAmount =
+    selectedActivity && typeForfait
+      ? Number(selectedActivity[FORFAIT_PRICE_KEY[typeForfait]]) || 0
+      : 0;
   const feeAmount = mode === 'renewal' ? 0 : inscriptionFee;
   const total = subscriptionAmount + feeAmount;
 
   const isFormValid =
     Boolean(selectedMember) &&
     Boolean(selectedActivityId) &&
-    Boolean(selectedBatchId) &&
-    Boolean(startDate) &&
-    Boolean(paymentMethod);
+    Boolean(typeForfait) &&
+    Boolean(startDate);
 
   // ─── validation ──────────────────────────────────────────────────────────
   function validate(): boolean {
     const errs: Record<string, string> = {};
     if (!selectedMember) errs.member = 'Veuillez sélectionner un membre';
     if (!selectedActivityId) errs.activity = 'Veuillez sélectionner une activité';
-    if (!selectedBatchId) errs.batch = 'Veuillez sélectionner un forfait';
+    if (!typeForfait) errs.typeForfait = 'Veuillez sélectionner un forfait';
     if (!startDate) errs.startDate = 'La date de début est requise';
-    if (!paymentMethod) errs.paymentMethod = 'Veuillez choisir un mode de paiement';
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -348,23 +355,25 @@ export default function SubscriptionForm() {
     setSubmitError('');
     setSubmitting(true);
     try {
-      const body: Record<string, unknown> = {
-        member_id: selectedMember!.id,
-        activity_id: selectedActivityId,
-        batch_id: selectedBatchId,
-        start_date: startDate,
-        end_date: endDate,
-        inscription_fee: feeAmount,
-        payment_method: paymentMethod,
+      const body: {
+        id_membre: number;
+        id_activity: number;
+        type_forfait: TypeForfait;
+        date_debut: string;
+        frais_inscription_payes?: number;
+      } = {
+        id_membre: selectedMember!.id,
+        id_activity: Number(selectedActivityId),
+        type_forfait: typeForfait as TypeForfait,
+        date_debut: startDate,
       };
-      if (mode === 'renewal' && qSubscriptionId) {
-        body.subscription_id = qSubscriptionId;
-        body.mode = 'renewal';
+      if (mode === 'creation' && feeAmount > 0) {
+        body.frais_inscription_payes = feeAmount;
       }
       await api.post('/subscriptions', body);
       const msg = mode === 'renewal' ? 'Abonnement renouvelé avec succès' : 'Abonnement créé avec succès';
       setToastMsg(msg);
-      setTimeout(() => navigate('/members'), 1500);
+      setTimeout(() => navigate('/subscriptions'), 1500);
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
@@ -476,7 +485,15 @@ export default function SubscriptionForm() {
                 <div style={{ fontSize: 13, color: '#2e7d32', lineHeight: 1.5 }}>
                   Renouvellement de <strong>{renewalCtx.memberName}</strong>{renewalCtx.activityName ? ` — ${renewalCtx.activityName}` : ''}.
                   {renewalCtx.oldEndDate && (
-                    <> Ancien abonnement expiré le <strong>{new Date(renewalCtx.oldEndDate).toLocaleDateString('fr-FR')}</strong>.</>
+                    <> Ancien abonnement expiré le{' '}
+                      <strong>
+                        {new Date(renewalCtx.oldEndDate).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </strong>.
+                    </>
                   )}
                   {' '}La nouvelle date de début est calculée automatiquement.
                 </div>
@@ -693,7 +710,7 @@ export default function SubscriptionForm() {
                     onChange={(e) => {
                       const val = e.target.value === '' ? '' : Number(e.target.value);
                       setSelectedActivityId(val as number | '');
-                      setSelectedBatchId('');
+                      setTypeForfait('');
                       setFieldErrors((prev) => { const n = { ...prev }; delete n.activity; return n; });
                     }}
                     onFocus={onFocus}
@@ -714,36 +731,39 @@ export default function SubscriptionForm() {
                 )}
               </div>
 
-              {/* forfait */}
+              {/* forfait (type_forfait API) */}
               <div>
                 <label style={S.label}>Forfait</label>
                 <select
-                  value={selectedBatchId}
+                  value={typeForfait}
                   onChange={(e) => {
-                    const val = e.target.value === '' ? '' : Number(e.target.value);
-                    setSelectedBatchId(val as number | '');
-                    setFieldErrors((prev) => { const n = { ...prev }; delete n.batch; return n; });
+                    const v = e.target.value as TypeForfait | '';
+                    setTypeForfait(v);
+                    setFieldErrors((prev) => { const n = { ...prev }; delete n.typeForfait; return n; });
                   }}
                   onFocus={onFocus}
                   onBlur={onBlur}
-                  disabled={!selectedActivityId || batchesLoading}
+                  disabled={!selectedActivityId}
                   style={{
                     ...S.select,
                     ...(!selectedActivityId ? { opacity: 0.6, cursor: 'not-allowed' } : {}),
-                    ...(fieldErrors.batch ? S.inputError : {}),
+                    ...(fieldErrors.typeForfait ? S.inputError : {}),
                   }}
                 >
-                  <option value="">
-                    {batchesLoading ? 'Chargement…' : 'Sélectionner un forfait'}
-                  </option>
-                  {batches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} — {fmt(b.amount)}
-                    </option>
-                  ))}
+                  <option value="">Sélectionner un forfait</option>
+                  {forfaitOptions.map((t) => {
+                    const p = selectedActivity
+                      ? Number(selectedActivity[FORFAIT_PRICE_KEY[t]]) || 0
+                      : 0;
+                    return (
+                      <option key={t} value={t}>
+                        {FORFAIT_LABEL[t]} — {fmt(p)}
+                      </option>
+                    );
+                  })}
                 </select>
-                {fieldErrors.batch && (
-                  <p style={{ fontSize: 11, color: '#F44335', marginTop: 4 }}>{fieldErrors.batch}</p>
+                {fieldErrors.typeForfait && (
+                  <p style={{ fontSize: 11, color: '#F44335', marginTop: 4 }}>{fieldErrors.typeForfait}</p>
                 )}
               </div>
 
@@ -775,7 +795,15 @@ export default function SubscriptionForm() {
                 <label style={S.label}>Date de fin (calculée)</label>
                 <input
                   type="text"
-                  value={endDate ? new Date(endDate).toLocaleDateString('fr-FR') : '—'}
+                  value={
+                    endDate
+                      ? new Date(endDate).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })
+                      : '—'
+                  }
                   disabled
                   style={S.inputDisabled}
                 />
@@ -795,32 +823,6 @@ export default function SubscriptionForm() {
                   style={mode === 'renewal' ? S.inputDisabled : S.input}
                 />
               </div>
-
-              {/* mode de paiement */}
-              <div>
-                <label style={S.label}>Mode de paiement</label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => {
-                    setPaymentMethod(e.target.value);
-                    setFieldErrors((prev) => { const n = { ...prev }; delete n.paymentMethod; return n; });
-                  }}
-                  onFocus={onFocus}
-                  onBlur={onBlur}
-                  style={{
-                    ...S.select,
-                    ...(fieldErrors.paymentMethod ? S.inputError : {}),
-                  }}
-                >
-                  <option value="">Sélectionner</option>
-                  <option value="ESPECES">Espèces</option>
-                  <option value="MOBILE_MONEY">Mobile Money</option>
-                  <option value="VIREMENT">Virement</option>
-                </select>
-                {fieldErrors.paymentMethod && (
-                  <p style={{ fontSize: 11, color: '#F44335', marginTop: 4 }}>{fieldErrors.paymentMethod}</p>
-                )}
-              </div>
             </div>
 
             {/* ── warning abonnement actif ────────────────────────────── */}
@@ -839,7 +841,7 @@ export default function SubscriptionForm() {
             )}
 
             {/* ── récapitulatif ───────────────────────────────────────── */}
-            {selectedBatch && (
+            {typeForfait && selectedActivity && (
               <div style={{
                 background: '#f8f9fa',
                 borderRadius: 10,
@@ -850,7 +852,7 @@ export default function SubscriptionForm() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--gf-dark)' }}>
-                    <span>Abonnement {selectedActivity?.nom ?? ''} ({selectedBatch.name})</span>
+                    <span>Abonnement {selectedActivity.nom} ({FORFAIT_LABEL[typeForfait]})</span>
                     <span style={{ fontWeight: 600 }}>{fmt(subscriptionAmount)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--gf-dark)' }}>

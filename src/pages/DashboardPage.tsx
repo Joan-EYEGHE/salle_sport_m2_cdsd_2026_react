@@ -59,6 +59,22 @@ interface ExpiringSub {
   daysLeft: number;
 }
 
+function normalizeDashboardExpiring(raw: Record<string, unknown>): ExpiringSub {
+  const m = (raw.membre ?? raw.member ?? raw.Member) as { nom: string; prenom: string } | undefined;
+  const date_prochain_paiement = String(raw.date_prochain_paiement ?? '');
+  return {
+    id: Number(raw.id),
+    membre: m,
+    date_prochain_paiement,
+    daysLeft: Math.max(
+      0,
+      Math.ceil(
+        (new Date(date_prochain_paiement).getTime() - Date.now()) / 86400000
+      )
+    ),
+  };
+}
+
 interface MemberRaw {
   subscriptions?: { date_prochain_paiement: string }[];
 }
@@ -183,14 +199,9 @@ export default function DashboardPage() {
       .get('/subscriptions/expiring-soon?days=30')
       .then((res) => {
         const d = res.data?.data ?? res.data;
-        const arr = (Array.isArray(d) ? d : []).map(
-          (s: { date_prochain_paiement: string } & Record<string, unknown>) => ({
-            ...s,
-            daysLeft: Math.ceil(
-              (new Date(s.date_prochain_paiement).getTime() - Date.now()) / 86400000
-            ),
-          })
-        ) as ExpiringSub[];
+        const arr = (Array.isArray(d) ? d : []).map((s) =>
+          normalizeDashboardExpiring(s as Record<string, unknown>)
+        );
         setExpirations(arr.sort((a, b) => a.daysLeft - b.daysLeft));
       })
       .catch(() => setExpirError(true))
@@ -348,7 +359,7 @@ export default function DashboardPage() {
                     />
                   ))}
                 </div>
-              ) : expirError || expirations.length === 0 ? (
+              ) : expirError ? (
                 <div
                   style={{
                     background: '#fff8f0',
@@ -366,12 +377,23 @@ export default function DashboardPage() {
                       margin: 0,
                     }}
                   >
-                    Endpoint à connecter
+                    Impossible de charger les expirations
                   </p>
                   <p style={{ fontSize: 11, color: 'var(--gf-muted)', margin: '2px 0 0' }}>
-                    GET /api/subscriptions/expiring-soon
+                    GET /api/subscriptions/expiring-soon?days=30
                   </p>
                 </div>
+              ) : expirations.length === 0 ? (
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: 'var(--gf-muted)',
+                    margin: '0 0 12px',
+                    textAlign: 'center',
+                  }}
+                >
+                  Aucune expiration dans les 30 prochains jours.
+                </p>
               ) : (
                 <div
                   style={{
@@ -438,6 +460,7 @@ export default function DashboardPage() {
 
               <button
                 type="button"
+                onClick={() => navigate('/expirations')}
                 style={{
                   width: '100%',
                   background: 'linear-gradient(195deg, #FFA726, #fb8c00)',
@@ -496,7 +519,11 @@ export default function DashboardPage() {
                       return (
                         <tr key={tx.id}>
                           <td style={{ color: 'var(--gf-muted)' }}>
-                            {new Date(tx.date).toLocaleDateString('fr-FR')}
+                            {new Date(tx.date).toLocaleDateString('fr-FR', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
                           </td>
                           <td style={{ fontWeight: 500 }}>{memberName}</td>
                           <td>

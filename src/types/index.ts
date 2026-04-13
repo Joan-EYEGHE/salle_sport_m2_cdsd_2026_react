@@ -37,6 +37,7 @@ export interface Member {
   transactions?: Transaction[];
 }
 
+/** Aligné sur l’API Sequelize : fin = date_prochain_paiement (pas end_date). */
 export interface Subscription {
   id: number;
   id_membre: number;
@@ -47,6 +48,9 @@ export interface Subscription {
   montant_total: number;
   date_debut: string;
   date_prochain_paiement: string;
+  /** Sérialisation Sequelize brute éventuelle */
+  Member?: Member;
+  Activity?: Activity;
   member?: Member;
   activity?: Activity;
 }

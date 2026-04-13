@@ -471,9 +471,17 @@ export default function ActivitiesPage() {
 
   useEffect(() => { fetchActivities(); }, []);
 
+  useEffect(() => {
+    if (user?.role !== 'ADMIN' && modalOpen) {
+      setModalOpen(false);
+      setEditTarget(null);
+    }
+  }, [user?.role, modalOpen]);
+
   useEffect(() => { setPage(1); }, [search]);
 
   const openCreate = () => {
+    if (user?.role !== 'ADMIN') return;
     setEditTarget(null);
     setForm(EMPTY_FORM);
     setModalOpen(true);
@@ -518,10 +526,10 @@ export default function ActivitiesPage() {
                 <p className="gf-card-header__title">Activités</p>
                 <p className="gf-card-header__sub">Gestion des activités proposées</p>
               </div>
-              {isAdmin && (
-                <button className="gf-btn-header" onClick={openCreate}>
+              {user?.role === 'ADMIN' && (
+                <button type="button" className="gf-btn-header" onClick={openCreate}>
                   <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
-                  Ajouter
+                  Créer une activité
                 </button>
               )}
             </div>

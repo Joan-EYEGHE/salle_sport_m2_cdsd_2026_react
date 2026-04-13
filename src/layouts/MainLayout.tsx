@@ -64,10 +64,15 @@ export default function MainLayout() {
 
   useEffect(() => {
     api
-      .get('/subscriptions/expiring-soon?days=7')
-      .then((r) => {
-        const data = r.data;
-        const count = data?.count ?? (Array.isArray(data) ? data.length : 0);
+      .get('/subscriptions/expiring-soon?days=30')
+      .then((res) => {
+        const rows = res.data?.data ?? res.data;
+        const count =
+          typeof res.data?.count === 'number'
+            ? res.data.count
+            : Array.isArray(rows)
+              ? rows.length
+              : 0;
         setExpiring(count);
       })
       .catch(() => setExpiring('!'));

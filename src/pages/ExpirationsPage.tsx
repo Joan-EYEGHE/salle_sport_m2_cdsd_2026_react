@@ -22,12 +22,36 @@ interface Activite {
 
 interface ExpiringSub {
   id: number;
+  id_membre?: number;
   membre_id?: number;
   membre?: Membre;
   activite?: Activite;
   type_abonnement?: string;
   date_prochain_paiement: string;
   daysLeft: number;
+}
+
+function normalizeExpiringApiRow(raw: Record<string, unknown>): ExpiringSub {
+  const membre = (raw.membre ?? raw.member ?? raw.Member) as Membre | undefined;
+  const activite = (raw.activite ?? raw.activity ?? raw.Activity) as Activite | undefined;
+  const date_prochain_paiement = String(raw.date_prochain_paiement ?? '');
+  const id = Number(raw.id);
+  const idMembre = raw.id_membre != null ? Number(raw.id_membre) : undefined;
+  return {
+    id,
+    id_membre: idMembre,
+    membre_id: idMembre,
+    membre,
+    activite,
+    type_abonnement: (raw.type_forfait as string) ?? undefined,
+    date_prochain_paiement,
+    daysLeft: Math.max(
+      0,
+      Math.ceil(
+        (new Date(date_prochain_paiement).getTime() - Date.now()) / 86400000
+      )
+    ),
+  };
 }
 
 type Filter = 'all' | 'urgent' | 'soon';
@@ -220,17 +244,9 @@ export default function ExpirationsPage() {
     ]).then(([subsRes, renewedRes]) => {
       if (subsRes.status === 'fulfilled') {
         const raw = subsRes.value.data?.data ?? subsRes.value.data;
-        const arr: ExpiringSub[] = (Array.isArray(raw) ? raw : []).map(
-          (s: Record<string, unknown>) => ({
-            ...s,
-            daysLeft: Math.max(
-              0,
-              Math.ceil(
-                (new Date(s.date_prochain_paiement as string).getTime() - Date.now()) / 86400000
-              )
-            ),
-          })
-        ) as ExpiringSub[];
+        const arr: ExpiringSub[] = (Array.isArray(raw) ? raw : []).map((s) =>
+          normalizeExpiringApiRow(s as Record<string, unknown>)
+        );
         setSubs(arr.sort((a, b) => a.daysLeft - b.daysLeft));
       } else {
         setError(true);
@@ -271,9 +287,9 @@ export default function ExpirationsPage() {
     setDismissed((prev) => new Set([...prev, id]));
 
   const handleRenew = (sub: ExpiringSub) => {
-    const memberId = sub.membre_id ?? sub.membre?.id ?? '';
+    const memberId = sub.id_membre ?? sub.membre_id ?? sub.membre?.id ?? '';
     navigate(
-      `/subscriptions/form?memberId=${memberId}&subscriptionId=${sub.id}&mode=renewal`
+      `/subscriptions/form?mode=renewal&memberId=${memberId}&subscriptionId=${sub.id}`
     );
   };
 
