@@ -45,12 +45,7 @@ function normalizeExpiringApiRow(raw: Record<string, unknown>): ExpiringSub {
     activite,
     type_abonnement: (raw.type_forfait as string) ?? undefined,
     date_prochain_paiement,
-    daysLeft: Math.max(
-      0,
-      Math.ceil(
-        (new Date(date_prochain_paiement).getTime() - Date.now()) / 86400000
-      )
-    ),
+    daysLeft: daysLeftFromDateOnly(date_prochain_paiement),
   };
 }
 
@@ -62,6 +57,20 @@ function fmtDate(d: string) {
     month: 'short',
     year: 'numeric',
   });
+}
+
+/** DATEONLY YYYY-MM-DD en calendrier local (évite décalage UTC / jours restants faux). */
+function daysLeftFromDateOnly(ymd: string): number {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd.trim());
+  if (!m) return 0;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const target = new Date(y, mo - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.ceil((target.getTime() - today.getTime()) / 86400000));
 }
 
 function joursLabel(n: number) {
@@ -244,9 +253,9 @@ export default function ExpirationsPage() {
     ]).then(([subsRes, renewedRes]) => {
       if (subsRes.status === 'fulfilled') {
         const raw = subsRes.value.data?.data ?? subsRes.value.data;
-        const arr: ExpiringSub[] = (Array.isArray(raw) ? raw : []).map((s) =>
-          normalizeExpiringApiRow(s as Record<string, unknown>)
-        );
+        const arr: ExpiringSub[] = (Array.isArray(raw) ? raw : [])
+          .map((s) => normalizeExpiringApiRow(s as Record<string, unknown>))
+          .filter((s) => Number.isFinite(s.id) && s.id > 0 && Boolean(s.date_prochain_paiement));
         setSubs(arr.sort((a, b) => a.daysLeft - b.daysLeft));
       } else {
         setError(true);
@@ -254,8 +263,10 @@ export default function ExpirationsPage() {
 
       if (renewedRes.status === 'fulfilled') {
         const d = renewedRes.value.data?.data ?? renewedRes.value.data;
-        const count = d?.count ?? d?.total ?? (Array.isArray(d) ? d.length : null);
-        setKpiRenewed(typeof count === 'number' ? count : null);
+        const count = d?.count ?? d?.total ?? (Array.isArray(d) ? d.length : undefined);
+        setKpiRenewed(typeof count === 'number' ? count : 0);
+      } else {
+        setKpiRenewed(0);
       }
     }).finally(() => setLoading(false));
   }, []);
@@ -417,10 +428,10 @@ export default function ExpirationsPage() {
                 }}
               >
                 <p style={{ fontSize: 13, fontWeight: 600, color: '#fb8c00', margin: 0 }}>
-                  Endpoint à connecter
+                  Impossible de charger les expirations
                 </p>
                 <p style={{ fontSize: 11, color: 'var(--gf-muted)', margin: '4px 0 0' }}>
-                  GET /api/subscriptions/expiring-soon — vérifiez que l&apos;endpoint est disponible.
+                  GET /api/subscriptions/expiring-soon?days=30
                 </p>
               </div>
             </div>

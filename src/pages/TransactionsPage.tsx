@@ -6,7 +6,16 @@ Total : 2 problèmes trouvés
 */
 import { useEffect, useState, useCallback } from 'react';
 import api from '../api/axios';
-import type { Transaction } from '../types';
+import type { Member, Transaction } from '../types';
+
+/** Sequelize peut sérialiser le include sous `member` (as explicite) ou `Member` (défaut). */
+function normalizeTransactionRow(raw: unknown): Transaction {
+  const r = raw as Transaction & { Member?: Member };
+  return {
+    ...r,
+    member: r.member ?? r.Member,
+  };
+}
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -21,9 +30,10 @@ function fmtMontant(n: number) {
   return new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
 }
 
-function fmtDate(iso: string) {
+function fmtDate(iso: string | undefined | null): string {
+  if (!iso) return '—';
   return new Date(iso).toLocaleDateString('fr-FR', {
-    day: '2-digit',
+    day: 'numeric',
     month: 'short',
     year: 'numeric',
   });
@@ -87,7 +97,9 @@ function exportCsv(txs: Transaction[]) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `transactions_${new Date().toISOString().split('T')[0]}.csv`;
+  const n = new Date();
+  const pad = (x: number) => String(x).padStart(2, '0');
+  link.download = `transactions_${n.getFullYear()}-${pad(n.getMonth() + 1)}-${pad(n.getDate())}.csv`;
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -170,7 +182,8 @@ export default function TransactionsPage() {
 
       const res = await api.get('/transactions', { params });
       const raw = res.data?.data ?? res.data;
-      const list: Transaction[] = Array.isArray(raw) ? raw : (raw?.items ?? []);
+      const rawList: unknown[] = Array.isArray(raw) ? raw : (raw?.items ?? []);
+      const list: Transaction[] = rawList.map((row) => normalizeTransactionRow(row));
       setAllTransactions(list);
     } catch {
       setError('Impossible de charger les transactions.');

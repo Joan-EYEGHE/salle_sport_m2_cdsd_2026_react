@@ -46,17 +46,6 @@ function fmtDate(str: string | undefined): string {
   });
 }
 
-function fmtDateTime(str: string | undefined): string {
-  if (!str) return 'Jamais';
-  return new Date(str).toLocaleString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 function getInitials(u: ExtUser): string {
   const name = (u.fullName ?? '').trim();
   if (!name) return u.email.charAt(0).toUpperCase();
@@ -90,7 +79,7 @@ function StatusBadge({ active }: { active: boolean }) {
 function SkeletonRow() {
   return (
     <tr>
-      {[200, 110, 100, 110, 80, 70].map((w, i) => (
+      {[200, 110, 100, 80, 70].map((w, i) => (
         <td key={i}>
           <div className="gf-skeleton" style={{ width: w }} />
         </td>
@@ -153,9 +142,6 @@ function UserRow({ user: u, isAdmin, isSelf, onEdit, onDelete }: UserRowProps) {
 
       {/* Date de création */}
       <td>{fmtDate(u.createdAt)}</td>
-
-      {/* Dernière connexion */}
-      <td style={{ color: 'var(--gf-muted)' }}>{fmtDateTime(u.lastLogin)}</td>
 
       {/* Statut */}
       <td><StatusBadge active={active} /></td>
@@ -524,7 +510,7 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
 
 const PAGE_SIZE = 10;
 
-const COLUMNS = ['Utilisateur', 'Rôle', 'Date de création', 'Dernière connexion', 'Statut', 'Actions'];
+const COLUMNS = ['Utilisateur', 'Rôle', 'Date de création', 'Statut', 'Actions'];
 
 export default function UsersPage() {
   const { user: authUser } = useAuth();
@@ -537,14 +523,13 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ExtUser | null>(null);
-  const [showInactive, setShowInactive] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       const res = await api.get('/users', {
-        params: showInactive ? { includeInactive: 'true' } : undefined,
+        params: { includeInactive: 'true' },
       });
       const payload = res.data?.data ?? res.data;
       const list = Array.isArray(payload) ? payload : (payload?.items ?? []);
@@ -554,7 +539,7 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [showInactive]);
+  }, []);
 
   useEffect(() => {
     void fetchUsers();
@@ -643,26 +628,6 @@ export default function UsersPage() {
                   placeholder="Rechercher un utilisateur…"
                 />
               </div>
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  color: 'var(--gf-muted)',
-                  userSelect: 'none',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={showInactive}
-                  onChange={(e) => setShowInactive(e.target.checked)}
-                  style={{ width: 15, height: 15, accentColor: '#1A73E8' }}
-                />
-                Afficher les utilisateurs inactifs
-              </label>
               <span className="gf-count-label">
                 {filtered.length} utilisateur{filtered.length !== 1 ? 's' : ''}
               </span>

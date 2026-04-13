@@ -9,7 +9,28 @@ import { useEffect, useState } from 'react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
-import type { Ticket as TicketType, Activity } from '../types';
+import type { Activity, Batch, Member, Ticket as TicketType } from '../types';
+
+/** Sérialisation Sequelize : clés camelCase ou PascalCase pour les includes. */
+function normalizeTicketRow(raw: unknown): TicketType {
+  const r = raw as TicketType & {
+    Member?: Member;
+    Batch?: Batch;
+    Activity?: Activity;
+  };
+  const batchSrc = r.batch ?? r.Batch;
+  let batch: Batch | undefined;
+  if (batchSrc != null && typeof batchSrc === 'object') {
+    const b = batchSrc as Batch & { Activity?: Activity };
+    batch = { ...b, activity: b.activity ?? b.Activity };
+  }
+  return {
+    ...r,
+    member: r.member ?? r.Member,
+    activity: r.activity ?? r.Activity,
+    batch,
+  };
+}
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
@@ -168,7 +189,8 @@ export default function TicketsPage() {
     try {
       const res = await api.get('/tickets');
       const data = res.data?.data ?? res.data;
-      setTickets(Array.isArray(data) ? data : []);
+      const rawList: unknown[] = Array.isArray(data) ? data : ((data as { items?: unknown[] })?.items ?? []);
+      setTickets(rawList.map((row) => normalizeTicketRow(row)));
     } catch {
       setError('Impossible de charger les tickets.');
     } finally {
@@ -180,7 +202,8 @@ export default function TicketsPage() {
     try {
       const res = await api.get('/activities');
       const data = res.data?.data ?? res.data;
-      setActivities(Array.isArray(data) ? data : []);
+      const rawActs: unknown[] = Array.isArray(data) ? data : ((data as { items?: unknown[] })?.items ?? []);
+      setActivities(rawActs as Activity[]);
     } catch { /* silent */ }
   };
 
@@ -231,7 +254,7 @@ export default function TicketsPage() {
         id_activity: Number(batchActivityId),
         quantite: batchQty,
       };
-      if (customPrice && batchPrice) payload.prix_unitaire = Number(batchPrice);
+      if (customPrice && batchPrice) payload.prix_unitaire_applique = Number(batchPrice);
       await api.post('/batches/generate', payload);
       setBatchMsg(`${batchQty} ticket(s) générés avec succès !`);
       fetchTickets();
@@ -508,25 +531,30 @@ export default function TicketsPage() {
             <DetailRow label="Statut" value={<StatusBadge status={viewTicket.status} />} />
             <DetailRow
               label="Activité"
-              value={viewTicket.batch?.activity?.nom ?? '—'}
+              value={viewTicket.activity?.nom ?? viewTicket.batch?.activity?.nom ?? '—'}
             />
             <DetailRow
               label="Membre"
-              value={(() => {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const m = (viewTicket as any).member;
-                return m ? `${m.prenom ?? ''} ${m.nom ?? ''}`.trim() : '—';
-              })()}
+              value={
+                viewTicket.member
+                  ? `${viewTicket.member.prenom ?? ''} ${viewTicket.member.nom ?? ''}`.trim() || '—'
+                  : '—'
+              }
             />
             <DetailRow
               label="Date achat"
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              value={fmtDate((viewTicket as any).created_at)}
+              value={fmtDate(
+                typeof viewTicket.createdAt === 'string'
+                  ? viewTicket.createdAt
+                  : ((viewTicket as unknown as Record<string, unknown>).created_at as string | undefined) ??
+                      ((viewTicket as unknown as Record<string, unknown>).createdAt as string | undefined),
+              )}
             />
             <DetailRow
               label="Date utilisation"
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              value={fmtDate((viewTicket as any).date_utilisation)}
+              value={fmtDate(
+                (viewTicket as unknown as Record<string, unknown>).date_utilisation as string | undefined,
+              )}
             />
             <DetailRow label="Expiration" value={fmtDate(viewTicket.date_expiration)} />
           </div>
@@ -822,12 +850,11 @@ interface TicketRowProps {
 }
 
 function TicketRow({ ticket: t, canWrite, onView, onDelete, iconEye, iconTrash }: TicketRowProps) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ext = t as any;
-
-  const memberName = ext.member
-    ? `${ext.member.prenom ?? ''} ${ext.member.nom ?? ''}`.trim() || '—'
+  const ext = t as TicketType & Record<string, unknown>;
+  const memberName = t.member
+    ? `${t.member.prenom ?? ''} ${t.member.nom ?? ''}`.trim() || '—'
     : '—';
+  const activityNom = t.activity?.nom ?? t.batch?.activity?.nom ?? '—';
 
   return (
     <tr>
@@ -856,17 +883,21 @@ function TicketRow({ ticket: t, canWrite, onView, onDelete, iconEye, iconTrash }
 
       {/* Activité */}
       <td style={{ fontSize: 13, color: 'var(--gf-dark)' }}>
-        {t.batch?.activity?.nom ?? '—'}
+        {activityNom}
       </td>
 
       {/* Date achat */}
       <td style={{ fontSize: 13, color: 'var(--gf-dark)' }}>
-        {fmtDate(ext.created_at)}
+        {fmtDate(
+          typeof t.createdAt === 'string'
+            ? t.createdAt
+            : (ext.created_at as string | undefined) ?? (ext.createdAt as string | undefined),
+        )}
       </td>
 
       {/* Date utilisation */}
       <td style={{ fontSize: 13, color: 'var(--gf-dark)' }}>
-        {fmtDate(ext.date_utilisation)}
+        {fmtDate(ext.date_utilisation as string | undefined)}
       </td>
 
       {/* Statut */}

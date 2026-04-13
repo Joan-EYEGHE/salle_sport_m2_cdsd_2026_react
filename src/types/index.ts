@@ -4,7 +4,6 @@ export interface User {
   email: string;
   role: 'ADMIN' | 'CASHIER' | 'CONTROLLER';
   isActive: boolean;
-  lastLogin?: string;
 }
 
 export interface Activity {
@@ -65,13 +64,18 @@ export interface Batch {
 
 export interface Ticket {
   id: number;
-  uuid_qr: string;
+  /** API Sequelize (`qr_code`) ; `uuid_qr` reste pour compatibilité typage ancien. */
+  qr_code?: string;
+  uuid_qr?: string;
   code_ticket: string;
   id_batch: number;
   id_membre?: number | null;
   status: 'DISPONIBLE' | 'VENDU' | 'UTILISE' | 'EXPIRE';
   date_expiration: string;
   batch?: Batch;
+  /** Présent si l’API dénormalise ; sinon l’activité est sous `batch.activity`. */
+  activity?: Activity;
+  member?: Member;
   createdAt?: string;
   updatedAt?: string;
 }

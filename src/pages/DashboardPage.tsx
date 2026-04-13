@@ -29,6 +29,36 @@ function fmtCompact(n: number) {
   return String(n);
 }
 
+/** YYYY-MM-DD en calendrier local (évite le décalage UTC de toISOString().split('T')[0]). */
+function getLocalYmd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function fmtTableDate(iso: string | undefined | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function countTicketsVendusToday(rows: unknown, todayYmd: string): number {
+  if (!Array.isArray(rows)) return 0;
+  let n = 0;
+  for (const raw of rows) {
+    const t = raw as Record<string, unknown>;
+    if (t.status !== 'VENDU') continue;
+    const updated = (t.updatedAt ?? t.updated_at) as string | undefined;
+    if (!updated) continue;
+    if (getLocalYmd(new Date(updated)) === todayYmd) n += 1;
+  }
+  return n;
+}
+
 function getLast7Days(): { from: string; to: string; labels: string[] } {
   const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
   const today = new Date();
@@ -41,8 +71,8 @@ function getLast7Days(): { from: string; to: string; labels: string[] } {
     labels.push(days[d.getDay()]);
   }
   return {
-    from: from.toISOString().split('T')[0],
-    to: today.toISOString().split('T')[0],
+    from: getLocalYmd(from),
+    to: getLocalYmd(today),
     labels,
   };
 }
@@ -111,11 +141,12 @@ export default function DashboardPage() {
   // ── Fetch KPI + recent transactions ────────────────────────────────────────
   useEffect(() => {
     setKpiLoading(true);
+    const today = getLocalYmd(new Date());
     Promise.allSettled([
       api.get('/members'),
-      api.get('/transactions/summary'),
+      api.get(`/transactions/summary?date_debut=${today}&date_fin=${today}`),
       api.get('/tickets'),
-      api.get('/access-logs/stats'),
+      api.get(`/access-logs/stats?date_debut=${today}&date_fin=${today}&resultat=SUCCES`),
       api.get('/transactions?limit=5'),
     ]).then(([membRes, sumRes, tkRes, accRes, txRes]) => {
       if (membRes.status === 'fulfilled') {
@@ -135,7 +166,8 @@ export default function DashboardPage() {
       }
       if (tkRes.status === 'fulfilled') {
         const d = tkRes.value.data?.data ?? tkRes.value.data;
-        setTicketsJour(Array.isArray(d) ? d.length : d?.total ?? null);
+        const list = Array.isArray(d) ? d : [];
+        setTicketsJour(countTicketsVendusToday(list, today));
       }
       if (accRes.status === 'fulfilled') {
         const d = accRes.value.data?.data ?? accRes.value.data;
@@ -164,12 +196,12 @@ export default function DashboardPage() {
         labels.forEach((_label, i) => {
           const d = new Date();
           d.setDate(d.getDate() - (6 - i));
-          revenueByDay[d.toISOString().split('T')[0]] = 0;
+          revenueByDay[getLocalYmd(d)] = 0;
         });
 
         for (const tx of rows) {
           if (tx.type === 'REVENU') {
-            const day = new Date(tx.date).toISOString().split('T')[0];
+            const day = getLocalYmd(new Date(tx.date));
             if (day in revenueByDay) {
               revenueByDay[day] = (revenueByDay[day] ?? 0) + tx.montant;
             }
@@ -180,7 +212,7 @@ export default function DashboardPage() {
           labels.map((label, i) => {
             const d = new Date();
             d.setDate(d.getDate() - (6 - i));
-            return { day: label, revenue: revenueByDay[d.toISOString().split('T')[0]] ?? 0 };
+            return { day: label, revenue: revenueByDay[getLocalYmd(d)] ?? 0 };
           })
         );
       } catch {
@@ -222,21 +254,21 @@ export default function DashboardPage() {
       value: revenusJour !== null ? fmt(revenusJour) : null,
       Icon: DollarSign,
       colorKey: 'success',
-      footer: 'Total cumulé',
+      footer: 'Revenus (transactions du jour)',
     },
     {
       label: 'Tickets vendus',
       value: ticketsJour !== null ? String(ticketsJour) : null,
       Icon: Ticket,
       colorKey: 'warning',
-      footer: 'Tickets en circulation',
+      footer: 'Passés en « Vendu » aujourd’hui',
     },
     {
       label: 'Entrées du jour',
       value: entreesJour !== null ? String(entreesJour) : null,
       Icon: TrendingUp,
       colorKey: 'primary',
-      footer: 'Scans validés',
+      footer: 'Scans réussis (jour)',
     },
   ];
 
@@ -434,7 +466,9 @@ export default function DashboardPage() {
                             {memberName}
                           </p>
                           <p style={{ fontSize: 11, color: 'var(--gf-muted)', margin: '2px 0 0' }}>
-                            Expire dans {sub.daysLeft}j
+                            {sub.date_prochain_paiement
+                              ? `Expire le ${fmtTableDate(sub.date_prochain_paiement)}`
+                              : '—'}
                           </p>
                         </div>
                         <span
@@ -518,13 +552,7 @@ export default function DashboardPage() {
                       const cat = getTxCategory(tx.libelle);
                       return (
                         <tr key={tx.id}>
-                          <td style={{ color: 'var(--gf-muted)' }}>
-                            {new Date(tx.date).toLocaleDateString('fr-FR', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
-                          </td>
+                          <td style={{ color: 'var(--gf-muted)' }}>{fmtTableDate(tx.date)}</td>
                           <td style={{ fontWeight: 500 }}>{memberName}</td>
                           <td>
                             <span className={`gf-badge gf-badge--${cat.badgeClass}`}>

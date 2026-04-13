@@ -9,9 +9,17 @@ import axios from 'axios';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Loader from '../components/Loader';
-import type { AccessLog, Member, Subscription, Ticket, Transaction } from '../types';
+import type { AccessLog, Activity, Member, Subscription, Ticket, Transaction } from '../types';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
+
+function normalizeSubscription(raw: unknown): Subscription {
+  const r = raw as Subscription & { Activity?: Activity; activite?: Activity };
+  return {
+    ...r,
+    activity: r.activity ?? r.Activity ?? r.activite,
+  };
+}
 
 type MemberStatus = 'ACTIF' | 'INACTIF' | 'EN_ATTENTE';
 
@@ -55,7 +63,7 @@ function fmtDate(dateStr: string | undefined): string {
   if (!dateStr) return '—';
   return new Date(dateStr).toLocaleDateString('fr-FR', {
     day: 'numeric',
-    month: 'long',
+    month: 'short',
     year: 'numeric',
   });
 }
@@ -191,13 +199,15 @@ export default function MemberDetailPage() {
           api.get('/transactions', { params: { memberId: id } }).catch(() => ({ data: { data: [] } })),
         ]);
         setAccessLogs(logs);
-        setSubscriptions(sortSubsByEndDesc(unwrapList<Subscription>(sRes as never)));
+        setSubscriptions(
+          sortSubsByEndDesc(unwrapList<Subscription>(sRes as never).map((s) => normalizeSubscription(s))),
+        );
         setTickets(unwrapList<Ticket>(tRes as never));
         setTransactions(unwrapList<Transaction>(txRes as never));
       } else {
         const logs = await logPromise;
         setAccessLogs(logs);
-        setSubscriptions(sortSubsByEndDesc(subsFromMember));
+        setSubscriptions(sortSubsByEndDesc(subsFromMember.map((s) => normalizeSubscription(s))));
         setTickets([]);
         setTransactions(m.transactions ?? []);
       }
