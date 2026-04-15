@@ -1,26 +1,51 @@
-/*
-AUDIT CSS GYMFLOW - MemberFormPage.tsx
-Problème 1 : Styles partagés et inline en palette hex (#7b809a, #344767, #d2d6da, #f0f2f5, #fff)
-Problème 2 : Inputs sans onFocus bordure #1A73E8 (blur existant + borderFor)
-Total : 2 problèmes trouvés
-*/
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../api/axios';
-import type { Member } from '../types';
+import type { Activity, Member, Subscription } from '../types';
 import Loader from '../components/Loader';
+
+type TypeForfait = Subscription['type_forfait'];
+type MethodePaiement = 'CASH' | 'WAVE' | 'ORANGE';
+
+type MemberFromApi = Member & { createdAt?: string; lieu_naissance?: string | null; adresse?: string | null };
 
 function todayIsoDate(): string {
   return new Date().toISOString().split('T')[0];
 }
 
-function unwrapData<T>(res: { data?: { data?: T } }): T {
-  const d = res.data as { data?: T };
-  return (d?.data ?? res.data) as T;
+function fmtMoney(n: number): string {
+  return new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const FORFAIT_PRICE_KEY: Record<TypeForfait, keyof Activity> = {
+  HEBDO: 'prix_hebdomadaire',
+  MENSUEL: 'prix_mensuel',
+  TRIMESTRIEL: 'prix_trimestriel',
+  ANNUEL: 'prix_annuel',
+};
+
+const FORFAIT_CARD_LABEL: Record<TypeForfait, string> = {
+  HEBDO: 'Hebdomadaire',
+  MENSUEL: 'Mensuelle',
+  TRIMESTRIEL: 'Trimestrielle',
+  ANNUEL: 'Annuelle',
+};
+
+function forfaitOptionsFromActivity(a: Activity): { type: TypeForfait; label: string; price: number }[] {
+  const out: { type: TypeForfait; label: string; price: number }[] = [];
+  const pushIf = (t: TypeForfait) => {
+    const p = Number(a[FORFAIT_PRICE_KEY[t]]) || 0;
+    if (p > 0) out.push({ type: t, label: FORFAIT_CARD_LABEL[t], price: p });
+  };
+  pushIf('HEBDO');
+  pushIf('MENSUEL');
+  pushIf('TRIMESTRIEL');
+  pushIf('ANNUEL');
+  return out;
+}
 
 const AVATAR_COLORS = [
   'linear-gradient(135deg,#49a3f1,#1A73E8)',
@@ -36,7 +61,6 @@ function avatarGradientById(id: number): string {
 }
 
 const GRAD_INFO = 'linear-gradient(195deg,#49a3f1,#1A73E8)';
-const GRAD_SUCCESS = 'linear-gradient(195deg,#66BB6A,#43A047)';
 
 function initialsFrom(prenom: string, nom: string): string {
   const p = (prenom.trim()[0] ?? '').toUpperCase();
@@ -44,7 +68,7 @@ function initialsFrom(prenom: string, nom: string): string {
   return (p + n) || '?';
 }
 
-function inscriptionDateFromApi(m: Member & { createdAt?: string }): string {
+function inscriptionDateFromApi(m: MemberFromApi): string {
   if (m.date_inscription) return m.date_inscription.slice(0, 10);
   if (m.createdAt) return String(m.createdAt).slice(0, 10);
   return todayIsoDate();
@@ -59,22 +83,31 @@ function fmtLongDate(iso: string): string {
   });
 }
 
-type FieldKey = 'prenom' | 'nom' | 'email' | 'phone' | 'date_naissance' | 'date_inscription';
+type FieldKey = 'prenom' | 'nom' | 'email' | 'date_naissance';
+
+const grid2: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: 16,
+};
 
 const labelStyle: CSSProperties = {
   display: 'block',
-  fontSize: 11,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  color: 'var(--gf-muted)',
-  marginBottom: 6,
+  fontSize: 13,
+  color: '#7b809a',
+  marginBottom: 4,
 };
 
-const hintStyle: CSSProperties = {
-  fontSize: 11,
-  color: 'var(--gf-muted)',
-  margin: '4px 0 0',
+const inputStyle: CSSProperties = {
+  width: '100%',
+  padding: '8px 12px',
+  border: '1px solid #d2d6da',
+  borderRadius: 6,
+  fontSize: 14,
+  boxSizing: 'border-box',
+  outline: 'none',
+  color: 'var(--gf-dark)',
+  background: '#fff',
 };
 
 const errStyle: CSSProperties = {
@@ -83,20 +116,24 @@ const errStyle: CSSProperties = {
   margin: '4px 0 0',
 };
 
-function borderFor(field: FieldKey, errors: Partial<Record<FieldKey, string>>): CSSProperties {
-  return { border: errors[field] ? '1px solid #F44335' : '1px solid var(--gf-border)' };
-}
-
-const baseInput: CSSProperties = {
-  width: '100%',
-  boxSizing: 'border-box',
+const btnActionOverrides: CSSProperties = {
+  width: 'auto',
+  minWidth: 120,
+  height: 'auto',
+  minHeight: 40,
+  padding: '10px 20px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  fontSize: 14,
+  fontWeight: 600,
   borderRadius: 8,
-  padding: '10px 14px',
-  fontSize: 13,
-  color: 'var(--gf-dark)',
-  outline: 'none',
-  background: 'var(--gf-white)',
 };
+
+function borderErr(hasErr: boolean): CSSProperties {
+  return { border: hasErr ? '1px solid #F44335' : '1px solid #d2d6da' };
+}
 
 export default function MemberFormPage() {
   const navigate = useNavigate();
@@ -109,7 +146,21 @@ export default function MemberFormPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [dateNaissance, setDateNaissance] = useState('');
-  const [dateInscription, setDateInscription] = useState(() => (isEdit ? '' : todayIsoDate()));
+  const [lieuNaissance, setLieuNaissance] = useState('');
+  const [adresse, setAdresse] = useState('');
+  const [dateInscription, setDateInscription] = useState('');
+
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [idActivity, setIdActivity] = useState<number | ''>('');
+  const [activityDetail, setActivityDetail] = useState<Activity | null>(null);
+  const [activityLoading, setActivityLoading] = useState(false);
+
+  const [dateDebut, setDateDebut] = useState(todayIsoDate);
+  const [typeForfait, setTypeForfait] = useState<TypeForfait | null>(null);
+  const [useStandardFrais, setUseStandardFrais] = useState(true);
+  const [customFraisInscription, setCustomFraisInscription] = useState('');
+  const [fraisSeulement, setFraisSeulement] = useState(false);
+  const [methodePaiement, setMethodePaiement] = useState<MethodePaiement>('CASH');
 
   const [loadState, setLoadState] = useState<'idle' | 'loading' | 'error' | 'ready'>(
     isEdit ? 'loading' : 'ready',
@@ -121,24 +172,82 @@ export default function MemberFormPage() {
   const [touched, setTouched] = useState<Partial<Record<FieldKey, boolean>>>({});
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
 
-  const validateField = useCallback((key: FieldKey, values: Record<FieldKey, string>) => {
+  const forfaitOptions = useMemo(
+    () => (activityDetail ? forfaitOptionsFromActivity(activityDetail) : []),
+    [activityDetail],
+  );
+
+  useEffect(() => {
+    if (isEdit) return;
+    let cancelled = false;
+    api
+      .get('/activities')
+      .then((res) => {
+        const data = res.data?.data ?? res.data;
+        if (!cancelled) setActivities(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setActivities([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit]);
+
+  useEffect(() => {
+    if (isEdit || idActivity === '') {
+      setActivityDetail(null);
+      setActivityLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setActivityLoading(true);
+    api
+      .get(`/activities/${idActivity}`)
+      .then((res) => {
+        const data = res.data?.data ?? res.data;
+        if (cancelled) return;
+        setActivityDetail(data as Activity);
+        const fi = Number((data as Activity).frais_inscription) || 0;
+        setUseStandardFrais(fi > 0);
+        setCustomFraisInscription('');
+        setFraisSeulement(false);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setActivityDetail(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setActivityLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [idActivity, isEdit]);
+
+  useEffect(() => {
+    if (!activityDetail || forfaitOptions.length === 0) {
+      setTypeForfait(null);
+      return;
+    }
+    setTypeForfait((prev) =>
+      prev && forfaitOptions.some((o) => o.type === prev) ? prev : forfaitOptions[0].type,
+    );
+  }, [activityDetail, forfaitOptions]);
+
+  const validateField = useCallback((key: FieldKey, v: Record<FieldKey, string>) => {
     let msg = '';
-    const v = values[key];
+    const val = v[key];
     switch (key) {
       case 'prenom':
-        if (!v.trim()) msg = 'Le prénom est obligatoire';
+        if (!val.trim()) msg = 'Le prénom est obligatoire';
         break;
       case 'nom':
-        if (!v.trim()) msg = 'Le nom est obligatoire';
+        if (!val.trim()) msg = 'Le nom est obligatoire';
         break;
       case 'email':
-        if (v.trim() && !EMAIL_RE.test(v.trim())) msg = 'Format email invalide';
-        break;
-      case 'phone':
-        if (!v.trim()) msg = 'Le téléphone est obligatoire';
-        break;
-      case 'date_inscription':
-        if (!v.trim()) msg = "La date d'inscription est obligatoire";
+        if (val.trim() && !EMAIL_RE.test(val.trim())) msg = 'Format email invalide';
         break;
       default:
         break;
@@ -151,21 +260,19 @@ export default function MemberFormPage() {
     });
   }, []);
 
-  const values = useMemo(
+  const identityValues = useMemo(
     () => ({
       prenom,
       nom,
       email,
-      phone,
       date_naissance: dateNaissance,
-      date_inscription: dateInscription,
     }),
-    [prenom, nom, email, phone, dateNaissance, dateInscription],
+    [prenom, nom, email, dateNaissance],
   );
 
   const blur = (key: FieldKey) => {
     setTouched((t) => ({ ...t, [key]: true }));
-    validateField(key, values);
+    validateField(key, identityValues);
   };
 
   const runSubmitValidation = (): boolean => {
@@ -173,23 +280,43 @@ export default function MemberFormPage() {
     if (!prenom.trim()) next.prenom = 'Le prénom est obligatoire';
     if (!nom.trim()) next.nom = 'Le nom est obligatoire';
     if (email.trim() && !EMAIL_RE.test(email.trim())) next.email = 'Format email invalide';
-    if (!phone.trim()) next.phone = 'Le téléphone est obligatoire';
-    if (!dateInscription.trim()) next.date_inscription = "La date d'inscription est obligatoire";
     setErrors(next);
     setTouched({
       prenom: true,
       nom: true,
       email: true,
-      phone: true,
       date_naissance: true,
-      date_inscription: true,
     });
     return Object.keys(next).length === 0;
   };
 
-  const requiredBlocking =
-    !prenom.trim() || !nom.trim() || !phone.trim() || !dateInscription.trim();
-  const submitDisabled = requiredBlocking || submitting;
+  const nominalFraisInscription = activityDetail ? Number(activityDetail.frais_inscription) || 0 : 0;
+
+  const fraisInscriptionPayes = useMemo(() => {
+    if (!activityDetail) return 0;
+    if (useStandardFrais) return nominalFraisInscription;
+    return Number(customFraisInscription.replace(/\s/g, '').replace(',', '.')) || 0;
+  }, [activityDetail, useStandardFrais, customFraisInscription, nominalFraisInscription]);
+
+  const prixForfait = useMemo(() => {
+    if (!activityDetail || !typeForfait) return 0;
+    return Number(activityDetail[FORFAIT_PRICE_KEY[typeForfait]]) || 0;
+  }, [activityDetail, typeForfait]);
+
+  const total = fraisSeulement ? fraisInscriptionPayes : prixForfait + fraisInscriptionPayes;
+
+  const createSubmitBlocked =
+    !prenom.trim() ||
+    !nom.trim() ||
+    idActivity === '' ||
+    !activityDetail ||
+    forfaitOptions.length === 0 ||
+    typeForfait == null;
+
+  const editSubmitBlocked = !prenom.trim() || !nom.trim();
+
+  const submitDisabled =
+    submitting || (isEdit ? editSubmitBlocked : createSubmitBlocked);
 
   useEffect(() => {
     if (!isEdit || memberId == null) return;
@@ -199,13 +326,15 @@ export default function MemberFormPage() {
       setLoadState('loading');
       try {
         const res = await api.get(`/members/${memberId}`);
-        const m = unwrapData<Member & { createdAt?: string }>(res);
+        const m = (res.data?.data ?? res.data) as MemberFromApi;
         if (cancelled) return;
         setPrenom(m.prenom ?? '');
         setNom(m.nom ?? '');
         setEmail(m.email ?? '');
         setPhone(m.phone ?? '');
         setDateNaissance(m.date_naissance ? String(m.date_naissance).slice(0, 10) : '');
+        setLieuNaissance(m.lieu_naissance != null ? String(m.lieu_naissance) : '');
+        setAdresse(m.adresse != null ? String(m.adresse) : '');
         setDateInscription(inscriptionDateFromApi(m));
         setLoadState('ready');
       } catch (e) {
@@ -231,20 +360,40 @@ export default function MemberFormPage() {
     setSubmitError('');
     setSubmitting(true);
 
-    const body = {
-      prenom: prenom.trim(),
-      nom: nom.trim(),
-      email: email.trim() || null,
-      phone: phone.trim(),
-      date_naissance: dateNaissance.trim() || null,
-      date_inscription: dateInscription.trim(),
-    };
-
     try {
       if (isEdit && memberId != null) {
+        const body = {
+          prenom: prenom.trim(),
+          nom: nom.trim(),
+          email: email.trim() || null,
+          phone: phone.trim() || null,
+          date_naissance: dateNaissance.trim() || null,
+          lieu_naissance: lieuNaissance.trim() || null,
+          adresse: adresse.trim() || null,
+          date_inscription: dateInscription.trim() || todayIsoDate(),
+        };
         await api.put(`/members/${memberId}`, body);
         setToastMsg('Membre mis à jour avec succès');
       } else {
+        if (idActivity === '' || !typeForfait || !activityDetail) {
+          setSubmitting(false);
+          return;
+        }
+        const body = {
+          prenom: prenom.trim(),
+          nom: nom.trim(),
+          phone: phone.trim() || null,
+          email: email.trim() || null,
+          date_naissance: dateNaissance.trim() || null,
+          lieu_naissance: lieuNaissance.trim() || null,
+          adresse: adresse.trim() || null,
+          id_activity: idActivity,
+          date_debut: dateDebut,
+          type_forfait: typeForfait,
+          frais_inscription_payes: fraisInscriptionPayes,
+          frais_uniquement: fraisSeulement,
+          methode_paiement: methodePaiement,
+        };
         await api.post('/members', body);
         setToastMsg('Membre créé avec succès');
       }
@@ -293,6 +442,21 @@ export default function MemberFormPage() {
     );
   }
 
+  const sectionTitle = (title: string) => (
+    <p
+      style={{
+        gridColumn: '1 / -1',
+        fontSize: 12,
+        fontWeight: 700,
+        color: 'var(--gf-dark)',
+        margin: '0 0 4px',
+        letterSpacing: '0.02em',
+      }}
+    >
+      {title}
+    </p>
+  );
+
   return (
     <div className="gf-page" style={{ padding: '20px 24px 24px', minHeight: 'calc(100vh - 60px)' }}>
       <div className="gf-card-outer">
@@ -303,7 +467,7 @@ export default function MemberFormPage() {
               <p className="gf-card-header__sub">
                 {isEdit
                   ? `Mettre à jour le profil de ${prenom.trim() || '…'} ${nom.trim() || '…'}`
-                  : 'Créer un nouveau profil membre'}
+                  : 'Créer un membre et son abonnement'}
               </p>
             </div>
             <button type="button" className="gf-btn-header" onClick={() => navigate(-1)}>
@@ -313,28 +477,27 @@ export default function MemberFormPage() {
 
           <div className="gf-card-body">
             <form onSubmit={handleSubmit} noValidate>
-              {/* Aperçu avatar */}
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: 16,
-                  marginBottom: 28,
-                  paddingBottom: 20,
+                  marginBottom: 24,
+                  paddingBottom: 16,
                   borderBottom: '1px solid var(--gf-bg)',
                 }}
               >
                 <div
                   style={{
-                    width: 64,
-                    height: 64,
+                    width: 56,
+                    height: 56,
                     borderRadius: '50%',
                     background: avatarBg,
                     color: 'var(--gf-white)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: 700,
                     flexShrink: 0,
                   }}
@@ -351,158 +514,262 @@ export default function MemberFormPage() {
                 </div>
               </div>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                  gap: '18px 20px',
-                }}
-              >
-                <p
-                  style={{
-                    gridColumn: '1 / -1',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: 'var(--gf-muted)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    margin: 0,
-                    paddingBottom: 8,
-                    borderBottom: '1px solid var(--gf-bg)',
-                  }}
-                >
-                  Informations personnelles
-                </p>
-
+              {/* Bloc 1 — Identité */}
+              <div style={{ ...grid2, marginBottom: 28 }}>
+                {sectionTitle('Identité membre')}
                 <div>
                   <label style={labelStyle}>Prénom *</label>
                   <input
                     type="text"
-                    placeholder="ex: Kouassi"
                     value={prenom}
                     onChange={(e) => {
                       setPrenom(e.target.value);
-                      if (touched.prenom) validateField('prenom', { ...values, prenom: e.target.value });
+                      if (touched.prenom) validateField('prenom', { ...identityValues, prenom: e.target.value });
                     }}
                     onBlur={() => blur('prenom')}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = '#1A73E8';
-                    }}
-                    style={{ ...baseInput, ...borderFor('prenom', errors) }}
+                    style={{ ...inputStyle, ...borderErr(Boolean(touched.prenom && errors.prenom)) }}
                   />
                   {touched.prenom && errors.prenom && <p style={errStyle}>{errors.prenom}</p>}
                 </div>
-
                 <div>
                   <label style={labelStyle}>Nom *</label>
                   <input
                     type="text"
-                    placeholder="ex: Aimé"
                     value={nom}
                     onChange={(e) => {
                       setNom(e.target.value);
-                      if (touched.nom) validateField('nom', { ...values, nom: e.target.value });
+                      if (touched.nom) validateField('nom', { ...identityValues, nom: e.target.value });
                     }}
                     onBlur={() => blur('nom')}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = '#1A73E8';
-                    }}
-                    style={{ ...baseInput, ...borderFor('nom', errors) }}
+                    style={{ ...inputStyle, ...borderErr(Boolean(touched.nom && errors.nom)) }}
                   />
                   {touched.nom && errors.nom && <p style={errStyle}>{errors.nom}</p>}
                 </div>
-
+                <div>
+                  <label style={labelStyle}>Téléphone</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    style={inputStyle}
+                  />
+                </div>
                 <div>
                   <label style={labelStyle}>Email</label>
                   <input
                     type="email"
-                    placeholder="ex: membre@email.com"
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
-                      if (touched.email) validateField('email', { ...values, email: e.target.value });
+                      if (touched.email) validateField('email', { ...identityValues, email: e.target.value });
                     }}
                     onBlur={() => blur('email')}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = '#1A73E8';
-                    }}
-                    style={{ ...baseInput, ...borderFor('email', errors) }}
+                    style={{ ...inputStyle, ...borderErr(Boolean(touched.email && errors.email)) }}
                   />
-                  <p style={hintStyle}>Optionnel — pour les notifications</p>
                   {touched.email && errors.email && <p style={errStyle}>{errors.email}</p>}
                 </div>
-
-                <div>
-                  <label style={labelStyle}>Téléphone *</label>
-                  <input
-                    type="tel"
-                    placeholder="ex: +225 07 00 00 01"
-                    value={phone}
-                    onChange={(e) => {
-                      setPhone(e.target.value);
-                      if (touched.phone) validateField('phone', { ...values, phone: e.target.value });
-                    }}
-                    onBlur={() => blur('phone')}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = '#1A73E8';
-                    }}
-                    style={{ ...baseInput, ...borderFor('phone', errors) }}
-                  />
-                  {touched.phone && errors.phone && <p style={errStyle}>{errors.phone}</p>}
-                </div>
-
-                <p
-                  style={{
-                    gridColumn: '1 / -1',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: 'var(--gf-muted)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    margin: '8px 0 0',
-                    paddingBottom: 8,
-                    borderBottom: '1px solid var(--gf-bg)',
-                  }}
-                >
-                  Informations complémentaires
-                </p>
-
                 <div>
                   <label style={labelStyle}>Date de naissance</label>
                   <input
                     type="date"
                     value={dateNaissance}
                     onChange={(e) => setDateNaissance(e.target.value)}
-                    onBlur={() => blur('date_naissance')}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = '#1A73E8';
-                    }}
-                    style={{ ...baseInput, ...borderFor('date_naissance', errors) }}
+                    style={inputStyle}
                   />
-                  <p style={hintStyle}>Optionnel</p>
                 </div>
-
                 <div>
-                  <label style={labelStyle}>Date d&apos;inscription *</label>
+                  <label style={labelStyle}>Lieu de naissance</label>
                   <input
-                    type="date"
-                    value={dateInscription}
-                    onChange={(e) => {
-                      setDateInscription(e.target.value);
-                      if (touched.date_inscription)
-                        validateField('date_inscription', { ...values, date_inscription: e.target.value });
-                    }}
-                    onBlur={() => blur('date_inscription')}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = '#1A73E8';
-                    }}
-                    style={{ ...baseInput, ...borderFor('date_inscription', errors) }}
+                    type="text"
+                    value={lieuNaissance}
+                    onChange={(e) => setLieuNaissance(e.target.value)}
+                    style={inputStyle}
                   />
-                  {touched.date_inscription && errors.date_inscription && (
-                    <p style={errStyle}>{errors.date_inscription}</p>
-                  )}
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={labelStyle}>Adresse</label>
+                  <input
+                    type="text"
+                    value={adresse}
+                    onChange={(e) => setAdresse(e.target.value)}
+                    style={inputStyle}
+                  />
                 </div>
               </div>
+
+              {!isEdit && (
+                <>
+                  {/* Bloc 2 — Abonnement */}
+                  <div style={{ ...grid2, marginBottom: 28, paddingTop: 8, borderTop: '1px solid var(--gf-bg)' }}>
+                    {sectionTitle('Abonnement')}
+                    <div>
+                      <label style={labelStyle}>Activité *</label>
+                      <select
+                        value={idActivity === '' ? '' : String(idActivity)}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setIdActivity(v === '' ? '' : Number(v));
+                        }}
+                        style={{
+                          ...inputStyle,
+                          cursor: 'pointer',
+                          appearance: 'none',
+                          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237b809a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                          backgroundRepeat: 'no-repeat',
+                          backgroundPosition: 'right 12px center',
+                          paddingRight: 36,
+                        }}
+                      >
+                        <option value="">Choisir une activité</option>
+                        {activities.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.nom}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Date de début *</label>
+                      <input
+                        type="date"
+                        value={dateDebut}
+                        onChange={(e) => setDateDebut(e.target.value)}
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={labelStyle}>Type d&apos;adhésion *</label>
+                      {activityLoading && <p style={{ fontSize: 13, color: 'var(--gf-muted)' }}>Chargement des tarifs…</p>}
+                      {!activityLoading && idActivity !== '' && forfaitOptions.length === 0 && (
+                        <p style={{ fontSize: 13, color: '#F44335' }}>Aucun tarif disponible pour cette activité.</p>
+                      )}
+                      {!activityLoading && forfaitOptions.length > 0 && (
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                            gap: 12,
+                            marginTop: 8,
+                          }}
+                        >
+                          {forfaitOptions.map((opt) => {
+                            const sel = typeForfait === opt.type;
+                            return (
+                              <button
+                                key={opt.type}
+                                type="button"
+                                onClick={() => setTypeForfait(opt.type)}
+                                style={{
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  padding: '14px 16px',
+                                  borderRadius: 8,
+                                  border: sel ? '2px solid #e91e63' : '1px solid #d2d6da',
+                                  background: sel ? 'rgba(233, 30, 99, 0.06)' : '#fff',
+                                  transition: 'border-color 0.15s, background 0.15s',
+                                }}
+                              >
+                                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gf-dark)' }}>{opt.label}</div>
+                                <div style={{ fontSize: 14, color: '#7b809a', marginTop: 6 }}>{fmtMoney(opt.price)}</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Bloc 3 — Paiement */}
+                  <div
+                    style={{
+                      ...grid2,
+                      marginBottom: 28,
+                      paddingTop: 8,
+                      borderTop: '1px solid var(--gf-bg)',
+                      alignItems: 'start',
+                    }}
+                  >
+                    {sectionTitle('Paiement')}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {activityDetail && (
+                        <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 0 }}>
+                          <input
+                            type="checkbox"
+                            checked={useStandardFrais}
+                            onChange={(e) => setUseStandardFrais(e.target.checked)}
+                          />
+                          <span>
+                            Avec {fmtMoney(nominalFraisInscription)} Inscription
+                          </span>
+                        </label>
+                      )}
+                      {activityDetail && !useStandardFrais && (
+                        <div>
+                          <label style={labelStyle}>Frais d&apos;inscription différent</label>
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={customFraisInscription}
+                            onChange={(e) => setCustomFraisInscription(e.target.value)}
+                            placeholder="0"
+                            style={inputStyle}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Méthode de paiement</label>
+                      <select
+                        value={methodePaiement}
+                        onChange={(e) => setMethodePaiement(e.target.value as MethodePaiement)}
+                        style={{
+                          ...inputStyle,
+                          cursor: 'pointer',
+                          appearance: 'none',
+                          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237b809a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                          backgroundRepeat: 'no-repeat',
+                          backgroundPosition: 'right 12px center',
+                          paddingRight: 36,
+                        }}
+                      >
+                        <option value="CASH">Cash</option>
+                        <option value="WAVE">Wave</option>
+                        <option value="ORANGE">Orange</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Bloc 4 — Récapitulatif */}
+                  {activityDetail && typeForfait && (
+                    <div style={{ marginBottom: 24, paddingTop: 8, borderTop: '1px solid var(--gf-bg)' }}>
+                      {sectionTitle('Récapitulatif')}
+                      <div
+                        style={{
+                          background: '#fff3e0',
+                          borderLeft: '4px solid #fb8c00',
+                          padding: '12px 16px',
+                          borderRadius: 8,
+                          marginBottom: 12,
+                          fontSize: 14,
+                          color: 'var(--gf-dark)',
+                        }}
+                      >
+                        Montant Total + Frais D&apos;inscription ({fmtMoney(nominalFraisInscription)}) :{' '}
+                        <strong>{fmtMoney(total)}</strong>
+                      </div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14, color: 'var(--gf-dark)' }}>
+                        <input
+                          type="checkbox"
+                          checked={fraisSeulement}
+                          onChange={(e) => setFraisSeulement(e.target.checked)}
+                        />
+                        Prendre seulement les frais d&apos;inscription
+                      </label>
+                    </div>
+                  )}
+                </>
+              )}
 
               <div
                 style={{
@@ -517,40 +784,27 @@ export default function MemberFormPage() {
               >
                 <button
                   type="button"
+                  className="gf-btn-action gf-btn-action--view"
+                  style={btnActionOverrides}
                   onClick={() => navigate(-1)}
-                  style={{
-                    padding: '10px 20px',
-                    borderRadius: 8,
-                    border: '1px solid var(--gf-border)',
-                    background: 'var(--gf-white)',
-                    color: 'var(--gf-muted)',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  disabled={submitDisabled}
+                  className="gf-btn-action gf-btn-action--edit"
                   style={{
-                    padding: '10px 22px',
-                    borderRadius: 8,
-                    border: 'none',
-                    background: isEdit ? GRAD_SUCCESS : GRAD_INFO,
-                    color: 'var(--gf-white)',
-                    fontSize: 13,
-                    fontWeight: 600,
+                    ...btnActionOverrides,
                     cursor: submitDisabled ? 'not-allowed' : 'pointer',
-                    opacity: submitDisabled ? 0.6 : 1,
+                    opacity: submitDisabled ? 0.55 : 1,
                   }}
+                  disabled={submitDisabled}
                 >
                   {submitting
                     ? 'Enregistrement…'
                     : isEdit
-                      ? 'Enregistrer les modifications'
-                      : 'Créer le membre'}
+                      ? 'Enregistrer'
+                      : 'Ajouter un membre'}
                 </button>
               </div>
 

@@ -9,7 +9,7 @@ import axios from 'axios';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Loader from '../components/Loader';
-import type { AccessLog, Activity, Member, Subscription, Ticket, Transaction } from '../types';
+import type { AccessLog, Activity, Member, Subscription } from '../types';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -161,8 +161,6 @@ export default function MemberDetailPage() {
   const [member, setMember] = useState<Member | null>(null);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState('');
@@ -192,24 +190,18 @@ export default function MemberDetailPage() {
         .catch(() => [] as AccessLog[]);
 
       if (financial) {
-        const [logs, sRes, tRes, txRes] = await Promise.all([
+        const [logs, sRes] = await Promise.all([
           logPromise,
           api.get('/subscriptions', { params: { memberId: id } }).catch(() => ({ data: { data: [] } })),
-          api.get('/tickets', { params: { memberId: id } }).catch(() => ({ data: { data: [] } })),
-          api.get('/transactions', { params: { memberId: id } }).catch(() => ({ data: { data: [] } })),
         ]);
         setAccessLogs(logs);
         setSubscriptions(
           sortSubsByEndDesc(unwrapList<Subscription>(sRes as never).map((s) => normalizeSubscription(s))),
         );
-        setTickets(unwrapList<Ticket>(tRes as never));
-        setTransactions(unwrapList<Transaction>(txRes as never));
       } else {
         const logs = await logPromise;
         setAccessLogs(logs);
         setSubscriptions(sortSubsByEndDesc(subsFromMember.map((s) => normalizeSubscription(s))));
-        setTickets([]);
-        setTransactions(m.transactions ?? []);
       }
     } catch (e: unknown) {
       if (axios.isAxiosError(e) && e.response?.status === 404) {
@@ -678,132 +670,6 @@ export default function MemberDetailPage() {
                 )}
               </tbody>
             </table>
-          </div>
-        </div>
-      </div>
-
-      {/* BLOC 4 */}
-      <div style={grid2}>
-        <div className="gf-card-outer">
-          <div className="gf-card">
-            <div className="gf-card-header gf-card-header--warning">
-              <div>
-                <p className="gf-card-header__title">Tickets utilisés</p>
-                <p className="gf-card-header__sub">Achats liés au membre</p>
-              </div>
-            </div>
-            <div className="gf-card-body--table">
-              <table className="gf-table">
-                <thead>
-                  <tr>
-                    <th>Code</th>
-                    <th>Activité</th>
-                    <th>Date achat</th>
-                    <th>Date utilisation</th>
-                    <th>Statut</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {!canAct && tickets.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', color: 'var(--gf-muted)', padding: 24 }}>
-                        Non disponible pour votre rôle.
-                      </td>
-                    </tr>
-                  ) : tickets.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', color: 'var(--gf-muted)', padding: 24 }}>
-                        Aucun ticket pour ce membre.
-                      </td>
-                    </tr>
-                  ) : (
-                    tickets.map((t) => (
-                      <tr key={t.id}>
-                        <td>
-                          <code
-                            style={{
-                              fontFamily: 'monospace',
-                              fontSize: 12,
-                              background: 'var(--gf-bg)',
-                              padding: '3px 8px',
-                              borderRadius: 6,
-                            }}
-                          >
-                            {t.code_ticket}
-                          </code>
-                        </td>
-                        <td>{t.batch?.activity?.nom ?? '—'}</td>
-                        <td>{t.createdAt ? fmtDate(t.createdAt) : '—'}</td>
-                        <td>{t.status === 'UTILISE' && t.updatedAt ? fmtDate(t.updatedAt) : '—'}</td>
-                        <td>
-                          {t.status === 'DISPONIBLE' && (
-                            <span className="gf-badge gf-badge--active">Disponible</span>
-                          )}
-                          {t.status === 'UTILISE' && (
-                            <span className="gf-badge gf-badge--purple">Utilisé</span>
-                          )}
-                          {t.status === 'EXPIRE' && (
-                            <span className="gf-badge gf-badge--inactive">Expiré</span>
-                          )}
-                          {t.status === 'VENDU' && (
-                            <span className="gf-badge gf-badge--info">Vendu</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div className="gf-card-outer">
-          <div className="gf-card">
-            <div className="gf-card-header gf-card-header--dark">
-              <div>
-                <p className="gf-card-header__title">Transactions</p>
-                <p className="gf-card-header__sub">Mouvements enregistrés</p>
-              </div>
-            </div>
-            <div className="gf-card-body--table">
-              <table className="gf-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Description</th>
-                    <th>Montant</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactions.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} style={{ textAlign: 'center', color: 'var(--gf-muted)', padding: 24 }}>
-                        Aucune transaction.
-                      </td>
-                    </tr>
-                  ) : (
-                    transactions.map((tx) => (
-                      <tr key={tx.id}>
-                        <td>{fmtDate(tx.date)}</td>
-                        <td>{tx.libelle}</td>
-                        <td
-                          style={
-                            tx.type === 'REVENU'
-                              ? { color: '#43A047', fontWeight: 700 }
-                              : { color: 'var(--gf-dark)' }
-                          }
-                        >
-                          {tx.type === 'REVENU'
-                            ? `+${fmtAmount(Number(tx.montant))}`
-                            : fmtAmount(Number(tx.montant))}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
           </div>
         </div>
       </div>
