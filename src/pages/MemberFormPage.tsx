@@ -61,7 +61,6 @@ function avatarGradientById(id: number): string {
 }
 
 const GRAD_INFO = 'linear-gradient(195deg,#49a3f1,#1A73E8)';
-const GRAD_SUCCESS = 'linear-gradient(195deg,#66BB6A,#43A047)';
 
 function initialsFrom(prenom: string, nom: string): string {
   const p = (prenom.trim()[0] ?? '').toUpperCase();
@@ -159,7 +158,8 @@ export default function MemberFormPage() {
   const [dateDebut, setDateDebut] = useState(todayIsoDate);
   const [typeForfait, setTypeForfait] = useState<TypeForfait | null>(null);
   const [useStandardFrais, setUseStandardFrais] = useState(true);
-  const [customFraisInscription, setCustomFraisInscription] = useState('');
+  /** Montant frais d'inscription affiché / envoyé (toujours lié au champ visible). */
+  const [fraisInscriptionField, setFraisInscriptionField] = useState('');
   const [fraisSeulement, setFraisSeulement] = useState(false);
   const [methodePaiement, setMethodePaiement] = useState<MethodePaiement>('CASH');
 
@@ -211,7 +211,7 @@ export default function MemberFormPage() {
         setActivityDetail(data as Activity);
         const fi = Number((data as Activity).frais_inscription) || 0;
         setUseStandardFrais(fi > 0);
-        setCustomFraisInscription('');
+        setFraisInscriptionField(fi > 0 ? String(fi) : '');
         setFraisSeulement(false);
       })
       .catch(() => {
@@ -295,9 +295,8 @@ export default function MemberFormPage() {
 
   const fraisInscriptionPayes = useMemo(() => {
     if (!activityDetail) return 0;
-    if (useStandardFrais) return nominalFraisInscription;
-    return Number(customFraisInscription.replace(/\s/g, '').replace(',', '.')) || 0;
-  }, [activityDetail, useStandardFrais, customFraisInscription, nominalFraisInscription]);
+    return Number(fraisInscriptionField.replace(/\s/g, '').replace(',', '.')) || 0;
+  }, [activityDetail, fraisInscriptionField]);
 
   const prixForfait = useMemo(() => {
     if (!activityDetail || !typeForfait) return 0;
@@ -693,30 +692,43 @@ export default function MemberFormPage() {
                     {sectionTitle('Paiement')}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {activityDetail && (
-                        <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 0 }}>
-                          <input
-                            type="checkbox"
-                            checked={useStandardFrais}
-                            onChange={(e) => setUseStandardFrais(e.target.checked)}
-                          />
-                          <span>
-                            Avec {fmtMoney(nominalFraisInscription)} Inscription
-                          </span>
-                        </label>
-                      )}
-                      {activityDetail && !useStandardFrais && (
-                        <div>
-                          <label style={labelStyle}>Frais d&apos;inscription différent</label>
+                        <>
+                          <label
+                            style={{
+                              ...labelStyle,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              cursor: 'pointer',
+                              marginBottom: 0,
+                              flexWrap: 'wrap',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={useStandardFrais}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setUseStandardFrais(checked);
+                                if (checked) {
+                                  setFraisInscriptionField(String(nominalFraisInscription));
+                                } else {
+                                  setFraisInscriptionField('');
+                                }
+                              }}
+                            />
+                            <span>Avec {fmtMoney(nominalFraisInscription)} Inscription</span>
+                          </label>
                           <input
                             type="number"
                             min={0}
                             step={1}
-                            value={customFraisInscription}
-                            onChange={(e) => setCustomFraisInscription(e.target.value)}
-                            placeholder="0"
+                            value={fraisInscriptionField}
+                            onChange={(e) => setFraisInscriptionField(e.target.value)}
+                            placeholder="Frais d'inscription différent"
                             style={inputStyle}
                           />
-                        </div>
+                        </>
                       )}
                     </div>
                     <div>
