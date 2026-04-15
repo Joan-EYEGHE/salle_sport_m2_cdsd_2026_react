@@ -61,6 +61,7 @@ function avatarGradientById(id: number): string {
 }
 
 const GRAD_INFO = 'linear-gradient(195deg,#49a3f1,#1A73E8)';
+const GRAD_SUCCESS = 'linear-gradient(195deg,#66BB6A,#43A047)';
 
 function initialsFrom(prenom: string, nom: string): string {
   const p = (prenom.trim()[0] ?? '').toUpperCase();
@@ -370,7 +371,7 @@ export default function MemberFormPage() {
           date_naissance: dateNaissance.trim() || null,
           lieu_naissance: lieuNaissance.trim() || null,
           adresse: adresse.trim() || null,
-          date_inscription: dateInscription.trim() || todayIsoDate(),
+          date_inscription: dateInscription.trim() || inscriptionDateFromApi({} as MemberFromApi),
         };
         await api.put(`/members/${memberId}`, body);
         setToastMsg('Membre mis à jour avec succès');
