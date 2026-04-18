@@ -677,6 +677,10 @@ export default function TicketsPage() {
       if (customPrice && batchPrice) payload.prix_unitaire_applique = Number(batchPrice);
       await api.post('/batches/generate', payload);
       setBatchMsg(`${batchQty} ticket(s) générés avec succès !`);
+      setTimeout(() => {
+        setGenerateOpen(false);
+        setBatchMsg('');
+      }, 1500);
       fetchTickets();
     } catch {
       setBatchMsg('Erreur lors de la génération.');
