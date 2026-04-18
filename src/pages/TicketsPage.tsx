@@ -367,17 +367,21 @@ interface TicketCardProps {
   onOpenQr: () => void;
   canSell: boolean;
   onSell: (ticket: TicketType) => void | Promise<void>;
+  onOpenReceipt: (ticket: TicketType) => void;
   isSelling: boolean;
 }
 
-function TicketCard({ ticket: t, onOpenQr, canSell, onSell, isSelling }: TicketCardProps) {
+function TicketCard({ ticket: t, onOpenQr, canSell, onSell, onOpenReceipt, isSelling }: TicketCardProps) {
   const bg = CARD_BG_BY_STATUS[t.status] ?? 'var(--gf-white)';
   const activityNom = ticketActivityNom(t);
   const sep = { borderTop: '1px solid var(--gf-border)', margin: '10px 0' } as const;
   const rowLabel = { fontSize: 10, fontWeight: 700, color: 'var(--gf-muted)', textTransform: 'uppercase' as const, letterSpacing: '0.4px' };
   const rowVal = { fontSize: 13, fontWeight: 600, color: 'var(--gf-dark)' };
-  const disponible = t.status === 'DISPONIBLE' && canSell;
-  const sellDisabled = !disponible || isSelling;
+  const statusDisponible = t.status === 'DISPONIBLE';
+  const canVendre = statusDisponible && canSell;
+  const sellDisabled = !canVendre || isSelling;
+  const showReceiptBtn =
+    t.status === 'VENDU' || t.status === 'UTILISE' || t.status === 'EXPIRE';
 
   return (
     <div
@@ -461,34 +465,58 @@ function TicketCard({ ticket: t, onOpenQr, canSell, onSell, isSelling }: TicketC
           <QrCode size={18} strokeWidth={2} />
           Voir le code QR
         </button>
-        <button
-          type="button"
-          title={disponible ? 'Vendre ce ticket' : 'Vendu'}
-          disabled={sellDisabled}
-          onClick={() => {
-            if (disponible) void onSell(t);
-          }}
-          style={{
-            width: 44,
-            height: 44,
-            flexShrink: 0,
-            borderRadius: 8,
-            border: 'none',
-            background: disponible ? '#e91e63' : '#eceff1',
-            color: disponible ? 'var(--gf-white)' : 'var(--gf-dark)',
-            fontSize: 9,
-            fontWeight: 700,
-            lineHeight: 1.1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: sellDisabled ? 'not-allowed' : 'pointer',
-            opacity: disponible ? 1 : 0.5,
-            padding: 2,
-          }}
-        >
-          {disponible ? 'Vendre' : 'Vendu'}
-        </button>
+        {showReceiptBtn ? (
+          <button
+            type="button"
+            title="Bon de ticket"
+            onClick={() => onOpenReceipt(t)}
+            style={{
+              width: 44,
+              height: 44,
+              flexShrink: 0,
+              borderRadius: 8,
+              border: 'none',
+              background: '#eceff1',
+              color: 'var(--gf-dark)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              padding: 2,
+            }}
+          >
+            <Printer size={18} strokeWidth={2} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            title={canVendre ? 'Vendre ce ticket' : 'Vendre (réservé caisse / admin)'}
+            disabled={sellDisabled}
+            onClick={() => {
+              if (canVendre) void onSell(t);
+            }}
+            style={{
+              width: 44,
+              height: 44,
+              flexShrink: 0,
+              borderRadius: 8,
+              border: 'none',
+              background: canVendre ? '#e91e63' : '#eceff1',
+              color: canVendre ? 'var(--gf-white)' : 'var(--gf-dark)',
+              fontSize: 9,
+              fontWeight: 700,
+              lineHeight: 1.1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: sellDisabled ? 'not-allowed' : 'pointer',
+              opacity: canVendre ? 1 : 0.5,
+              padding: 2,
+            }}
+          >
+            Vendre
+          </button>
+        )}
       </div>
     </div>
   );
@@ -838,6 +866,7 @@ export default function TicketsPage() {
                     onOpenQr={() => setViewTicket(t)}
                     canSell={canWrite}
                     onSell={handleSellFromCard}
+                    onOpenReceipt={(ticket) => setSellTicket(ticket)}
                     isSelling={sellingId === t.id}
                   />
                 ))
