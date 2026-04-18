@@ -54,42 +54,33 @@
   background: var(--gf-white);
   border-radius: var(--gf-radius-card);
   box-shadow: var(--gf-shadow-card);
-  overflow: visible;
+  overflow: hidden;
 }
 
-/* Wrapper qui donne l'espace au header flottant (aligné sur LoginPage) */
-.gf-card-outer {
-  padding-top: 56px;
-}
-
-/* ── Header flottant ────────────────────────────────────────── */
+/* ── En-tête de carte (pleine largeur) ─────────────────────── */
 .gf-card-header {
-  margin: -28px 20px 0;
-  border-radius: var(--gf-radius-header);
-  padding: 20px 24px;
+  margin: 0;
+  border-radius: 12px 12px 0 0;
+  padding: 14px 20px;
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
 }
 
 .gf-card-header--info {
   background: var(--gf-grad-info);
-  box-shadow: var(--gf-shadow-header-info);
 }
 
 .gf-card-header--warning {
   background: var(--gf-grad-warning);
-  box-shadow: var(--gf-shadow-header-warning);
 }
 
 .gf-card-header--success {
   background: var(--gf-grad-success);
-  box-shadow: var(--gf-shadow-header-success);
 }
 
 .gf-card-header--dark {
   background: var(--gf-grad-dark);
-  box-shadow: var(--gf-shadow-header-dark);
 }
 
 .gf-card-header__title {
