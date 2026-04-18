@@ -4,8 +4,9 @@ Problème 1 : Couleurs palette et bordures en dur (zone scan, saisie manuelle, l
 Problème 2 : onBlur sur champ manuel utilisait hex bordure
 Total : 2 problèmes trouvés
 */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle, XCircle, Users, Ticket } from 'lucide-react';
+import jsQR from 'jsqr';
 import api from '../api/axios';
 import Loader from '../components/Loader';
 import type { AccessLog, Activity, Batch, Ticket as TicketEntity } from '../types';
@@ -230,6 +231,11 @@ export default function QRControlPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef = useRef<number | null>(null);
+  const cameraActiveRef = useRef(false);
+  const scanCooldownUntilRef = useRef(0);
+  const validatingRef = useRef(false);
 
   // ── KPI fetch (all records, no limit) ──────────────────────────────────────
 
@@ -275,44 +281,26 @@ export default function QRControlPage() {
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
   }, []);
 
-  // ── Camera ──────────────────────────────────────────────────────────────────
+  // ── Validation (partagé saisie manuelle + scan caméra) ─────────────────────
 
-  const handleToggleCamera = async () => {
-    if (cameraActive) {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-      setCameraActive(false);
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setCameraActive(true);
-    } catch {
-      // Bug B10 — caméra non fonctionnelle dans cet environnement
-      setCameraActive(false);
-    }
-  };
+  const validateCodeString = useCallback(async (rawCode: string) => {
+    const trimmed = rawCode.trim();
+    if (!trimmed) return;
 
-  // ── Validation ──────────────────────────────────────────────────────────────
-
-  const handleValidate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!code.trim()) return;
+    validatingRef.current = true;
     setValidating(true);
     setResult(null);
     if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
 
     try {
-      const res = await api.post('/tickets/validate', { code: code.trim() });
+      const res = await api.post('/tickets/validate', { code: trimmed });
       const parsed = parseTicketValidateResponse(res.data);
       if (!parsed) {
         setResult({
@@ -342,11 +330,99 @@ export default function QRControlPage() {
         message: axiosErrorMessage(err, 'Code inconnu ou accès refusé.'),
       });
     } finally {
+      validatingRef.current = false;
       setValidating(false);
       setCode('');
       resultTimerRef.current = setTimeout(() => setResult(null), 5000);
       inputRef.current?.focus();
     }
+  }, []);
+
+  // ── Camera ──────────────────────────────────────────────────────────────────
+
+  const startScanning = useCallback(() => {
+    const tick = () => {
+      if (!cameraActiveRef.current) {
+        rafRef.current = null;
+        return;
+      }
+      if (Date.now() < scanCooldownUntilRef.current || validatingRef.current) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!video || !canvas || video.readyState < 2) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+      if (w === 0 || h === 0) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      ctx.drawImage(video, 0, 0, w, h);
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const decoded = jsQR(imageData.data, w, h);
+      if (decoded?.data) {
+        scanCooldownUntilRef.current = Date.now() + 3000;
+        void validateCodeString(decoded.data);
+      }
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+  }, [validateCodeString]);
+
+  const handleToggleCamera = async () => {
+    if (cameraActive) {
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      cameraActiveRef.current = false;
+      setCameraActive(false);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      cameraActiveRef.current = true;
+      setCameraActive(true);
+      startScanning();
+    } catch {
+      // Bug B10 — caméra non fonctionnelle dans cet environnement
+      cameraActiveRef.current = false;
+      setCameraActive(false);
+    }
+  };
+
+  // ── Validation ──────────────────────────────────────────────────────────────
+
+  const handleValidate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!code.trim()) return;
+    await validateCodeString(code);
   };
 
   // ── KPI card definitions ────────────────────────────────────────────────────
@@ -484,6 +560,7 @@ export default function QRControlPage() {
                   </p>
                 </>
               )}
+              <canvas ref={canvasRef} style={{ display: 'none' }} aria-hidden />
             </div>
 
             {/* Saisie manuelle */}
