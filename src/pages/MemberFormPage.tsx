@@ -379,22 +379,41 @@ export default function MemberFormPage() {
           setSubmitting(false);
           return;
         }
-        const body = {
-          prenom: prenom.trim(),
+        const dateDebutYmd = dateDebut.trim().slice(0, 10);
+        const membre: {
+          nom: string;
+          prenom: string;
+          email?: string;
+          phone?: string;
+          date_naissance?: string;
+          adresse?: string;
+          lieu_naissance?: string;
+        } = {
           nom: nom.trim(),
-          phone: phone.trim() || null,
-          email: email.trim() || null,
-          date_naissance: dateNaissance.trim() || null,
-          lieu_naissance: lieuNaissance.trim() || null,
-          adresse: adresse.trim() || null,
-          id_activity: idActivity,
-          date_debut: dateDebut,
-          type_forfait: typeForfait,
-          frais_inscription_payes: fraisInscriptionPayes,
-          frais_uniquement: fraisSeulement,
-          methode_paiement: methodePaiement,
+          prenom: prenom.trim(),
         };
-        await api.post('/members', body);
+        const emailT = email.trim();
+        if (emailT) membre.email = emailT;
+        const phoneT = phone.trim();
+        if (phoneT) membre.phone = phoneT;
+        const dn = dateNaissance.trim().slice(0, 10);
+        if (dn) membre.date_naissance = dn;
+        const addr = adresse.trim();
+        if (addr) membre.adresse = addr;
+        const ln = lieuNaissance.trim();
+        if (ln) membre.lieu_naissance = ln;
+
+        const body = {
+          membre,
+          abonnement: {
+            id_activity: idActivity,
+            type_forfait: typeForfait,
+            frais_inscription_payes: fraisInscriptionPayes,
+            frais_uniquement: fraisSeulement,
+            date_debut: dateDebutYmd,
+          },
+        };
+        await api.post('/members/subscribe', body);
         setToastMsg('Membre créé avec succès');
       }
       setTimeout(() => navigate('/members'), 1500);

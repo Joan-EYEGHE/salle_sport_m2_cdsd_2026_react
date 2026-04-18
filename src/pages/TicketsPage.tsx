@@ -6,6 +6,8 @@ Problème 3 : Focus modale génération — onBlur utilisait #d2d6da au lieu de 
 Total : 3 problèmes trouvés
 */
 import { useEffect, useState } from 'react';
+import { Printer, QrCode } from 'lucide-react';
+import QRCode from 'react-qr-code';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
@@ -55,6 +57,13 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
   EXPIRE: 'gf-badge gf-badge--inactive',
 };
 
+const CARD_BG_BY_STATUS: Record<TicketType['status'], string> = {
+  DISPONIBLE: '#eaf7ea',
+  VENDU: '#e8f4fd',
+  UTILISE: '#eceff1',
+  EXPIRE: '#fde8e8',
+};
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 function fmtDate(val: string | undefined | null): string {
@@ -66,6 +75,33 @@ function fmtDate(val: string | undefined | null): string {
   });
 }
 
+function ticketExt(t: TicketType) {
+  return t as TicketType & Record<string, unknown>;
+}
+
+function ticketCreatedAtStr(t: TicketType): string | undefined {
+  const ext = ticketExt(t);
+  if (typeof t.createdAt === 'string') return t.createdAt;
+  return (ext.created_at as string | undefined) ?? (ext.createdAt as string | undefined);
+}
+
+function ticketActivityNom(t: TicketType): string {
+  return t.activity?.nom ?? t.batch?.activity?.nom ?? '—';
+}
+
+function ticketPriceDisplay(t: TicketType): string {
+  const p = t.batch?.prix_unitaire_applique;
+  if (p == null || Number.isNaN(Number(p))) return '—';
+  return `${p} FCFA`;
+}
+
+function openWhatsAppTicket(t: TicketType) {
+  const nom = ticketActivityNom(t);
+  const text =
+    nom && nom !== '—' ? `Ticket GymFlow : ${t.code_ticket} — ${nom}` : `Ticket GymFlow : ${t.code_ticket}`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+}
+
 // ─── sub-components ──────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
@@ -73,15 +109,40 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={cls}>{STATUS_LABELS[status] ?? status}</span>;
 }
 
-function SkeletonRow() {
+function SkeletonCard() {
   return (
-    <tr>
-      {[100, 140, 120, 100, 100, 80, 72].map((w, i) => (
-        <td key={i} style={{ padding: '14px 14px' }}>
-          <div className="gf-skeleton" style={{ width: w }} />
-        </td>
-      ))}
-    </tr>
+    <div
+      className="gf-card"
+      style={{
+        padding: 14,
+        boxShadow: 'var(--gf-shadow-card)',
+        border: '1px solid var(--gf-border)',
+        background: 'var(--gf-white)',
+      }}
+    >
+      <div className="gf-skeleton" style={{ width: '70%', height: 14, marginBottom: 10 }} />
+      <div className="gf-skeleton" style={{ width: '90%', height: 12, marginBottom: 12 }} />
+      <div className="gf-skeleton" style={{ width: '100%', height: 1, marginBottom: 10 }} />
+      <div className="gf-skeleton" style={{ width: '85%', height: 11, marginBottom: 6 }} />
+      <div className="gf-skeleton" style={{ width: '80%', height: 11, marginBottom: 6 }} />
+      <div className="gf-skeleton" style={{ width: '75%', height: 11, marginBottom: 12 }} />
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+        <div className="gf-skeleton" style={{ width: 96, height: 96, borderRadius: 8 }} />
+      </div>
+      <div className="gf-skeleton" style={{ width: '100%', height: 36, borderRadius: 8, marginBottom: 8 }} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <div className="gf-skeleton" style={{ width: 44, height: 44, borderRadius: 8, flex: 1 }} />
+        <div className="gf-skeleton" style={{ width: 44, height: 44, borderRadius: 8, flex: 1 }} />
+      </div>
+    </div>
+  );
+}
+
+function IconWhatsApp({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.883 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+    </svg>
   );
 }
 
@@ -131,22 +192,143 @@ function KpiMini({ label, value, gradient, icon }: KpiMiniProps) {
   );
 }
 
-// ─── View detail modal ────────────────────────────────────────────────────────
+// ─── Ticket card ─────────────────────────────────────────────────────────────
 
-function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+interface TicketCardProps {
+  ticket: TicketType;
+  onOpenQr: () => void;
+}
+
+function TicketCard({ ticket: t, onOpenQr }: TicketCardProps) {
+  const bg = CARD_BG_BY_STATUS[t.status] ?? 'var(--gf-white)';
+  const activityNom = ticketActivityNom(t);
+  const sep = { borderTop: '1px solid var(--gf-border)', margin: '10px 0' } as const;
+  const rowLabel = { fontSize: 10, fontWeight: 700, color: 'var(--gf-muted)', textTransform: 'uppercase' as const, letterSpacing: '0.4px' };
+  const rowVal = { fontSize: 13, fontWeight: 600, color: 'var(--gf-dark)' };
+
   return (
     <div
+      className="gf-card"
       style={{
+        padding: 14,
+        boxShadow: 'var(--gf-shadow-card)',
+        border: '1px solid var(--gf-border)',
+        background: bg,
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '8px 0',
-        borderBottom: '1px solid var(--gf-bg)',
-        fontSize: 13,
+        flexDirection: 'column',
+        minHeight: 0,
       }}
     >
-      <span style={{ color: 'var(--gf-muted)', fontWeight: 500 }}>{label}</span>
-      <span style={{ color: 'var(--gf-dark)', fontWeight: 600 }}>{value}</span>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        <span
+          style={{
+            fontFamily: 'monospace',
+            fontSize: 11,
+            fontWeight: 700,
+            color: 'var(--gf-dark)',
+            wordBreak: 'break-all',
+            lineHeight: 1.35,
+          }}
+        >
+          {t.code_ticket}
+        </span>
+        <StatusBadge status={t.status} />
+      </div>
+
+      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--gf-dark)', margin: '10px 0 0', lineHeight: 1.35 }}>
+        {activityNom}
+      </p>
+
+      <div style={sep} />
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div>
+          <div style={rowLabel}>Price</div>
+          <div style={rowVal}>{ticketPriceDisplay(t)}</div>
+        </div>
+        <div>
+          <div style={rowLabel}>Generated</div>
+          <div style={rowVal}>{fmtDate(ticketCreatedAtStr(t))}</div>
+        </div>
+        <div>
+          <div style={rowLabel}>Expire</div>
+          <div style={rowVal}>{fmtDate(t.date_expiration)}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12, marginBottom: 4 }}>
+        <div style={{ background: 'var(--gf-white)', padding: 6, borderRadius: 8, border: '1px solid var(--gf-border)' }}>
+          <QRCode value={t.code_ticket} size={96} />
+        </div>
+      </div>
+
+      <div style={sep} />
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button
+          type="button"
+          onClick={onOpenQr}
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            padding: '10px 12px',
+            borderRadius: 8,
+            border: 'none',
+            background: 'var(--gf-grad-info)',
+            color: 'var(--gf-white)',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+            boxShadow: 'var(--gf-shadow-kpi-info)',
+          }}
+        >
+          <QrCode size={18} strokeWidth={2} />
+          Voir
+        </button>
+        <button
+          type="button"
+          title="Partager sur WhatsApp"
+          onClick={() => openWhatsAppTicket(t)}
+          style={{
+            width: 44,
+            height: 44,
+            flexShrink: 0,
+            borderRadius: 8,
+            border: 'none',
+            background: '#25D366',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <IconWhatsApp />
+        </button>
+        <button
+          type="button"
+          title="Imprimer"
+          onClick={() => window.print()}
+          style={{
+            width: 44,
+            height: 44,
+            flexShrink: 0,
+            borderRadius: 8,
+            border: '1px solid var(--gf-border)',
+            background: '#eceff1',
+            color: 'var(--gf-dark)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <Printer size={18} strokeWidth={2} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -234,16 +416,6 @@ export default function TicketsPage() {
 
   // ── actions ────────────────────────────────────────────────────────────────
 
-  const handleDelete = async (t: TicketType) => {
-    if (!window.confirm(`Supprimer le ticket "${t.code_ticket}" ? Cette action est irréversible.`)) return;
-    try {
-      await api.delete(`/tickets/${t.id}`);
-      await fetchTickets();
-    } catch {
-      alert('Impossible de supprimer ce ticket.');
-    }
-  };
-
   const handleGenerateBatch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!batchActivityId) return;
@@ -285,19 +457,6 @@ export default function TicketsPage() {
   const iconX = (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
-    </svg>
-  );
-  const iconEye = (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-  const iconTrash = (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-      <path d="M10 11v6" /><path d="M14 11v6" />
-      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
     </svg>
   );
 
@@ -429,50 +588,29 @@ export default function TicketsPage() {
             </div>
           )}
 
-          {/* ── Tableau ── */}
+          {/* ── Grille cartes tickets ── */}
           <div className="gf-card-body--table">
-            <table className="gf-table" style={{ minWidth: 800 }}>
-              <thead>
-                <tr>
-                  {['Code', 'Membre', 'Activité', 'Date achat', 'Date utilisation', 'Statut', 'Actions'].map(
-                    (col) => (
-                      <th key={col}>{col}</th>
-                    )
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
-                ) : pageRows.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      style={{
-                        textAlign: 'center',
-                        padding: '48px 0',
-                        color: 'var(--gf-muted)',
-                        fontSize: 13,
-                      }}
-                    >
-                      Aucun ticket trouvé.
-                    </td>
-                  </tr>
-                ) : (
-                  pageRows.map((t) => (
-                    <TicketRow
-                      key={t.id}
-                      ticket={t}
-                      canWrite={canWrite}
-                      onView={() => setViewTicket(t)}
-                      onDelete={() => handleDelete(t)}
-                      iconEye={iconEye}
-                      iconTrash={iconTrash}
-                    />
-                  ))
-                )}
-              </tbody>
-            </table>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              {loading ? (
+                Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
+              ) : pageRows.length === 0 ? (
+                <div
+                  className="col-span-full"
+                  style={{
+                    textAlign: 'center',
+                    padding: '48px 0',
+                    color: 'var(--gf-muted)',
+                    fontSize: 13,
+                  }}
+                >
+                  Aucun ticket trouvé.
+                </div>
+              ) : (
+                pageRows.map((t) => (
+                  <TicketCard key={t.id} ticket={t} onOpenQr={() => setViewTicket(t)} />
+                ))
+              )}
+            </div>
           </div>
 
           {/* ── Pagination ── */}
@@ -503,60 +641,79 @@ export default function TicketsPage() {
         </div>
       </div>
 
-      {/* ── Modale : Voir détail ── */}
+      {/* ── Modale : QR ticket ── */}
       <Modal
         isOpen={!!viewTicket}
         onClose={() => setViewTicket(null)}
-        title="Détail du ticket"
-        size="sm"
+        title="Ticket QR Code"
+        size="md"
       >
         {viewTicket && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            <div style={{ marginBottom: 12, textAlign: 'center' }}>
-              <span
-                style={{
-                  fontFamily: 'monospace',
-                  fontSize: 15,
-                  fontWeight: 700,
-                  color: 'var(--gf-dark)',
-                  background: 'var(--gf-bg)',
-                  borderRadius: 6,
-                  padding: '4px 12px',
-                  display: 'inline-block',
-                }}
-              >
-                {viewTicket.code_ticket}
-              </span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <div style={{ background: 'var(--gf-white)', padding: 12, borderRadius: 12, border: '1px solid var(--gf-border)' }}>
+              <QRCode value={viewTicket.code_ticket} size={200} />
             </div>
-            <DetailRow label="Statut" value={<StatusBadge status={viewTicket.status} />} />
-            <DetailRow
-              label="Activité"
-              value={viewTicket.activity?.nom ?? viewTicket.batch?.activity?.nom ?? '—'}
-            />
-            <DetailRow
-              label="Membre"
-              value={
-                viewTicket.member
-                  ? `${viewTicket.member.prenom ?? ''} ${viewTicket.member.nom ?? ''}`.trim() || '—'
-                  : '—'
-              }
-            />
-            <DetailRow
-              label="Date achat"
-              value={fmtDate(
-                typeof viewTicket.createdAt === 'string'
-                  ? viewTicket.createdAt
-                  : ((viewTicket as unknown as Record<string, unknown>).created_at as string | undefined) ??
-                      ((viewTicket as unknown as Record<string, unknown>).createdAt as string | undefined),
-              )}
-            />
-            <DetailRow
-              label="Date utilisation"
-              value={fmtDate(
-                (viewTicket as unknown as Record<string, unknown>).date_utilisation as string | undefined,
-              )}
-            />
-            <DetailRow label="Expiration" value={fmtDate(viewTicket.date_expiration)} />
+            <div
+              style={{
+                width: '100%',
+                textAlign: 'center',
+                fontSize: 13,
+                color: 'var(--gf-dark)',
+                lineHeight: 1.6,
+                padding: '0 4px',
+              }}
+            >
+              <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{viewTicket.code_ticket}</span>
+              <span style={{ color: 'var(--gf-muted)', margin: '0 6px' }}>·</span>
+              <span>{ticketActivityNom(viewTicket)}</span>
+              <span style={{ color: 'var(--gf-muted)', margin: '0 6px' }}>·</span>
+              <span style={{ fontWeight: 600 }}>{ticketPriceDisplay(viewTicket)}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => openWhatsAppTicket(viewTicket)}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                padding: '12px 16px',
+                borderRadius: 8,
+                border: 'none',
+                background: '#25D366',
+                color: 'white',
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <IconWhatsApp />
+              Partager
+            </button>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                padding: '12px 16px',
+                borderRadius: 8,
+                border: 'none',
+                background: 'linear-gradient(195deg, #FFA726, #fb8c00)',
+                color: 'var(--gf-white)',
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 3px 10px rgba(251,140,0,0.3)',
+              }}
+            >
+              <Printer size={20} strokeWidth={2} />
+              Imprimer
+            </button>
           </div>
         )}
       </Modal>
@@ -835,99 +992,5 @@ export default function TicketsPage() {
         </div>
       )}
     </>
-  );
-}
-
-// ─── TicketRow ────────────────────────────────────────────────────────────────
-
-interface TicketRowProps {
-  ticket: TicketType;
-  canWrite: boolean;
-  onView: () => void;
-  onDelete: () => void;
-  iconEye: React.ReactNode;
-  iconTrash: React.ReactNode;
-}
-
-function TicketRow({ ticket: t, canWrite, onView, onDelete, iconEye, iconTrash }: TicketRowProps) {
-  const ext = t as TicketType & Record<string, unknown>;
-  const memberName = t.member
-    ? `${t.member.prenom ?? ''} ${t.member.nom ?? ''}`.trim() || '—'
-    : '—';
-  const activityNom = t.activity?.nom ?? t.batch?.activity?.nom ?? '—';
-
-  return (
-    <tr>
-      {/* Code */}
-      <td>
-        <span
-          style={{
-            background: 'var(--gf-bg)',
-            borderRadius: 6,
-            padding: '4px 10px',
-            fontSize: 12,
-            fontWeight: 700,
-            color: 'var(--gf-dark)',
-            fontFamily: 'monospace',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {t.code_ticket}
-        </span>
-      </td>
-
-      {/* Membre */}
-      <td style={{ fontSize: 13, color: 'var(--gf-dark)' }}>
-        {memberName}
-      </td>
-
-      {/* Activité */}
-      <td style={{ fontSize: 13, color: 'var(--gf-dark)' }}>
-        {activityNom}
-      </td>
-
-      {/* Date achat */}
-      <td style={{ fontSize: 13, color: 'var(--gf-dark)' }}>
-        {fmtDate(
-          typeof t.createdAt === 'string'
-            ? t.createdAt
-            : (ext.created_at as string | undefined) ?? (ext.createdAt as string | undefined),
-        )}
-      </td>
-
-      {/* Date utilisation */}
-      <td style={{ fontSize: 13, color: 'var(--gf-dark)' }}>
-        {fmtDate(ext.date_utilisation as string | undefined)}
-      </td>
-
-      {/* Statut */}
-      <td>
-        <StatusBadge status={t.status} />
-      </td>
-
-      {/* Actions */}
-      <td>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button
-            type="button"
-            className="gf-btn-action gf-btn-action--view"
-            title="Voir"
-            onClick={onView}
-          >
-            {iconEye}
-          </button>
-          {canWrite && (
-            <button
-              type="button"
-              className="gf-btn-action gf-btn-action--delete"
-              title="Supprimer"
-              onClick={onDelete}
-            >
-              {iconTrash}
-            </button>
-          )}
-        </div>
-      </td>
-    </tr>
   );
 }
