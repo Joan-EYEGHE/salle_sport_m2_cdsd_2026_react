@@ -167,15 +167,38 @@ interface ReceiptTicketPanelProps {
 }
 
 function ReceiptTicketPanel({ t, onClose }: ReceiptTicketPanelProps) {
-  const rowStyle: CSSProperties = {
-    fontSize: 13,
+  const codeLong = t.code_ticket.length > 24;
+  const codeBlockStyle: CSSProperties = {
+    width: '100%',
+    fontFamily: 'monospace',
+    fontSize: codeLong ? 11 : 12,
+    fontWeight: 700,
     color: 'var(--gf-dark)',
-    margin: '6px 0',
-    display: 'flex',
-    gap: 8,
-    flexWrap: 'wrap',
+    background: '#f0f2f5',
+    borderRadius: 8,
+    padding: '10px 12px',
+    textAlign: 'center',
+    wordBreak: 'break-all',
+    whiteSpace: 'normal',
+    ...(codeLong ? { letterSpacing: '-0.3px' } : {}),
   };
-  const labelStyle: CSSProperties = { color: 'var(--gf-muted)', fontWeight: 600, minWidth: 88 };
+  const infoRow: CSSProperties = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+  };
+  const infoLabel: CSSProperties = {
+    fontSize: 11,
+    color: '#888',
+    textTransform: 'uppercase',
+    letterSpacing: '0.4px',
+  };
+  const infoValue: CSSProperties = {
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#111',
+  };
   return (
     <>
       <div
@@ -218,38 +241,23 @@ function ReceiptTicketPanel({ t, onClose }: ReceiptTicketPanelProps) {
         <div style={{ background: 'var(--gf-white)', padding: 10, borderRadius: 12, border: '1px solid var(--gf-border)' }}>
           <QRCode value={t.code_ticket} size={160} />
         </div>
-        <div
-          style={{
-            width: '100%',
-            fontFamily: 'monospace',
-            fontSize: 12,
-            fontWeight: 700,
-            color: 'var(--gf-dark)',
-            background: '#f0f2f5',
-            borderRadius: 8,
-            padding: '10px 12px',
-            textAlign: 'center',
-            wordBreak: 'break-all',
-          }}
-        >
-          {t.code_ticket}
-        </div>
-        <div style={{ width: '100%' }}>
-          <div style={rowStyle}>
-            <span style={labelStyle}>Activité</span>
-            <span>{ticketActivityNom(t)}</span>
+        <div style={codeBlockStyle}>{t.code_ticket}</div>
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={infoRow}>
+            <span style={infoLabel}>Activité</span>
+            <span style={infoValue}>{ticketActivityNom(t)}</span>
           </div>
-          <div style={rowStyle}>
-            <span style={labelStyle}>Prix</span>
-            <span>{ticketPriceDisplay(t)}</span>
+          <div style={infoRow}>
+            <span style={infoLabel}>Prix</span>
+            <span style={infoValue}>{ticketPriceDisplay(t)}</span>
           </div>
-          <div style={rowStyle}>
-            <span style={labelStyle}>Généré le</span>
-            <span>{fmtDate(ticketCreatedAtStr(t))}</span>
+          <div style={infoRow}>
+            <span style={infoLabel}>Généré le</span>
+            <span style={infoValue}>{fmtDate(ticketCreatedAtStr(t))}</span>
           </div>
-          <div style={{ ...rowStyle, color: '#c62828' }}>
-            <span style={{ ...labelStyle, color: '#c62828' }}>Expire le</span>
-            <span style={{ fontWeight: 700 }}>{fmtDate(t.date_expiration)}</span>
+          <div style={infoRow}>
+            <span style={infoLabel}>Expire le</span>
+            <span style={{ ...infoValue, color: '#e53935' }}>{fmtDate(t.date_expiration)}</span>
           </div>
         </div>
         <p
@@ -375,8 +383,6 @@ function TicketCard({ ticket: t, onOpenQr, canSell, onSell, onOpenReceipt, isSel
   const bg = CARD_BG_BY_STATUS[t.status] ?? 'var(--gf-white)';
   const activityNom = ticketActivityNom(t);
   const sep = { borderTop: '1px solid var(--gf-border)', margin: '10px 0' } as const;
-  const rowLabel = { fontSize: 10, fontWeight: 700, color: 'var(--gf-muted)', textTransform: 'uppercase' as const, letterSpacing: '0.4px' };
-  const rowVal = { fontSize: 13, fontWeight: 600, color: 'var(--gf-dark)' };
   const statusDisponible = t.status === 'DISPONIBLE';
   const canVendre = statusDisponible && canSell;
   const sellDisabled = !canVendre || isSelling;
@@ -396,15 +402,18 @@ function TicketCard({ ticket: t, onOpenQr, canSell, onSell, onOpenReceipt, isSel
         minHeight: 0,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4 }}>
         <span
           style={{
             fontFamily: 'monospace',
             fontSize: 11,
             fontWeight: 700,
             color: 'var(--gf-dark)',
-            wordBreak: 'break-all',
             lineHeight: 1.35,
+            maxWidth: 'calc(100% - 70px)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
           }}
         >
           {t.code_ticket}
@@ -419,17 +428,17 @@ function TicketCard({ ticket: t, onOpenQr, canSell, onSell, onOpenReceipt, isSel
       <div style={sep} />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div>
-          <div style={rowLabel}>Prix</div>
-          <div style={rowVal}>{ticketPriceDisplay(t)}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--gf-muted)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Prix</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--gf-dark)' }}>{ticketPriceDisplay(t)}</div>
         </div>
-        <div>
-          <div style={rowLabel}>Généré le</div>
-          <div style={rowVal}>{fmtDate(ticketCreatedAtStr(t))}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--gf-muted)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Généré le</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--gf-dark)' }}>{fmtDate(ticketCreatedAtStr(t))}</div>
         </div>
-        <div>
-          <div style={rowLabel}>Expire le</div>
-          <div style={rowVal}>{fmtDate(t.date_expiration)}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--gf-muted)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Expire le</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--gf-dark)' }}>{fmtDate(t.date_expiration)}</div>
         </div>
       </div>
 
