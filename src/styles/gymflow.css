@@ -376,3 +376,41 @@
   background-size: 200% 100%;
   animation: gf-shimmer 1.4s infinite;
 }
+
+/* ── Bon ticket (modale + impression) ─────────────────────── */
+.gf-receipt-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+#gf-receipt-print {
+  position: relative;
+  z-index: 10000;
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 320px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@media print {
+  body > * {
+    display: none !important;
+  }
+  .gf-receipt-backdrop {
+    display: block !important;
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+  #gf-receipt-print {
+    display: block !important;
+  }
+}

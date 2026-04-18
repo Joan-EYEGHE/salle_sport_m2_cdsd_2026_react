@@ -5,7 +5,8 @@ Problème 2 : Couleurs hex en inline (#f0f2f5, #344767, #7b809a, #d2d6da, white,
 Problème 3 : Focus modale génération — onBlur utilisait #d2d6da au lieu de var(--gf-border)
 Total : 3 problèmes trouvés
 */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Printer, QrCode } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import api from '../api/axios';
@@ -95,11 +96,26 @@ function ticketPriceDisplay(t: TicketType): string {
   return `${p} FCFA`;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/** Corps axios après `PUT /tickets/:id/sell` : `{ success, data }` ou données brutes. */
+function payloadFromSellResponse(data: unknown): unknown {
+  if (!isRecord(data)) return data;
+  if (data.data !== undefined) return data.data;
+  return data;
+}
+
 function openWhatsAppTicket(t: TicketType) {
-  const nom = ticketActivityNom(t);
-  const text =
-    nom && nom !== '—' ? `Ticket GymFlow : ${t.code_ticket} — ${nom}` : `Ticket GymFlow : ${t.code_ticket}`;
-  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  const lines = [
+    'Ticket GymFlow',
+    `Code: ${t.code_ticket}`,
+    `Activité: ${ticketActivityNom(t)}`,
+    `Prix: ${ticketPriceDisplay(t)}`,
+    `Expire le: ${fmtDate(t.date_expiration)}`,
+  ];
+  window.open(`https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
 }
 
 // ─── sub-components ──────────────────────────────────────────────────────────
@@ -129,10 +145,9 @@ function SkeletonCard() {
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
         <div className="gf-skeleton" style={{ width: 96, height: 96, borderRadius: 8 }} />
       </div>
-      <div className="gf-skeleton" style={{ width: '100%', height: 36, borderRadius: 8, marginBottom: 8 }} />
-      <div style={{ display: 'flex', gap: 8 }}>
-        <div className="gf-skeleton" style={{ width: 44, height: 44, borderRadius: 8, flex: 1 }} />
-        <div className="gf-skeleton" style={{ width: 44, height: 44, borderRadius: 8, flex: 1 }} />
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="gf-skeleton" style={{ flex: 1, height: 40, borderRadius: 8 }} />
+        <div className="gf-skeleton" style={{ width: 44, height: 44, borderRadius: 8, flexShrink: 0 }} />
       </div>
     </div>
   );
@@ -146,13 +161,166 @@ function IconWhatsApp({ className }: { className?: string }) {
   );
 }
 
+interface ReceiptTicketPanelProps {
+  t: TicketType;
+  onClose: () => void;
+}
+
+function ReceiptTicketPanel({ t, onClose }: ReceiptTicketPanelProps) {
+  const rowStyle: CSSProperties = {
+    fontSize: 13,
+    color: 'var(--gf-dark)',
+    margin: '6px 0',
+    display: 'flex',
+    gap: 8,
+    flexWrap: 'wrap',
+  };
+  const labelStyle: CSSProperties = { color: 'var(--gf-muted)', fontWeight: 600, minWidth: 88 };
+  return (
+    <>
+      <div
+        style={{
+          background: 'var(--gf-grad-info)',
+          padding: '16px 44px 16px 18px',
+          position: 'relative',
+          borderRadius: '12px 12px 0 0',
+          boxShadow: 'var(--gf-shadow-header-info)',
+        }}
+      >
+        <button
+          type="button"
+          aria-label="Fermer"
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            right: 10,
+            top: 10,
+            width: 30,
+            height: 30,
+            borderRadius: 6,
+            border: '1px solid rgba(255,255,255,0.45)',
+            background: 'rgba(255,255,255,0.2)',
+            color: 'var(--gf-white)',
+            cursor: 'pointer',
+            fontSize: 14,
+            lineHeight: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          ✕
+        </button>
+        <p style={{ color: 'var(--gf-white)', fontSize: 18, fontWeight: 700, margin: 0 }}>GymFlow</p>
+        <p style={{ color: 'rgba(255,255,255,0.88)', fontSize: 12, margin: '5px 0 0' }}>Ticket d&apos;accès séance</p>
+      </div>
+      <div style={{ padding: '20px 18px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+        <div style={{ background: 'var(--gf-white)', padding: 10, borderRadius: 12, border: '1px solid var(--gf-border)' }}>
+          <QRCode value={t.code_ticket} size={160} />
+        </div>
+        <div
+          style={{
+            width: '100%',
+            fontFamily: 'monospace',
+            fontSize: 12,
+            fontWeight: 700,
+            color: 'var(--gf-dark)',
+            background: '#f0f2f5',
+            borderRadius: 8,
+            padding: '10px 12px',
+            textAlign: 'center',
+            wordBreak: 'break-all',
+          }}
+        >
+          {t.code_ticket}
+        </div>
+        <div style={{ width: '100%' }}>
+          <div style={rowStyle}>
+            <span style={labelStyle}>Activité</span>
+            <span>{ticketActivityNom(t)}</span>
+          </div>
+          <div style={rowStyle}>
+            <span style={labelStyle}>Prix</span>
+            <span>{ticketPriceDisplay(t)}</span>
+          </div>
+          <div style={rowStyle}>
+            <span style={labelStyle}>Généré le</span>
+            <span>{fmtDate(ticketCreatedAtStr(t))}</span>
+          </div>
+          <div style={{ ...rowStyle, color: '#c62828' }}>
+            <span style={{ ...labelStyle, color: '#c62828' }}>Expire le</span>
+            <span style={{ fontWeight: 700 }}>{fmtDate(t.date_expiration)}</span>
+          </div>
+        </div>
+        <p
+          style={{
+            fontSize: 11,
+            color: 'var(--gf-muted)',
+            textAlign: 'center',
+            margin: 0,
+            lineHeight: 1.45,
+          }}
+        >
+          Présentez ce QR code à l&apos;entrée · Valable 24h · Non remboursable
+        </p>
+        <div style={{ display: 'flex', gap: 10, width: '100%', marginTop: 4 }}>
+          <button
+            type="button"
+            onClick={() => openWhatsAppTicket(t)}
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: '11px 12px',
+              borderRadius: 8,
+              border: 'none',
+              background: '#25D366',
+              color: 'var(--gf-white)',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            <IconWhatsApp />
+            Envoyer
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: '11px 12px',
+              borderRadius: 8,
+              border: 'none',
+              background: '#B8860B',
+              color: 'var(--gf-white)',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            <Printer size={18} strokeWidth={2} />
+            Imprimer
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── KPI card ────────────────────────────────────────────────────────────────
 
 interface KpiMiniProps {
   label: string;
   value: number;
   gradient: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
 }
 
 function KpiMini({ label, value, gradient, icon }: KpiMiniProps) {
@@ -197,14 +365,19 @@ function KpiMini({ label, value, gradient, icon }: KpiMiniProps) {
 interface TicketCardProps {
   ticket: TicketType;
   onOpenQr: () => void;
+  canSell: boolean;
+  onSell: (ticket: TicketType) => void | Promise<void>;
+  isSelling: boolean;
 }
 
-function TicketCard({ ticket: t, onOpenQr }: TicketCardProps) {
+function TicketCard({ ticket: t, onOpenQr, canSell, onSell, isSelling }: TicketCardProps) {
   const bg = CARD_BG_BY_STATUS[t.status] ?? 'var(--gf-white)';
   const activityNom = ticketActivityNom(t);
   const sep = { borderTop: '1px solid var(--gf-border)', margin: '10px 0' } as const;
   const rowLabel = { fontSize: 10, fontWeight: 700, color: 'var(--gf-muted)', textTransform: 'uppercase' as const, letterSpacing: '0.4px' };
   const rowVal = { fontSize: 13, fontWeight: 600, color: 'var(--gf-dark)' };
+  const disponible = t.status === 'DISPONIBLE' && canSell;
+  const sellDisabled = !disponible || isSelling;
 
   return (
     <div
@@ -243,15 +416,15 @@ function TicketCard({ ticket: t, onOpenQr }: TicketCardProps) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div>
-          <div style={rowLabel}>Price</div>
+          <div style={rowLabel}>Prix</div>
           <div style={rowVal}>{ticketPriceDisplay(t)}</div>
         </div>
         <div>
-          <div style={rowLabel}>Generated</div>
+          <div style={rowLabel}>Généré le</div>
           <div style={rowVal}>{fmtDate(ticketCreatedAtStr(t))}</div>
         </div>
         <div>
-          <div style={rowLabel}>Expire</div>
+          <div style={rowLabel}>Expire le</div>
           <div style={rowVal}>{fmtDate(t.date_expiration)}</div>
         </div>
       </div>
@@ -286,47 +459,35 @@ function TicketCard({ ticket: t, onOpenQr }: TicketCardProps) {
           }}
         >
           <QrCode size={18} strokeWidth={2} />
-          Voir
+          Voir le code QR
         </button>
         <button
           type="button"
-          title="Partager sur WhatsApp"
-          onClick={() => openWhatsAppTicket(t)}
+          title={disponible ? 'Vendre ce ticket' : 'Vendu'}
+          disabled={sellDisabled}
+          onClick={() => {
+            if (disponible) void onSell(t);
+          }}
           style={{
             width: 44,
             height: 44,
             flexShrink: 0,
             borderRadius: 8,
             border: 'none',
-            background: '#25D366',
-            color: 'white',
+            background: disponible ? '#e91e63' : '#eceff1',
+            color: disponible ? 'var(--gf-white)' : 'var(--gf-dark)',
+            fontSize: 9,
+            fontWeight: 700,
+            lineHeight: 1.1,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            cursor: 'pointer',
+            cursor: sellDisabled ? 'not-allowed' : 'pointer',
+            opacity: disponible ? 1 : 0.5,
+            padding: 2,
           }}
         >
-          <IconWhatsApp />
-        </button>
-        <button
-          type="button"
-          title="Imprimer"
-          onClick={() => window.print()}
-          style={{
-            width: 44,
-            height: 44,
-            flexShrink: 0,
-            borderRadius: 8,
-            border: '1px solid var(--gf-border)',
-            background: '#eceff1',
-            color: 'var(--gf-dark)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
-        >
-          <Printer size={18} strokeWidth={2} />
+          {disponible ? 'Vendre' : 'Vendu'}
         </button>
       </div>
     </div>
@@ -354,6 +515,9 @@ export default function TicketsPage() {
   // modals
   const [generateOpen, setGenerateOpen] = useState(false);
   const [viewTicket, setViewTicket] = useState<TicketType | null>(null);
+  const [sellTicket, setSellTicket] = useState<TicketType | null>(null);
+  const [sellError, setSellError] = useState('');
+  const [sellingId, setSellingId] = useState<number | null>(null);
 
   // generate form
   const [batchActivityId, setBatchActivityId] = useState<number | ''>('');
@@ -397,6 +561,21 @@ export default function TicketsPage() {
   // reset page on filter change
   useEffect(() => { setPage(1); }, [search, statusFilter]);
 
+  useEffect(() => {
+    if (!sellTicket) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [sellTicket]);
+
+  useEffect(() => {
+    if (!sellError) return;
+    const tid = window.setTimeout(() => setSellError(''), 4000);
+    return () => window.clearTimeout(tid);
+  }, [sellError]);
+
   // ── derived ────────────────────────────────────────────────────────────────
 
   const disponibles = tickets.filter((t) => t.status === 'DISPONIBLE').length;
@@ -416,7 +595,39 @@ export default function TicketsPage() {
 
   // ── actions ────────────────────────────────────────────────────────────────
 
-  const handleGenerateBatch = async (e: React.FormEvent) => {
+  const sellTicketFlow = async (id: number): Promise<TicketType | null> => {
+    setSellError('');
+    setSellingId(id);
+    try {
+      const res = await api.put(`/tickets/${id}/sell`);
+      const raw = payloadFromSellResponse(res.data);
+      const normalized = normalizeTicketRow(raw);
+      setTickets((prev) => prev.map((x) => (x.id === id ? normalized : x)));
+      setViewTicket((vt) => (vt?.id === id ? normalized : vt));
+      return normalized;
+    } catch {
+      setSellError('La vente du ticket a échoué.');
+      return null;
+    } finally {
+      setSellingId(null);
+    }
+  };
+
+  const handleSellFromCard = async (t: TicketType) => {
+    const updated = await sellTicketFlow(t.id);
+    if (updated) setSellTicket(updated);
+  };
+
+  const handleSellFromQrModal = async () => {
+    if (!viewTicket) return;
+    const updated = await sellTicketFlow(viewTicket.id);
+    if (updated) {
+      setViewTicket(null);
+      setSellTicket(updated);
+    }
+  };
+
+  const handleGenerateBatch = async (e: FormEvent) => {
     e.preventDefault();
     if (!batchActivityId) return;
     setGenerating(true);
@@ -587,6 +798,20 @@ export default function TicketsPage() {
               {error}
             </div>
           )}
+          {sellError && (
+            <div
+              style={{
+                margin: '8px 20px 0',
+                background: '#fde8e8',
+                color: '#F44335',
+                borderRadius: 8,
+                padding: '10px 14px',
+                fontSize: 13,
+              }}
+            >
+              {sellError}
+            </div>
+          )}
 
           {/* ── Grille cartes tickets ── */}
           <div className="gf-card-body--table">
@@ -607,7 +832,14 @@ export default function TicketsPage() {
                 </div>
               ) : (
                 pageRows.map((t) => (
-                  <TicketCard key={t.id} ticket={t} onOpenQr={() => setViewTicket(t)} />
+                  <TicketCard
+                    key={t.id}
+                    ticket={t}
+                    onOpenQr={() => setViewTicket(t)}
+                    canSell={canWrite}
+                    onSell={handleSellFromCard}
+                    isSelling={sellingId === t.id}
+                  />
                 ))
               )}
             </div>
@@ -648,75 +880,152 @@ export default function TicketsPage() {
         title="Ticket QR Code"
         size="md"
       >
-        {viewTicket && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-            <div style={{ background: 'var(--gf-white)', padding: 12, borderRadius: 12, border: '1px solid var(--gf-border)' }}>
-              <QRCode value={viewTicket.code_ticket} size={200} />
+        {viewTicket && (() => {
+          const qrDispo = viewTicket.status === 'DISPONIBLE' && canWrite;
+          const qrWaPrint = viewTicket.status === 'VENDU';
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+              <div style={{ background: 'var(--gf-white)', padding: 12, borderRadius: 12, border: '1px solid var(--gf-border)' }}>
+                <QRCode value={viewTicket.code_ticket} size={200} />
+              </div>
+              <div
+                style={{
+                  width: '100%',
+                  textAlign: 'center',
+                  fontSize: 13,
+                  color: 'var(--gf-dark)',
+                  lineHeight: 1.6,
+                  padding: '0 4px',
+                }}
+              >
+                <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{viewTicket.code_ticket}</span>
+                <span style={{ color: 'var(--gf-muted)', margin: '0 6px' }}>·</span>
+                <span>{ticketActivityNom(viewTicket)}</span>
+                <span style={{ color: 'var(--gf-muted)', margin: '0 6px' }}>·</span>
+                <span style={{ fontWeight: 600 }}>{ticketPriceDisplay(viewTicket)}</span>
+              </div>
+              <button
+                type="button"
+                disabled={!qrDispo || sellingId === viewTicket.id}
+                onClick={() => void handleSellFromQrModal()}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  padding: '12px 16px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: qrDispo ? '#e91e63' : '#eceff1',
+                  color: qrDispo ? 'var(--gf-white)' : 'var(--gf-dark)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: qrDispo && sellingId !== viewTicket.id ? 'pointer' : 'not-allowed',
+                  opacity: qrDispo ? 1 : 0.5,
+                }}
+              >
+                {qrDispo ? 'Vendre ce ticket' : 'Vendu ✓'}
+              </button>
+              <button
+                type="button"
+                disabled={!qrWaPrint}
+                onClick={() => openWhatsAppTicket(viewTicket)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  padding: '12px 16px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#25D366',
+                  color: 'white',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: qrWaPrint ? 'pointer' : 'not-allowed',
+                  opacity: qrWaPrint ? 1 : 0.45,
+                }}
+              >
+                <IconWhatsApp />
+                Partager
+              </button>
+              <button
+                type="button"
+                disabled={!qrWaPrint}
+                onClick={() => window.print()}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  padding: '12px 16px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: 'linear-gradient(195deg, #FFA726, #fb8c00)',
+                  color: 'var(--gf-white)',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: qrWaPrint ? 'pointer' : 'not-allowed',
+                  opacity: qrWaPrint ? 1 : 0.45,
+                  boxShadow: qrWaPrint ? '0 3px 10px rgba(251,140,0,0.3)' : 'none',
+                }}
+              >
+                <Printer size={20} strokeWidth={2} />
+                Imprimer
+              </button>
             </div>
-            <div
-              style={{
-                width: '100%',
-                textAlign: 'center',
-                fontSize: 13,
-                color: 'var(--gf-dark)',
-                lineHeight: 1.6,
-                padding: '0 4px',
-              }}
-            >
-              <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{viewTicket.code_ticket}</span>
-              <span style={{ color: 'var(--gf-muted)', margin: '0 6px' }}>·</span>
-              <span>{ticketActivityNom(viewTicket)}</span>
-              <span style={{ color: 'var(--gf-muted)', margin: '0 6px' }}>·</span>
-              <span style={{ fontWeight: 600 }}>{ticketPriceDisplay(viewTicket)}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => openWhatsAppTicket(viewTicket)}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 10,
-                padding: '12px 16px',
-                borderRadius: 8,
-                border: 'none',
-                background: '#25D366',
-                color: 'white',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              <IconWhatsApp />
-              Partager
-            </button>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 10,
-                padding: '12px 16px',
-                borderRadius: 8,
-                border: 'none',
-                background: 'linear-gradient(195deg, #FFA726, #fb8c00)',
-                color: 'var(--gf-white)',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: '0 3px 10px rgba(251,140,0,0.3)',
-              }}
-            >
-              <Printer size={20} strokeWidth={2} />
-              Imprimer
-            </button>
-          </div>
-        )}
+          );
+        })()}
       </Modal>
+
+      {typeof document !== 'undefined' && sellTicket != null && createPortal(
+        <div
+          className="gf-receipt-backdrop"
+          role="presentation"
+          onClick={() => {
+            setSellTicket(null);
+            setSellError('');
+          }}
+        >
+          <div
+            id="gf-receipt-print"
+            className="gf-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="gf-receipt-title"
+            style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--gf-border)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span
+              id="gf-receipt-title"
+              style={{
+                position: 'absolute',
+                width: 1,
+                height: 1,
+                padding: 0,
+                margin: -1,
+                overflow: 'hidden',
+                clip: 'rect(0,0,0,0)',
+                whiteSpace: 'nowrap',
+                border: 0,
+              }}
+            >
+              Bon ticket {sellTicket.code_ticket}
+            </span>
+            <ReceiptTicketPanel
+              t={sellTicket}
+              onClose={() => {
+                setSellTicket(null);
+                setSellError('');
+              }}
+            />
+          </div>
+        </div>,
+        document.body,
+      )}
 
       {/* ── Modale : Générer ticket (Material Dashboard) ── */}
       {generateOpen && (

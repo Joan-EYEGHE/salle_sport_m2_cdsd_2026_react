@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CheckCircle, XCircle, Users, Ticket } from 'lucide-react';
 import api from '../api/axios';
 import Loader from '../components/Loader';
-import type { AccessLog } from '../types';
+import type { AccessLog, Activity, Batch, Ticket as TicketEntity } from '../types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -22,6 +22,145 @@ interface VerifyResult {
     activity?: { nom: string };
     date_expiration: string;
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/** Corps renvoyé par `POST /tickets/validate` (TicketController + TicketService.validate). */
+interface TicketValidateResponse {
+  success: boolean;
+  valid: boolean;
+  reason: string | null;
+  ticket_info: unknown;
+}
+
+function parseTicketValidateResponse(raw: unknown): TicketValidateResponse | null {
+  if (!isRecord(raw)) return null;
+  if (raw.success !== true) return null;
+  if (typeof raw.valid !== 'boolean') return null;
+  const reason =
+    raw.reason === null ? null : typeof raw.reason === 'string' ? raw.reason : null;
+  if (!('ticket_info' in raw)) return null;
+  return { success: true, valid: raw.valid, reason, ticket_info: raw.ticket_info };
+}
+
+function extractActivityNomFromTicketRecord(info: Record<string, unknown>): string | undefined {
+  const batch = info.batch ?? info.Batch;
+  if (isRecord(batch)) {
+    const act = batch.activity ?? batch.Activity;
+    if (isRecord(act) && typeof act.nom === 'string') return act.nom;
+  }
+  const act = info.activity ?? info.Activity;
+  if (isRecord(act) && typeof act.nom === 'string') return act.nom;
+  return undefined;
+}
+
+function mapTicketInfoToVerifyTicket(info: unknown): VerifyResult['ticket'] | undefined {
+  if (!isRecord(info)) return undefined;
+  if (typeof info.code_ticket !== 'string') return undefined;
+  let date_expiration: string;
+  if (typeof info.date_expiration === 'string') date_expiration = info.date_expiration;
+  else if (info.date_expiration instanceof Date) date_expiration = info.date_expiration.toISOString();
+  else return undefined;
+  const activityNom = extractActivityNomFromTicketRecord(info);
+  return {
+    code_ticket: info.code_ticket,
+    date_expiration,
+    ...(activityNom !== undefined ? { activity: { nom: activityNom } } : {}),
+  };
+}
+
+function mapValidateResponseToVerifyResult(body: TicketValidateResponse): VerifyResult {
+  return {
+    success: body.valid,
+    message: body.valid ? 'Accès autorisé' : (body.reason ?? 'Accès refusé.'),
+    ticket: mapTicketInfoToVerifyTicket(body.ticket_info),
+  };
+}
+
+function placeholderActivity(nom: string, id: number): Activity {
+  return {
+    id,
+    nom,
+    status: true,
+    frais_inscription: 0,
+    prix_ticket: 0,
+    prix_hebdomadaire: 0,
+    prix_mensuel: 0,
+    prix_trimestriel: 0,
+    prix_annuel: 0,
+    isMonthlyOnly: false,
+  };
+}
+
+/** Ticket minimal pour la ligne d’historique optimiste (liste du jour). */
+function mapTicketInfoToAccessLogTicket(info: unknown): TicketEntity | undefined {
+  if (!isRecord(info)) return undefined;
+  if (typeof info.code_ticket !== 'string') return undefined;
+  const id = typeof info.id === 'number' ? info.id : 0;
+  const id_batch = typeof info.id_batch === 'number' ? info.id_batch : 0;
+  let date_expiration: string;
+  if (typeof info.date_expiration === 'string') date_expiration = info.date_expiration;
+  else if (info.date_expiration instanceof Date) date_expiration = info.date_expiration.toISOString();
+  else return undefined;
+  const statusRaw = info.status;
+  const status: TicketEntity['status'] =
+    statusRaw === 'DISPONIBLE' || statusRaw === 'VENDU' || statusRaw === 'UTILISE' || statusRaw === 'EXPIRE'
+      ? statusRaw
+      : 'UTILISE';
+
+  let batch: Batch | undefined;
+  const b = info.batch ?? info.Batch;
+  if (isRecord(b)) {
+    const act = b.activity ?? b.Activity;
+    const nom = isRecord(act) && typeof act.nom === 'string' ? act.nom : undefined;
+    if (nom !== undefined) {
+      const bid = typeof b.id === 'number' ? b.id : 0;
+      const id_activity = typeof b.id_activity === 'number' ? b.id_activity : 0;
+      const quantite = typeof b.quantite === 'number' ? b.quantite : 0;
+      const prixRaw = b.prix_unitaire_applique;
+      const prix =
+        typeof prixRaw === 'number'
+          ? prixRaw
+          : typeof prixRaw === 'string'
+            ? Number(prixRaw)
+            : 0;
+      const actId = isRecord(act) && typeof act.id === 'number' ? act.id : 0;
+      batch = {
+        id: bid,
+        id_activity,
+        quantite,
+        prix_unitaire_applique: Number.isFinite(prix) ? prix : 0,
+        activity: placeholderActivity(nom, actId),
+      };
+    }
+  }
+
+  return {
+    id,
+    code_ticket: info.code_ticket,
+    id_batch,
+    status,
+    date_expiration,
+    ...(batch !== undefined ? { batch } : {}),
+  };
+}
+
+function readIdTicketFromPayload(ticketInfo: unknown): number | undefined {
+  if (!isRecord(ticketInfo)) return undefined;
+  return typeof ticketInfo.id === 'number' ? ticketInfo.id : undefined;
+}
+
+function axiosErrorMessage(err: unknown, fallback: string): string {
+  if (!isRecord(err)) return fallback;
+  const response = err.response;
+  if (!isRecord(response)) return fallback;
+  const data = response.data;
+  if (!isRecord(data)) return fallback;
+  const message = data.message;
+  return typeof message === 'string' ? message : fallback;
 }
 
 interface KpiData {
@@ -173,39 +312,34 @@ export default function QRControlPage() {
     if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
 
     try {
-      const res = await api.post('/access-logs/verify', { code: code.trim() });
-      const data = res.data?.data ?? res.data;
+      const res = await api.post('/tickets/validate', { code: code.trim() });
+      const parsed = parseTicketValidateResponse(res.data);
+      if (!parsed) {
+        setResult({
+          success: false,
+          message: 'Réponse serveur inattendue.',
+        });
+      } else {
+        const newResult = mapValidateResponseToVerifyResult(parsed);
+        setResult(newResult);
 
-      const newResult: VerifyResult = {
-        success: true,
-        message: data.message ?? 'Accès autorisé',
-        membre: data.membre,
-        subscription: data.subscription,
-        ticket: data.ticket,
-      };
-      setResult(newResult);
+        const optimisticEntry: AccessLog = {
+          id: Date.now(),
+          date_scan: new Date().toISOString(),
+          resultat: parsed.valid ? 'SUCCES' : 'ECHEC',
+          id_controller: 0,
+          id_ticket: readIdTicketFromPayload(parsed.ticket_info),
+          ticket: mapTicketInfoToAccessLogTicket(parsed.ticket_info),
+        };
+        setLogs((prev) => [optimisticEntry, ...prev.slice(0, 9)]);
 
-      // Optimistic prepend to history
-      const optimisticEntry: AccessLog = {
-        id: Date.now(),
-        date_scan: new Date().toISOString(),
-        resultat: 'SUCCES',
-        id_controller: 0,
-        id_ticket: data.ticket?.id,
-        id_membre: data.membre?.id,
-        membre: data.membre ? { nom: data.membre.nom, prenom: data.membre.prenom } : undefined,
-        ticket: data.ticket,
-      };
-      setLogs((prev) => [optimisticEntry, ...prev.slice(0, 9)]);
-
-      // Silent background refresh for accuracy
-      fetchKpis(true);
-      fetchLogs(true);
+        fetchKpis(true);
+        fetchLogs(true);
+      }
     } catch (err: unknown) {
-      const errData = (err as { response?: { data?: { message?: string } } })?.response?.data;
       setResult({
         success: false,
-        message: errData?.message ?? 'Code inconnu ou accès refusé.',
+        message: axiosErrorMessage(err, 'Code inconnu ou accès refusé.'),
       });
     } finally {
       setValidating(false);
