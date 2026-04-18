@@ -284,12 +284,7 @@ export default function SubscriptionsPage() {
   };
 
   return (
-    <div
-      className="gf-page"
-      style={{
-        minHeight: 'calc(100vh - 60px)',
-      }}
-    >
+    <div className="gf-page">
       {/* KPI */}
       <div className="gf-kpi-grid-4 gf-page-top">
         <KpiMini

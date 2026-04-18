@@ -221,7 +221,6 @@ export default function MemberDetailPage() {
   const pageStyle: React.CSSProperties = {
     background: 'var(--gf-bg)',
     padding: '20px 24px 24px',
-    minHeight: 'calc(100vh - 60px)',
     display: 'flex',
     flexDirection: 'column',
     gap: 20,

@@ -111,7 +111,7 @@ export default function MainLayout() {
   const showBadge = expiring === '!' || expiring > 0;
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       {/* ── SIDEBAR ─────────────────────────────────────────────────── */}
       <aside
         className="flex flex-col overflow-y-auto"
@@ -303,8 +303,15 @@ export default function MainLayout() {
 
       {/* ── MAIN CONTENT ────────────────────────────────────────────── */}
       <div
-        className="flex flex-col min-h-screen"
-        style={{ marginLeft: 260, flex: 1, background: 'var(--gf-bg)' }}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden',
+          marginLeft: 260,
+          background: 'var(--gf-bg)',
+        }}
       >
         {/* Header */}
         <header
@@ -384,6 +391,7 @@ export default function MainLayout() {
         <main
           style={{
             flex: 1,
+            minHeight: 0,
             overflowY: 'auto',
             padding: '36px 24px 24px',
           }}

@@ -281,7 +281,7 @@ export default function TransactionsPage() {
 
   return (
     <>
-      <div className="gf-page" style={{ minHeight: 'calc(100vh - 60px)' }}>
+      <div className="gf-page">
         {/* ── KPI mini-row ──────────────────────────────────────────────── */}
         <div className="gf-kpi-grid-3 gf-page-top">
           {kpis.map((kpi) => (

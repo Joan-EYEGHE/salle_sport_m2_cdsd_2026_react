@@ -430,7 +430,7 @@ export default function MemberFormPage() {
 
   if (isEdit && loadState === 'loading') {
     return (
-      <div className="gf-page" style={{ padding: '20px 24px 24px', minHeight: 'calc(100vh - 60px)' }}>
+      <div className="gf-page" style={{ padding: '20px 24px 24px' }}>
         <div className="gf-card-outer">
           <div className="gf-card">
             <div className="gf-card-body" style={{ display: 'flex', justifyContent: 'center', padding: '80px 20px' }}>
@@ -444,7 +444,7 @@ export default function MemberFormPage() {
 
   if (isEdit && loadState === 'error') {
     return (
-      <div className="gf-page" style={{ padding: '20px 24px 24px', minHeight: 'calc(100vh - 60px)' }}>
+      <div className="gf-page" style={{ padding: '20px 24px 24px' }}>
         <div className="gf-card-outer">
           <div className="gf-card">
             <div className="gf-card-body" style={{ textAlign: 'center', padding: '48px 24px' }}>
@@ -477,7 +477,7 @@ export default function MemberFormPage() {
   );
 
   return (
-    <div className="gf-page" style={{ padding: '20px 24px 24px', minHeight: 'calc(100vh - 60px)' }}>
+    <div className="gf-page" style={{ padding: '20px 24px 24px' }}>
       <div className="gf-card-outer">
         <div className="gf-card">
           <div className={`gf-card-header ${isEdit ? 'gf-card-header--success' : 'gf-card-header--info'}`}>

@@ -365,7 +365,7 @@ export default function ExpirationsPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div className="gf-page" style={{ minHeight: 'calc(100vh - 60px)' }}>
+    <div className="gf-page">
       {/* ── BLOC 1 — KPI cards ─────────────────────────────────────────────── */}
       <div className="gf-kpi-grid-3 gf-page-top">
         {kpiDefs.map((kpi) => (
