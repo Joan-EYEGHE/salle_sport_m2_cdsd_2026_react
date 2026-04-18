@@ -140,11 +140,11 @@ function UserRow({ user: u, isAdmin, isSelf, onEdit, onDelete }: UserRowProps) {
         <span className={`gf-badge ${roleBadge.cls}`}>{roleBadge.label}</span>
       </td>
 
-      {/* Date de création */}
-      <td>{fmtDate(u.createdAt)}</td>
+      {/* Date de création — masqué temporairement */}
+      {/* <td>{fmtDate(u.createdAt)}</td> */}
 
-      {/* Statut */}
-      <td><StatusBadge active={active} /></td>
+      {/* Statut — masqué temporairement */}
+      {/* <td><StatusBadge active={active} /></td> */}
 
       {/* Actions */}
       <td>
@@ -513,7 +513,7 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
 
 const PAGE_SIZE = 10;
 
-const COLUMNS = ['Utilisateur', 'Rôle', 'Date de création', 'Statut', 'Actions'];
+const COLUMNS = ['Utilisateur', 'Rôle', 'Actions'];
 
 export default function UsersPage() {
   const { user: authUser } = useAuth();
@@ -531,9 +531,7 @@ export default function UsersPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await api.get('/users', {
-        params: { includeInactive: 'true' },
-      });
+      const res = await api.get('/users');
       const payload = res.data?.data ?? res.data;
       const list = Array.isArray(payload) ? payload : (payload?.items ?? []);
       const arr = Array.isArray(list) ? list : [];
