@@ -514,8 +514,9 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
 const PAGE_SIZE = 10;
 
 const COLUMNS = ['Utilisateur', 'Rôle', 'Actions'];
+// const COLUMNS = ['Utilisateur', 'Rôle', 'Actions'];
 
-export default function UsersPage() {
+export default function UsersPage() { 
   const { user: authUser } = useAuth();
   const isAdmin = authUser?.role === 'ADMIN';
 
