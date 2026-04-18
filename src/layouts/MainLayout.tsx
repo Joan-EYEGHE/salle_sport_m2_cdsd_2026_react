@@ -317,7 +317,7 @@ export default function MainLayout() {
         <header
           style={{
             height: 72,
-            padding: '0 24px',
+            padding: '0 28px',
             background: 'transparent',
             display: 'flex',
             alignItems: 'center',
@@ -393,7 +393,7 @@ export default function MainLayout() {
             flex: 1,
             minHeight: 0,
             overflowY: 'auto',
-            padding: '36px 24px 24px',
+            padding: '24px 28px 28px',
           }}
         >
           <Outlet />

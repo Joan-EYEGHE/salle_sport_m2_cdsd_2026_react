@@ -1088,21 +1088,21 @@ export default function TicketsPage() {
               width: '100%',
               maxWidth: 440,
               maxHeight: '90vh',
-              overflowY: 'auto',
-              paddingTop: 20,
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div
               style={{
-                margin: '-20px 16px 0',
                 background: 'linear-gradient(195deg, #FFA726, #fb8c00)',
-                borderRadius: 10,
+                borderRadius: '12px 12px 0 0',
                 padding: '14px 20px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(251,140,0,0.4)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                margin: 0,
               }}
             >
               <div>
@@ -1132,9 +1132,10 @@ export default function TicketsPage() {
               </button>
             </div>
 
+            <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
             <form
               onSubmit={handleGenerateBatch}
-              style={{ padding: '28px 20px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}
+              style={{ padding: '20px 20px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <label
@@ -1335,6 +1336,7 @@ export default function TicketsPage() {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}

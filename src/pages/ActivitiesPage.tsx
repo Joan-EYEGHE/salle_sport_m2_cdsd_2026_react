@@ -261,21 +261,21 @@ function ActivityModal({ editTarget, form, onChange, onClose, onSaved }: Activit
           width: '100%',
           maxWidth: 480,
           maxHeight: '90vh',
-          overflowY: 'auto',
-          paddingTop: 20,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
           style={{
-            margin: '-20px 16px 0',
             background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',
-            borderRadius: 10,
+            borderRadius: '12px 12px 0 0',
             padding: '14px 20px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.14), 0 7px 10px rgba(26,115,232,0.4)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            margin: 0,
           }}
         >
           <div>
@@ -307,9 +307,10 @@ function ActivityModal({ editTarget, form, onChange, onClose, onSaved }: Activit
           </button>
         </div>
 
+        <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
         <form
           onSubmit={handleSubmit}
-          style={{ padding: '28px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}
+          style={{ padding: '20px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             <label style={fieldLabelStyle}>
@@ -421,6 +422,7 @@ function ActivityModal({ editTarget, form, onChange, onClose, onSaved }: Activit
             </button>
           </div>
         </form>
+        </div>
       </div>
     </div>
   );
