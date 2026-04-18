@@ -234,7 +234,6 @@ export default function QRControlPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
   const cameraActiveRef = useRef(false);
-  const scanCooldownUntilRef = useRef(0);
   const validatingRef = useRef(false);
 
   // ── KPI fetch (all records, no limit) ──────────────────────────────────────
@@ -338,54 +337,72 @@ export default function QRControlPage() {
     }
   }, []);
 
+  const handleValidate = useCallback(async (e?: React.FormEvent, scannedCode?: string) => {
+    e?.preventDefault();
+    const raw = (scannedCode ?? code).trim();
+    if (!raw) return;
+    await validateCodeString(raw);
+  }, [code, validateCodeString]);
+
   // ── Camera ──────────────────────────────────────────────────────────────────
 
   const startScanning = useCallback(() => {
-    const tick = () => {
-      if (!cameraActiveRef.current) {
-        rafRef.current = null;
-        return;
-      }
-      if (Date.now() < scanCooldownUntilRef.current || validatingRef.current) {
-        rafRef.current = requestAnimationFrame(tick);
-        return;
-      }
-
+    const scan = () => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      if (!video || !canvas || video.readyState < 2) {
-        rafRef.current = requestAnimationFrame(tick);
+      if (!video || !canvas || !cameraActiveRef.current) return;
+      if (video.readyState < 2) {
+        rafRef.current = requestAnimationFrame(scan);
         return;
       }
-
-      const w = video.videoWidth;
-      const h = video.videoHeight;
-      if (w === 0 || h === 0) {
-        rafRef.current = requestAnimationFrame(tick);
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        rafRef.current = requestAnimationFrame(scan);
         return;
       }
-
-      canvas.width = w;
-      canvas.height = h;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        rafRef.current = requestAnimationFrame(tick);
+        rafRef.current = requestAnimationFrame(scan);
         return;
       }
-
-      ctx.drawImage(video, 0, 0, w, h);
-      const imageData = ctx.getImageData(0, 0, w, h);
-      const decoded = jsQR(imageData.data, w, h);
-      if (decoded?.data) {
-        scanCooldownUntilRef.current = Date.now() + 3000;
-        void validateCodeString(decoded.data);
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const qrResult = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert',
+      });
+      if (qrResult?.data) {
+        const payload = qrResult.data;
+        setCode(payload);
+        if (rafRef.current != null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+        cameraActiveRef.current = false;
+        streamRef.current?.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        setCameraActive(false);
+        setTimeout(() => {
+          void handleValidate(undefined, payload);
+        }, 100);
+        return;
       }
-
-      rafRef.current = requestAnimationFrame(tick);
+      rafRef.current = requestAnimationFrame(scan);
     };
+    rafRef.current = requestAnimationFrame(scan);
+  }, [handleValidate]);
 
-    rafRef.current = requestAnimationFrame(tick);
-  }, [validateCodeString]);
+  useEffect(() => {
+    cameraActiveRef.current = cameraActive;
+  }, [cameraActive]);
+
+  useEffect(() => {
+    if (cameraActive && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      void videoRef.current.play().catch(() => {});
+      startScanning();
+    }
+  }, [cameraActive, startScanning]);
 
   const handleToggleCamera = async () => {
     if (cameraActive) {
@@ -404,25 +421,12 @@ export default function QRControlPage() {
         video: { facingMode: 'environment' },
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      cameraActiveRef.current = true;
       setCameraActive(true);
-      startScanning();
     } catch {
       // Bug B10 — caméra non fonctionnelle dans cet environnement
       cameraActiveRef.current = false;
       setCameraActive(false);
     }
-  };
-
-  // ── Validation ──────────────────────────────────────────────────────────────
-
-  const handleValidate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!code.trim()) return;
-    await validateCodeString(code);
   };
 
   // ── KPI card definitions ────────────────────────────────────────────────────
@@ -536,6 +540,7 @@ export default function QRControlPage() {
                   ref={videoRef}
                   autoPlay
                   playsInline
+                  muted
                   style={{
                     width: '100%',
                     height: '100%',
