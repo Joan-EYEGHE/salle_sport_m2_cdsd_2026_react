@@ -12,6 +12,7 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 import type { Member, Subscription } from '../types';
+import { normalizeMemberFromApi } from '../utils/memberApiNormalize';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -414,7 +415,9 @@ export default function MembersPage() {
     try {
       const res = await api.get('/members');
       const data = res.data?.data ?? res.data;
-      setMembers(Array.isArray(data) ? data : []);
+      setMembers(
+        Array.isArray(data) ? data.map((row: unknown) => normalizeMemberFromApi(row)) : [],
+      );
     } catch {
       setError('Impossible de charger les membres.');
     } finally {

@@ -10,6 +10,7 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Loader from '../components/Loader';
 import type { AccessLog, Activity, Member, Subscription } from '../types';
+import { normalizeMemberFromApi } from '../utils/memberApiNormalize';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -178,7 +179,7 @@ export default function MemberDetailPage() {
 
     try {
       const mRes = await api.get(`/members/${id}`);
-      const m = unwrapData<Member>(mRes);
+      const m = normalizeMemberFromApi(unwrapData<Member>(mRes));
       setMember(m);
 
       const subsFromMember = m.subscriptions ?? [];

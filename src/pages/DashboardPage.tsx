@@ -18,6 +18,7 @@ import {
 } from 'recharts';
 import api from '../api/axios';
 import type { Member, Transaction } from '../types';
+import { normalizeMemberFromApi } from '../utils/memberApiNormalize';
 
 /** Sequelize : include sous `member` (as) ou `Member` (sérialisation). */
 function normalizeTransactionRow(raw: unknown): Transaction {
@@ -160,12 +161,12 @@ export default function DashboardPage() {
     ]).then(([membRes, sumRes, tkRes, accRes, txRes]) => {
       if (membRes.status === 'fulfilled') {
         const d = membRes.value.data?.data ?? membRes.value.data;
-        const arr: MemberRaw[] = Array.isArray(d) ? d : [];
+        const arr: MemberRaw[] = Array.isArray(d) ? d.map((row) => normalizeMemberFromApi(row)) : [];
         setMembresActifs(
           arr.filter((m) => {
             const subs = m.subscriptions ?? [];
             if (!subs.length) return false;
-            return new Date(subs[subs.length - 1].date_prochain_paiement) >= new Date();
+            return new Date(subs[0].date_prochain_paiement) >= new Date();
           }).length
         );
       }
