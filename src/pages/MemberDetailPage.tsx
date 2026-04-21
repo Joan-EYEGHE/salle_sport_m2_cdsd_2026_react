@@ -4,12 +4,14 @@ Problème 1 : Nombreux textes, bordures et fonds en palette hex (tableaux, fiche
 Total : 1 problème trouvé
 */
 import { useCallback, useEffect, useState } from 'react';
+import QRCode from 'react-qr-code';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Loader from '../components/Loader';
 import type { AccessLog, Activity, Member, Subscription } from '../types';
+import { normalizeAccessLogFromApi } from '../utils/accessLogApiNormalize';
 import { normalizeMemberFromApi } from '../utils/memberApiNormalize';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -112,6 +114,13 @@ function lastSuccessfulAccessDate(logs: AccessLog[]): string | undefined {
   return [...ok].sort((a, b) => new Date(b.date_scan).getTime() - new Date(a.date_scan).getTime())[0]?.date_scan;
 }
 
+/** Dernier scan réussi : requête dédiée (limit 1) ou repli sur les logs déjà chargés. */
+function computeLastVisitFromLogs(logs: AccessLog[], lastOkRows: AccessLog[]): string | undefined {
+  const direct = lastOkRows[0]?.date_scan?.trim();
+  if (direct) return direct;
+  return lastSuccessfulAccessDate(logs);
+}
+
 function logIsSuccess(log: AccessLog): boolean {
   return log.resultat === 'SUCCES' || log.resultat === 'SUCCESS';
 }
@@ -162,6 +171,7 @@ export default function MemberDetailPage() {
   const [member, setMember] = useState<Member | null>(null);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
+  const [lastSuccessScanAt, setLastSuccessScanAt] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState('');
@@ -169,6 +179,8 @@ export default function MemberDetailPage() {
   const load = useCallback(async () => {
     if (!id || Number.isNaN(Number(id))) {
       setNotFound(true);
+      setAccessLogs([]);
+      setLastSuccessScanAt(undefined);
       setLoading(false);
       return;
     }
@@ -185,26 +197,35 @@ export default function MemberDetailPage() {
       const subsFromMember = m.subscriptions ?? [];
       const financial = role === 'ADMIN' || role === 'CASHIER';
 
-      const logPromise = api
+      const logsReq = api
         .get('/access-logs', { params: { memberId: id, limit: 10, sort: 'desc' } })
-        .then((r) => unwrapList<AccessLog>(r))
+        .then((r) => unwrapList<AccessLog>(r).map(normalizeAccessLogFromApi))
+        .catch(() => [] as AccessLog[]);
+      const lastOkReq = api
+        .get('/access-logs', { params: { memberId: id, resultat: 'SUCCES', limit: 1, sort: 'desc' } })
+        .then((r) => unwrapList<AccessLog>(r).map(normalizeAccessLogFromApi))
         .catch(() => [] as AccessLog[]);
 
       if (financial) {
-        const [logs, sRes] = await Promise.all([
-          logPromise,
+        const [logs, lastOk, sRes] = await Promise.all([
+          logsReq,
+          lastOkReq,
           api.get('/subscriptions', { params: { memberId: id } }).catch(() => ({ data: { data: [] } })),
         ]);
         setAccessLogs(logs);
+        setLastSuccessScanAt(computeLastVisitFromLogs(logs, lastOk));
         setSubscriptions(
           sortSubsByEndDesc(unwrapList<Subscription>(sRes as never).map((s) => normalizeSubscription(s))),
         );
       } else {
-        const logs = await logPromise;
+        const [logs, lastOk] = await Promise.all([logsReq, lastOkReq]);
         setAccessLogs(logs);
+        setLastSuccessScanAt(computeLastVisitFromLogs(logs, lastOk));
         setSubscriptions(sortSubsByEndDesc(subsFromMember.map((s) => normalizeSubscription(s))));
       }
     } catch (e: unknown) {
+      setAccessLogs([]);
+      setLastSuccessScanAt(undefined);
       if (axios.isAxiosError(e) && e.response?.status === 404) {
         setNotFound(true);
       } else {
@@ -319,9 +340,9 @@ export default function MemberDetailPage() {
   const showExpireBadge =
     primaryActive && daysLeftPrimary != null && daysLeftPrimary <= 30 && daysLeftPrimary >= 0;
 
-  const lastVisit = lastSuccessfulAccessDate(accessLogs);
+  const lastVisit = lastSuccessScanAt;
 
-  const btnTicket: React.CSSProperties = {
+  const btnRenew: React.CSSProperties = {
     border: 'none',
     borderRadius: 8,
     padding: '8px 14px',
@@ -329,13 +350,7 @@ export default function MemberDetailPage() {
     fontWeight: 600,
     color: '#fff',
     cursor: 'pointer',
-    background: 'linear-gradient(195deg, #66BB6A, #43A047)',
-    boxShadow: '0 4px 12px rgba(76,175,80,0.35)',
     whiteSpace: 'nowrap',
-  };
-
-  const btnRenew: React.CSSProperties = {
-    ...btnTicket,
     background: 'linear-gradient(195deg, #FFA726, #fb8c00)',
     boxShadow: '0 4px 12px rgba(251,140,0,0.35)',
   };
@@ -424,13 +439,6 @@ export default function MemberDetailPage() {
                   >
                     ✏️ Modifier
                   </button>
-                  <button
-                    type="button"
-                    style={btnTicket}
-                    onClick={() => navigate(`/tickets/new?memberId=${member.id}`)}
-                  >
-                    🎫 Ticket
-                  </button>
                   {primaryActive && (
                     <button
                       type="button"
@@ -488,6 +496,51 @@ export default function MemberDetailPage() {
                     </span>
                   </div>
                 ))}
+                <hr style={{ border: 'none', borderTop: '1px solid var(--gf-bg)', margin: '12px 0' }} />
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 10,
+                    paddingTop: 4,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: 'var(--gf-muted)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                    }}
+                  >
+                    Code QR membre
+                  </span>
+                  <div
+                    style={{
+                      background: 'var(--gf-white)',
+                      border: '1px solid var(--gf-border)',
+                      borderRadius: 8,
+                      padding: 8,
+                    }}
+                  >
+                    <QRCode value={member.uuid_qr} size={120} />
+                  </div>
+                  <span
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: 10,
+                      color: 'var(--gf-muted)',
+                      textAlign: 'center',
+                      wordBreak: 'break-all',
+                      maxWidth: 200,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {member.uuid_qr}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

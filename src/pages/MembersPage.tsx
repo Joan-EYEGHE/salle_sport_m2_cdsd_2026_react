@@ -11,7 +11,7 @@ import { Mail, Phone, Printer, QrCode as QrCodeIcon } from 'lucide-react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
-import type { Member, Subscription } from '../types';
+import type { Member } from '../types';
 import { normalizeMemberFromApi } from '../utils/memberApiNormalize';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -23,10 +23,6 @@ function getMemberStatus(member: Member): MemberStatus {
   if (subs.length === 0) return 'EN_ATTENTE';
   const last = subs[0];
   return new Date(last.date_prochain_paiement) >= new Date() ? 'ACTIF' : 'INACTIF';
-}
-
-function lastSub(m: Member): Subscription | undefined {
-  return (m.subscriptions ?? [])[0];
 }
 
 function fmtDate(dateStr: string | undefined): string {
@@ -170,10 +166,19 @@ function SkeletonMemberCard() {
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
         <div className="gf-skeleton" style={{ width: 44, height: 44, borderRadius: '50%', flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div className="gf-skeleton" style={{ width: '85%', height: 14 }} />
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: 6,
+          }}
+        >
+          <div className="gf-skeleton" style={{ width: '85%', height: 14, alignSelf: 'stretch' }} />
           <div className="gf-skeleton" style={{ width: 64, height: 18, borderRadius: 6 }} />
-          <div className="gf-skeleton" style={{ width: '55%', height: 10 }} />
+          <div className="gf-skeleton" style={{ width: '55%', height: 10, alignSelf: 'stretch' }} />
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -216,7 +221,6 @@ function MemberCard({
   onDelete,
 }: MemberCardProps) {
   const fullName = `${m.prenom} ${m.nom}`.toUpperCase();
-  const inscriptionLabel = fmtDate(m.date_inscription ?? lastSub(m)?.date_debut ?? m.createdAt);
 
   return (
     <div
@@ -233,7 +237,7 @@ function MemberCard({
       }}
     >
       {/* Identité */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, position: 'relative' }}>
         <div
           style={{
             width: 44,
@@ -251,9 +255,19 @@ function MemberCard({
         >
           {initials}
         </div>
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: 6,
+          }}
+        >
           <div
             style={{
+              width: '100%',
               fontSize: 13,
               fontWeight: 700,
               color: 'var(--gf-dark)',
@@ -263,8 +277,12 @@ function MemberCard({
           >
             {fullName}
           </div>
+          <div style={{ fontSize: 10, color: 'var(--gf-muted)', marginTop: 3 }}>
+            Membre depuis {fmtDate(m.date_inscription ?? m.createdAt)}
+          </div>
+        </div>
+        <div style={{ position: 'absolute', top: -5, right: 10 }}>
           <StatusBadge status={status} />
-          <div style={{ fontSize: 11, color: 'var(--gf-muted)' }}>{inscriptionLabel}</div>
         </div>
       </div>
 
