@@ -37,15 +37,6 @@ const ROLE_BADGE: Record<User['role'], { cls: string; label: string }> = {
   CONTROLLER: { cls: 'gf-badge--active', label: 'Contrôleur' },
 };
 
-function fmtDate(str: string | undefined): string {
-  if (!str) return '—';
-  return new Date(str).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
 function getInitials(u: ExtUser): string {
   const name = (u.fullName ?? '').trim();
   if (!name) return u.email.charAt(0).toUpperCase();
@@ -60,26 +51,12 @@ function displayFullName(u: ExtUser): string {
   return (u.fullName ?? '').trim() || u.email;
 }
 
-function userIsActive(u: ExtUser): boolean {
-  return u.active === true;
-}
-
-// ─── StatusBadge ─────────────────────────────────────────────────────────────
-
-function StatusBadge({ active }: { active: boolean }) {
-  return (
-    <span className={`gf-badge ${active ? 'gf-badge--active' : 'gf-badge--inactive'}`}>
-      {active ? 'Actif' : 'Inactif'}
-    </span>
-  );
-}
-
 // ─── SkeletonRow ─────────────────────────────────────────────────────────────
 
 function SkeletonRow() {
   return (
     <tr>
-      {[200, 110, 100, 80, 70].map((w, i) => (
+      {[200, 110, 80].map((w, i) => (
         <td key={i}>
           <div className="gf-skeleton" style={{ width: w }} />
         </td>
@@ -100,7 +77,6 @@ interface UserRowProps {
 
 function UserRow({ user: u, isAdmin, isSelf, onEdit, onDelete }: UserRowProps) {
   const roleBadge = ROLE_BADGE[u.role];
-  const active = userIsActive(u);
   const initials = getInitials(u);
   const name = displayFullName(u);
 
@@ -139,12 +115,6 @@ function UserRow({ user: u, isAdmin, isSelf, onEdit, onDelete }: UserRowProps) {
       <td>
         <span className={`gf-badge ${roleBadge.cls}`}>{roleBadge.label}</span>
       </td>
-
-      {/* Date de création — masqué temporairement */}
-      {/* <td>{fmtDate(u.createdAt)}</td> */}
-
-      {/* Statut — masqué temporairement */}
-      {/* <td><StatusBadge active={active} /></td> */}
 
       {/* Actions */}
       <td>
@@ -264,8 +234,12 @@ function UserModal({ editTarget, onClose, onSaved }: UserModalProps) {
     setErr('');
     try {
       if (isEdit) {
-        const { password: _pw, ...payload } = form;
-        await api.put(`/users/${editTarget.id}`, payload);
+        await api.put(`/users/${editTarget.id}`, {
+          fullName: form.fullName.trim(),
+          email: form.email.trim(),
+          role: form.role,
+          active: form.active,
+        });
       } else {
         const { password, ...rest } = form;
         await api.post('/users', {

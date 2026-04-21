@@ -35,6 +35,12 @@
 
   --gf-radius-card: 12px;
   --gf-radius-header: 10px;
+
+  /* Alertes inline (pages) */
+  --gf-alert-error-bg: #fde8e8;
+  --gf-alert-error-text: #f44335;
+  /* Bouton / lien style WhatsApp */
+  --gf-whatsapp: #25d366;
 }
 
 /* ── Page ───────────────────────────────────────────────────── */
@@ -392,6 +398,19 @@
   overflow-y: auto;
 }
 
+/* Clone imprimable QR membre (portal sur body) : invisible à l’écran, révélé en @media print. */
+.gf-member-qr-print--portal {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 @media print {
   body > * {
     display: none !important;
@@ -404,5 +423,19 @@
   }
   #gf-receipt-print {
     display: block !important;
+  }
+  /* Membre : clone portal (hors #root) ; id #gf-member-qr-print reste dans la modale. */
+  #gf-member-qr-print,
+  .gf-member-qr-print--portal {
+    display: block !important;
+    position: static !important;
+  }
+  .gf-member-qr-print--portal {
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    clip: auto !important;
+    white-space: normal !important;
   }
 }
