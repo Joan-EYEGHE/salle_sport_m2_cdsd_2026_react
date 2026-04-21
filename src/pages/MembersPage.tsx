@@ -82,6 +82,20 @@ function MemberQrModalInner({ vm }: { vm: Member }) {
       >
         <QRCode value={vm.uuid_qr} size={200} />
       </div>
+      <p
+        style={{
+          fontFamily: 'monospace',
+          fontSize: 11,
+          color: 'var(--gf-muted)',
+          textAlign: 'center',
+          wordBreak: 'break-all',
+          maxWidth: 260,
+          lineHeight: 1.5,
+          margin: 0,
+        }}
+      >
+        {vm.uuid_qr}
+      </p>
       <div style={{ fontWeight: 700, textAlign: 'center', color: 'var(--gf-dark)', fontSize: 15 }}>
         {vm.prenom} {vm.nom}
       </div>
