@@ -97,13 +97,13 @@ export interface Transaction {
 
 export interface AccessLog {
   id: number;
-  id_ticket?: number;
-  id_membre?: number;
+  id_ticket?: number | null;
+  id_membre?: number | null;
   date_scan: string;
   resultat: string;
   id_controller: number;
-  ticket?: Ticket;
-  membre?: { nom: string; prenom: string };
+  ticket?: Ticket | null;
+  membre?: { nom: string; prenom: string } | null;
 }
 
 export interface TransactionSummary {

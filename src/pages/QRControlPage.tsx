@@ -286,15 +286,36 @@ export default function QRControlPage() {
     if (!silent) { setKpiLoading(true); setKpiError(false); }
     try {
       const res = await api.get('/access-logs?period=today');
-      const data: AccessLog[] = res.data?.data ?? res.data ?? [];
-      const total = Array.isArray(data) ? data.length : 0;
-      const uniques = new Set(
-        Array.isArray(data) ? data.map((l) => l.id_membre ?? l.id) : []
-      ).size;
-      const tickets = Array.isArray(data)
-        ? data.filter((l) => l.resultat === 'SUCCES' || l.resultat === 'SUCCESS').length
-        : 0;
-      setKpiData({ total, uniques, tickets });
+      const data: AccessLog[] = Array.isArray(res.data?.data ?? res.data)
+        ? (res.data?.data ?? res.data)
+        : [];
+
+      // Entrées aujourd'hui = tous les accès SUCCES (ticket OU membre)
+      const entrees = data.filter(
+        (l) => l.resultat === 'SUCCES' || l.resultat === 'SUCCESS',
+      ).length;
+
+      // Membres accédés = SUCCES avec id_membre, dédupliqué par id_membre
+      const membresSet = new Set(
+        data
+          .filter(
+            (l) =>
+              (l.resultat === 'SUCCES' || l.resultat === 'SUCCESS') &&
+              l.id_membre != null,
+          )
+          .map((l) => l.id_membre),
+      );
+      const membres = membresSet.size;
+
+      // Tickets validés = SUCCES avec id_ticket présent ET id_membre absent
+      const tickets = data.filter(
+        (l) =>
+          (l.resultat === 'SUCCES' || l.resultat === 'SUCCESS') &&
+          l.id_ticket != null &&
+          l.id_membre == null,
+      ).length;
+
+      setKpiData({ total: entrees, uniques: membres, tickets });
     } catch {
       if (!silent) setKpiError(true);
     } finally {
@@ -526,21 +547,21 @@ export default function QRControlPage() {
       value: kpiLoading || kpiError ? null : String(kpiData?.total ?? 0),
       Icon: CheckCircle,
       colorKey: 'success',
-      footer: 'Accès enregistrés',
+      footer: 'Accès accordés (ticket + abonnement)',
     },
     {
       label: 'Membres accédés',
       value: kpiLoading || kpiError ? null : String(kpiData?.uniques ?? 0),
       Icon: Users,
       colorKey: 'warning',
-      footer: 'Membres uniques',
+      footer: 'Abonnés uniques du jour',
     },
     {
       label: 'Tickets validés',
       value: kpiLoading || kpiError ? null : String(kpiData?.tickets ?? 0),
       Icon: Ticket,
       colorKey: 'info',
-      footer: 'Scans accordés',
+      footer: 'Entrées sans abonnement',
     },
   ];
 
@@ -870,12 +891,43 @@ export default function QRControlPage() {
                 {logs.map((log) => {
                   const isSuccess =
                     log.resultat === 'SUCCES' || log.resultat === 'SUCCESS';
-                  const nomMembre = log.membre
-                    ? `${log.membre.prenom} ${log.membre.nom}`
-                    : log.ticket?.code_ticket ?? `Scan #${log.id}`;
-                  const detail = log.ticket?.batch?.activity?.nom
-                    ?? log.ticket?.code_ticket
-                    ?? `Accès #${log.id}`;
+                  const isMemberAccess = log.id_membre != null && log.id_ticket == null;
+                  const isTicketAccess = log.id_ticket != null && log.id_membre == null;
+
+                  let lignePrincipale: string;
+                  if (isMemberAccess && log.membre) {
+                    lignePrincipale = `${log.membre.prenom} ${log.membre.nom}`;
+                  } else if (isTicketAccess && log.ticket?.code_ticket) {
+                    lignePrincipale = log.ticket.code_ticket;
+                  } else {
+                    lignePrincipale = `Scan #${log.id}`;
+                  }
+
+                  let ligneDetail: string;
+                  if (isMemberAccess) {
+                    const activite = log.ticket?.batch?.activity?.nom ?? null;
+                    ligneDetail = isSuccess
+                      ? `Abonnement actif${activite ? ` — ${activite}` : ''}`
+                      : 'Accès refusé — abonnement';
+                  } else if (isTicketAccess) {
+                    const activite = log.ticket?.batch?.activity?.nom ?? '—';
+                    const genereA = log.ticket?.createdAt
+                      ? new Date(log.ticket.createdAt).toLocaleTimeString('fr-FR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : null;
+                    const genereAujourdhui =
+                      log.ticket?.createdAt
+                        ? new Date(log.ticket.createdAt).toDateString() === new Date().toDateString()
+                        : false;
+                    ligneDetail = isSuccess
+                      ? `${activite}${genereAujourdhui && genereA ? ` · généré aujourd'hui à ${genereA}` : ''}`
+                      : `Ticket refusé — ${activite}`;
+                  } else {
+                    ligneDetail = `Accès #${log.id}`;
+                  }
+
                   const heure = new Date(log.date_scan).toLocaleTimeString('fr-FR', {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -913,7 +965,7 @@ export default function QRControlPage() {
                             whiteSpace: 'nowrap',
                           }}
                         >
-                          {nomMembre}
+                          {lignePrincipale}
                         </p>
                         <p
                           style={{
@@ -925,7 +977,7 @@ export default function QRControlPage() {
                             whiteSpace: 'nowrap',
                           }}
                         >
-                          {detail}
+                          {ligneDetail}
                         </p>
                       </div>
                       <p
