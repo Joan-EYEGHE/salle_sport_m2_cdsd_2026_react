@@ -363,10 +363,39 @@ export default function QRControlPage() {
     setResult(null);
     if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
 
-    const isMemberQr = UUID_REGEX.test(trimmed);
-
     try {
-      if (isMemberQr) {
+      const ticketRes = await api.post('/tickets/validate', { code: trimmed });
+      console.log('[validateCodeString] ticketRes.data:', JSON.stringify(ticketRes.data));
+      console.log('[validateCodeString] ticketParsed:', JSON.stringify(
+        parseTicketValidateResponse(ticketRes.data),
+      ));
+      console.log('[validateCodeString] ticketInconnu:',
+        parseTicketValidateResponse(ticketRes.data)?.reason === 'Ticket inconnu',
+      );
+      const ticketParsed = parseTicketValidateResponse(ticketRes.data);
+
+      const ticketInconnu =
+        ticketParsed &&
+        ticketParsed.valid === false &&
+        ticketParsed.reason === 'Ticket inconnu';
+
+      if (ticketParsed && !ticketInconnu) {
+        const newResult = mapValidateResponseToVerifyResult(ticketParsed);
+        setResult(newResult);
+
+        const optimisticEntry: AccessLog = {
+          id: Date.now(),
+          date_scan: new Date().toISOString(),
+          resultat: ticketParsed.valid ? 'SUCCES' : 'ECHEC',
+          id_controller: 0,
+          id_ticket: readIdTicketFromPayload(ticketParsed.ticket_info),
+          ticket: mapTicketInfoToAccessLogTicket(ticketParsed.ticket_info),
+        };
+        setLogs((prev) => [optimisticEntry, ...prev.slice(0, 9)]);
+
+        fetchKpis(true);
+        fetchLogs(true);
+      } else if (UUID_REGEX.test(trimmed)) {
         const res = await api.post('/members/validate-qr', { code: trimmed });
         const parsed = parseMemberValidateResponse(res.data);
         if (!parsed) {
@@ -408,30 +437,10 @@ export default function QRControlPage() {
           fetchLogs(true);
         }
       } else {
-        const res = await api.post('/tickets/validate', { code: trimmed });
-        const parsed = parseTicketValidateResponse(res.data);
-        if (!parsed) {
-          setResult({
-            success: false,
-            message: 'Réponse serveur inattendue.',
-          });
-        } else {
-          const newResult = mapValidateResponseToVerifyResult(parsed);
-          setResult(newResult);
-
-          const optimisticEntry: AccessLog = {
-            id: Date.now(),
-            date_scan: new Date().toISOString(),
-            resultat: parsed.valid ? 'SUCCES' : 'ECHEC',
-            id_controller: 0,
-            id_ticket: readIdTicketFromPayload(parsed.ticket_info),
-            ticket: mapTicketInfoToAccessLogTicket(parsed.ticket_info),
-          };
-          setLogs((prev) => [optimisticEntry, ...prev.slice(0, 9)]);
-
-          fetchKpis(true);
-          fetchLogs(true);
-        }
+        setResult({
+          success: false,
+          message: 'Code inconnu ou accès refusé.',
+        });
       }
     } catch (err: unknown) {
       setResult({
