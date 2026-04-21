@@ -23,6 +23,50 @@ interface VerifyResult {
     activity?: { nom: string };
     date_expiration: string;
   };
+  member_info?: {
+    nom: string;
+    prenom: string;
+    subscription?: {
+      type_forfait: string;
+      date_prochain_paiement: string;
+      activity?: { nom: string } | null;
+    } | null;
+  } | null;
+}
+
+/** Réponse `POST /members/validate-qr`. */
+interface MemberValidateResponse {
+  success: boolean;
+  valid: boolean;
+  reason: string | null;
+  member_info: {
+    id: number;
+    nom: string;
+    prenom: string;
+    uuid_qr: string;
+    subscription: {
+      type_forfait: string;
+      date_prochain_paiement: string;
+      activity?: { nom: string } | null;
+    } | null;
+  } | null;
+}
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function parseMemberValidateResponse(raw: unknown): MemberValidateResponse | null {
+  if (!isRecord(raw)) return null;
+  if (raw.success !== true) return null;
+  if (typeof raw.valid !== 'boolean') return null;
+  const reason =
+    raw.reason === null ? null : typeof raw.reason === 'string' ? raw.reason : null;
+  if (!('member_info' in raw)) return null;
+  return {
+    success: true,
+    valid: raw.valid,
+    reason,
+    member_info: raw.member_info as MemberValidateResponse['member_info'],
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -298,30 +342,75 @@ export default function QRControlPage() {
     setResult(null);
     if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
 
+    const isMemberQr = UUID_REGEX.test(trimmed);
+
     try {
-      const res = await api.post('/tickets/validate', { code: trimmed });
-      const parsed = parseTicketValidateResponse(res.data);
-      if (!parsed) {
-        setResult({
-          success: false,
-          message: 'Réponse serveur inattendue.',
-        });
+      if (isMemberQr) {
+        const res = await api.post('/members/validate-qr', { code: trimmed });
+        const parsed = parseMemberValidateResponse(res.data);
+        if (!parsed) {
+          setResult({
+            success: false,
+            message: 'Réponse serveur inattendue.',
+          });
+        } else {
+          const mi = parsed.member_info;
+          setResult({
+            success: parsed.valid,
+            message: parsed.valid ? 'Accès autorisé' : (parsed.reason ?? 'Accès refusé'),
+            member_info: mi
+              ? {
+                  nom: mi.nom,
+                  prenom: mi.prenom,
+                  subscription: mi.subscription
+                    ? {
+                        type_forfait: mi.subscription.type_forfait,
+                        date_prochain_paiement: mi.subscription.date_prochain_paiement,
+                        activity: mi.subscription.activity ?? null,
+                      }
+                    : null,
+                }
+              : undefined,
+          });
+
+          const optimisticEntry: AccessLog = {
+            id: Date.now(),
+            date_scan: new Date().toISOString(),
+            resultat: parsed.valid ? 'SUCCES' : 'ECHEC',
+            id_controller: 0,
+            id_membre: mi?.id,
+            membre: mi ? { nom: mi.nom, prenom: mi.prenom } : undefined,
+          };
+          setLogs((prev) => [optimisticEntry, ...prev.slice(0, 9)]);
+
+          fetchKpis(true);
+          fetchLogs(true);
+        }
       } else {
-        const newResult = mapValidateResponseToVerifyResult(parsed);
-        setResult(newResult);
+        const res = await api.post('/tickets/validate', { code: trimmed });
+        const parsed = parseTicketValidateResponse(res.data);
+        if (!parsed) {
+          setResult({
+            success: false,
+            message: 'Réponse serveur inattendue.',
+          });
+        } else {
+          const newResult = mapValidateResponseToVerifyResult(parsed);
+          setResult(newResult);
 
-        const optimisticEntry: AccessLog = {
-          id: Date.now(),
-          date_scan: new Date().toISOString(),
-          resultat: parsed.valid ? 'SUCCES' : 'ECHEC',
-          id_controller: 0,
-          id_ticket: readIdTicketFromPayload(parsed.ticket_info),
-          ticket: mapTicketInfoToAccessLogTicket(parsed.ticket_info),
-        };
-        setLogs((prev) => [optimisticEntry, ...prev.slice(0, 9)]);
+          const optimisticEntry: AccessLog = {
+            id: Date.now(),
+            date_scan: new Date().toISOString(),
+            resultat: parsed.valid ? 'SUCCES' : 'ECHEC',
+            id_controller: 0,
+            id_ticket: readIdTicketFromPayload(parsed.ticket_info),
+            ticket: mapTicketInfoToAccessLogTicket(parsed.ticket_info),
+          };
+          setLogs((prev) => [optimisticEntry, ...prev.slice(0, 9)]);
 
-        fetchKpis(true);
-        fetchLogs(true);
+          fetchKpis(true);
+          fetchLogs(true);
+        }
       }
     } catch (err: unknown) {
       setResult({
@@ -682,7 +771,7 @@ export default function QRControlPage() {
                   {result.success &&
                     (result.membre || result.ticket || result.subscription) && (
                       <div style={{ marginTop: 6 }}>
-                        {result.membre && (
+                        {result.membre && !result.member_info && (
                           <p style={{ fontSize: 12, color: 'var(--gf-dark)', margin: '2px 0' }}>
                             <strong>Membre :</strong>{' '}
                             {result.membre.prenom} {result.membre.nom}
@@ -713,6 +802,33 @@ export default function QRControlPage() {
                         )}
                       </div>
                     )}
+                  {result.member_info && (
+                    <div style={{ marginTop: 6 }}>
+                      <p style={{ fontSize: 12, color: 'var(--gf-dark)', margin: '2px 0' }}>
+                        <strong>Membre :</strong> {result.member_info.prenom} {result.member_info.nom}
+                      </p>
+                      {result.member_info.subscription ? (
+                        <>
+                          <p style={{ fontSize: 12, color: 'var(--gf-dark)', margin: '2px 0' }}>
+                            <strong>Abonnement :</strong> {result.member_info.subscription.type_forfait}
+                            {result.member_info.subscription.activity?.nom
+                              ? ` — ${result.member_info.subscription.activity.nom}`
+                              : ''}
+                          </p>
+                          <p style={{ fontSize: 12, color: 'var(--gf-dark)', margin: '2px 0' }}>
+                            <strong>Valide jusqu&apos;au :</strong>{' '}
+                            {new Date(result.member_info.subscription.date_prochain_paiement).toLocaleDateString(
+                              'fr-FR',
+                            )}
+                          </p>
+                        </>
+                      ) : (
+                        <p style={{ fontSize: 12, color: '#d32f2f', margin: '2px 0' }}>
+                          Aucun abonnement actif
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
