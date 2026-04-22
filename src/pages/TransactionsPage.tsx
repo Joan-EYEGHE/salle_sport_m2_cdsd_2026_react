@@ -62,28 +62,12 @@ function getDateRange(period: PeriodFilter): { date_start?: string; date_end?: s
   return {};
 }
 
-function filterLocal(txs: Transaction[], type: TypeFilter, period: PeriodFilter, dateStart: string, dateEnd: string): Transaction[] {
-  let result = txs;
-
-  if (type !== 'ALL') {
-    result = result.filter((t) => t.type === type);
-  }
-
-  const range = period === 'custom'
-    ? { date_start: dateStart, date_end: dateEnd }
-    : getDateRange(period);
-
-  if (range.date_start) {
-    const from = new Date(range.date_start);
-    result = result.filter((t) => new Date(t.date) >= from);
-  }
-  if (range.date_end) {
-    const to = new Date(range.date_end);
-    to.setHours(23, 59, 59, 999);
-    result = result.filter((t) => new Date(t.date) <= to);
-  }
-
-  return result;
+function filterLocal(
+  txs: Transaction[],
+  type: TypeFilter
+): Transaction[] {
+  if (type === 'ALL') return txs;
+  return txs.filter((t) => t.type === type);
 }
 
 function exportCsv(txs: Transaction[]) {
@@ -168,15 +152,15 @@ export default function TransactionsPage() {
     setLoading(true);
     setError('');
     try {
-      // build params for server-side filtering (supported or ignored by backend)
       const params: Record<string, string> = {};
       if (typeFilter !== 'ALL') params.type = typeFilter;
-      if (period !== 'custom') {
-        params.period = period;
-      } else {
-        if (dateStart) params.date_start = dateStart;
-        if (dateEnd) params.date_end = dateEnd;
-      }
+
+      const range = period === 'custom'
+        ? { date_start: dateStart, date_end: dateEnd }
+        : getDateRange(period);
+
+      if (range.date_start) params.date_debut = range.date_start;
+      if (range.date_end) params.date_fin = range.date_end;
 
       const res = await api.get('/transactions', { params });
       const raw = res.data?.data ?? res.data;
@@ -201,8 +185,7 @@ export default function TransactionsPage() {
 
   // ── derived data ───────────────────────────────────────────────────────────
 
-  // apply local filtering on top (handles backends that ignore query params)
-  const transactions = filterLocal(allTransactions, typeFilter, period, dateStart, dateEnd);
+  const transactions = filterLocal(allTransactions, typeFilter);
 
   const totalRevenus = transactions
     .filter((t) => t.type === 'REVENU')
