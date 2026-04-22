@@ -1,8 +1,4 @@
-/*
-AUDIT CSS GYMFLOW - ActivitiesPage.tsx
-Problème 1 : couleurs palette et bordures en dur (modale, filtres, tableau, icône recherche)
-Total : 1 problème trouvé
-*/
+/* Cartes activités : styles alignés sur gymflow.css (tokens --gf-*) */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
@@ -66,12 +62,13 @@ function SkeletonCard() {
     <div
       style={{
         border: '1px solid var(--gf-border)',
-        borderRadius: 12,
+        borderRadius: 'var(--gf-radius-card)',
         padding: 14,
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
         background: 'var(--gf-white)',
+        boxShadow: 'var(--gf-shadow-card)',
       }}
     >
       <div className="gf-skeleton" style={{ height: 14, width: '60%' }} />
@@ -118,13 +115,13 @@ function ActivityCard({ activity: a, isAdmin, onEdit, onDelete, onSubscribe }: A
   return (
     <div
       style={{
-        background: '#fff',
-        borderRadius: 16,
-        boxShadow: '0 2px 12px rgba(0,0,0,.09)',
+        background: 'var(--gf-white)',
+        borderRadius: 'var(--gf-radius-card)',
+        boxShadow: 'var(--gf-shadow-card)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        border: '1px solid #f0f0f0',
+        border: '1px solid var(--gf-border)',
       }}
     >
       <div
@@ -160,12 +157,12 @@ function ActivityCard({ activity: a, isAdmin, onEdit, onDelete, onSubscribe }: A
               <span
                 style={{
                   fontSize: 12,
-                  color: value > 0 ? '#c9a227' : 'var(--gf-muted)',
+                  color: 'var(--gf-muted)',
                 }}
               >
                 {label}
               </span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gf-dark)' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--gf-dark)' }}>
                 {fmtTarifCard(value)}
               </span>
             </div>
@@ -187,8 +184,9 @@ function ActivityCard({ activity: a, isAdmin, onEdit, onDelete, onSubscribe }: A
           onClick={onSubscribe}
           style={{
             flex: 1,
-            background: 'linear-gradient(135deg,#c9a227,#a07d10)',
-            color: '#fff',
+            background: 'var(--gf-grad-info)',
+            color: 'var(--gf-white)',
+            boxShadow: 'var(--gf-shadow-kpi-info)',
             border: 'none',
             borderRadius: 8,
             fontSize: 11,
@@ -201,49 +199,13 @@ function ActivityCard({ activity: a, isAdmin, onEdit, onDelete, onSubscribe }: A
         </button>
         {isAdmin && (
           <>
-            <button
-              type="button"
-              title="Modifier"
-              onClick={onEdit}
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 6,
-                border: 'none',
-                background: '#fef3e2',
-                color: '#c9a227',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                padding: 0,
-                flexShrink: 0,
-              }}
-            >
+            <button type="button" title="Modifier" className="gf-btn-action gf-btn-action--edit" onClick={onEdit}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
             </button>
-            <button
-              type="button"
-              title="Supprimer"
-              onClick={onDelete}
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 6,
-                border: 'none',
-                background: '#fce4ec',
-                color: '#e91e63',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                padding: 0,
-                flexShrink: 0,
-              }}
-            >
+            <button type="button" title="Supprimer" className="gf-btn-action gf-btn-action--delete" onClick={onDelete}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <polyline points="3 6 5 6 21 6" />
                 <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
@@ -386,8 +348,8 @@ export default function ActivitiesPage() {
               <div
                 style={{
                   margin: '12px 20px 0',
-                  background: '#fde8e8',
-                  color: '#F44335',
+                  background: 'var(--gf-alert-error-bg)',
+                  color: 'var(--gf-alert-error-text)',
                   borderRadius: 8,
                   padding: '10px 14px',
                   fontSize: 13,
