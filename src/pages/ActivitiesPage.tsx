@@ -23,9 +23,17 @@ function activityPath(a: Activity): string {
   return a.slug ?? String(a.id);
 }
 
+/** Même logique qu’avant (tableau) ; `fmtTarifCard` sert à l’affichage des 6 tarifs en carte. */
 function fmtFcfa(n: number | undefined | null): string {
   if (!n || n === 0) return '—';
   return new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
+}
+
+/** Affichage tarifs carte : 0 → « 0 FCFA » ; sinon même format que fmtFcfa. */
+function fmtTarifCard(n: number | undefined | null): string {
+  const v = n == null || Number.isNaN(Number(n)) ? 0 : Number(n);
+  if (v === 0) return '0 FCFA';
+  return fmtFcfa(v);
 }
 
 const ICON_GRADIENTS = [
@@ -51,96 +59,192 @@ function StatusBadge({ active }: { active: boolean }) {
   );
 }
 
-// ─── skeleton ────────────────────────────────────────────────────────────────
+// ─── skeleton carte ────────────────────────────────────────────────────────────
 
-function SkeletonRow() {
+function SkeletonCard() {
   return (
-    <tr>
-      {[200, 110, 110, 80, 90, 70, 80].map((w, i) => (
-        <td key={i}>
-          <div className="gf-skeleton" style={{ width: w }} />
-        </td>
-      ))}
-    </tr>
+    <div
+      style={{
+        border: '1px solid var(--gf-border)',
+        borderRadius: 12,
+        padding: 14,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+        background: 'var(--gf-white)',
+      }}
+    >
+      <div className="gf-skeleton" style={{ height: 14, width: '60%' }} />
+      <div className="gf-skeleton" style={{ height: 10, width: '40%' }} />
+      <div style={{ borderTop: '1px solid var(--gf-border)', margin: '0' }} />
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 8,
+        }}
+      >
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="gf-skeleton" style={{ height: 10, width: '100%' }} />
+        ))}
+      </div>
+      <div className="gf-skeleton" style={{ height: 28, width: '100%', marginTop: 'auto' }} />
+    </div>
   );
 }
 
-// ─── activity row ────────────────────────────────────────────────────────────
+// ─── activity card ─────────────────────────────────────────────────────────────
 
-interface ActivityRowProps {
+interface ActivityCardProps {
   activity: ExtActivity;
   isAdmin: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onSubscribe: () => void;
 }
 
-function ActivityRow({ activity: a, isAdmin, onEdit, onDelete }: ActivityRowProps) {
-  const subLabel =
-    a.description ??
-    (a.prix_mensuel > 0
-      ? `Mensuel : ${new Intl.NumberFormat('fr-FR').format(a.prix_mensuel)} FCFA`
-      : a.prix_hebdomadaire > 0
-      ? `Hebdo : ${new Intl.NumberFormat('fr-FR').format(a.prix_hebdomadaire)} FCFA`
-      : '');
+function ActivityCard({ activity: a, isAdmin, onEdit, onDelete, onSubscribe }: ActivityCardProps) {
+  const sep = { borderTop: '1px solid var(--gf-border)', margin: '10px 0' } as const;
+
+  const rows: { label: string; value: number }[] = [
+    { label: 'Inscription :', value: a.frais_inscription },
+    { label: 'Prix Ticket :', value: a.prix_ticket },
+    { label: 'Hebdomadaire :', value: a.prix_hebdomadaire },
+    { label: 'Mensuelle :', value: a.prix_mensuel },
+    { label: 'Trimestrielle :', value: a.prix_trimestriel },
+    { label: 'Annuelle :', value: a.prix_annuel },
+  ];
 
   return (
-    <tr>
-      {/* Activité */}
-      <td>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div
+      style={{
+        background: '#fff',
+        borderRadius: 16,
+        boxShadow: '0 2px 12px rgba(0,0,0,.09)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        border: '1px solid #f0f0f0',
+      }}
+    >
+      <div
+        style={{ height: 3, width: '100%', background: iconGradient(a.id) }}
+        aria-hidden
+      />
+      <div style={{ padding: '16px 16px 12px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
           <div
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: iconGradient(a.id),
-              color: 'var(--gf-white)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 13,
-              fontWeight: 700,
-              flexShrink: 0,
+              fontSize: 15,
+              fontWeight: 800,
+              color: 'var(--gf-dark)',
+              lineHeight: 1.3,
+              wordBreak: 'break-word',
             }}
           >
-            {a.nom.charAt(0).toUpperCase()}
+            {a.nom.toUpperCase()}
           </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gf-dark)' }}>{a.nom}</div>
-            {subLabel && (
-              <div style={{ fontSize: 11, color: 'var(--gf-muted)' }}>{subLabel}</div>
-            )}
+          <div style={{ flexShrink: 0 }}>
+            <StatusBadge active={a.status} />
           </div>
         </div>
-      </td>
 
-      {/* Tarif abonnement */}
-      <td style={{ fontWeight: 700 }}>{fmtFcfa(a.prix_mensuel)}</td>
+        <div style={sep} />
 
-      {/* Tarif ticket */}
-      <td>{fmtFcfa(a.prix_ticket)}</td>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {rows.map(({ label, value }) => (
+            <div
+              key={label}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}
+            >
+              <span
+                style={{
+                  fontSize: 12,
+                  color: value > 0 ? '#c9a227' : 'var(--gf-muted)',
+                }}
+              >
+                {label}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gf-dark)' }}>
+                {fmtTarifCard(value)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
 
-      {/* Capacité */}
-      <td>{a.capacite != null ? a.capacite : '—'}</td>
-
-      {/* Membres inscrits */}
-      <td>{a.nb_membres != null ? a.nb_membres : '—'}</td>
-
-      {/* Statut */}
-      <td><StatusBadge active={a.status} /></td>
-
-      {/* Actions */}
-      <td>
-        {isAdmin ? (
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button className="gf-btn-action gf-btn-action--edit" title="Modifier" onClick={onEdit}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <div
+        style={{
+          padding: '10px 12px',
+          borderTop: '1px solid var(--gf-border)',
+          display: 'flex',
+          gap: 6,
+          alignItems: 'center',
+        }}
+      >
+        <button
+          type="button"
+          onClick={onSubscribe}
+          style={{
+            flex: 1,
+            background: 'linear-gradient(135deg,#c9a227,#a07d10)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            fontSize: 11,
+            fontWeight: 700,
+            padding: '8px 10px',
+            cursor: 'pointer',
+          }}
+        >
+          Nouvel abonnement
+        </button>
+        {isAdmin && (
+          <>
+            <button
+              type="button"
+              title="Modifier"
+              onClick={onEdit}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                border: 'none',
+                background: '#fef3e2',
+                color: '#c9a227',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
             </button>
-            <button className="gf-btn-action gf-btn-action--delete" title="Supprimer" onClick={onDelete}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <button
+              type="button"
+              title="Supprimer"
+              onClick={onDelete}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                border: 'none',
+                background: '#fce4ec',
+                color: '#e91e63',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <polyline points="3 6 5 6 21 6" />
                 <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
                 <path d="M10 11v6" />
@@ -148,28 +252,16 @@ function ActivityRow({ activity: a, isAdmin, onEdit, onDelete }: ActivityRowProp
                 <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
               </svg>
             </button>
-          </div>
-        ) : (
-          <span style={{ fontSize: 11, color: '#c0c4cc' }}>—</span>
+          </>
         )}
-      </td>
-    </tr>
+      </div>
+    </div>
   );
 }
 
 // ─── main page ───────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
-
-const COLUMNS = [
-  'Activité',
-  'Tarif abonnement',
-  'Tarif ticket',
-  'Capacité',
-  'Membres inscrits',
-  'Statut',
-  'Actions',
-];
 
 export default function ActivitiesPage() {
   const navigate = useNavigate();
@@ -305,49 +397,42 @@ export default function ActivitiesPage() {
               </div>
             )}
 
-            {/* ── table ── */}
-            <div className="gf-card-body--table">
-              <table className="gf-table" style={{ minWidth: 820 }}>
-                <thead>
-                  <tr>
-                    {COLUMNS.map((col) => (
-                      <th key={col}>{col}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
-                  ) : pageRows.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={COLUMNS.length}
-                        style={{
-                          textAlign: 'center',
-                          padding: '48px 0',
-                          color: 'var(--gf-muted)',
-                          fontSize: 13,
-                        }}
-                      >
-                        Aucune activité trouvée.
-                      </td>
-                    </tr>
-                  ) : (
-                    pageRows.map((a) => (
-                      <ActivityRow
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 16,
+                padding: '16px 20px 20px',
+              }}
+            >
+              {loading
+                ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
+                : pageRows.length === 0
+                  ? (
+                    <div
+                      style={{
+                        gridColumn: '1 / -1',
+                        textAlign: 'center',
+                        padding: '48px 0',
+                        color: 'var(--gf-muted)',
+                        fontSize: 13,
+                      }}
+                    >
+                      Aucune activité trouvée.
+                    </div>
+                    )
+                  : pageRows.map((a) => (
+                      <ActivityCard
                         key={a.id}
                         activity={a}
                         isAdmin={isAdmin}
                         onEdit={() => openEdit(a)}
                         onDelete={() => handleDelete(a)}
+                        onSubscribe={() => navigate(`/members/new?activityId=${a.id}`)}
                       />
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ))}
             </div>
 
-            {/* ── pagination ── */}
             {!loading && filtered.length > 0 && (
               <div className="gf-pagination">
                 <span className="gf-pagination__info">
@@ -359,6 +444,7 @@ export default function ActivitiesPage() {
                     return (
                       <button
                         key={p}
+                        type="button"
                         onClick={() => setPage(p)}
                         className={`gf-page-btn${p === safePage ? ' gf-page-btn--active' : ''}`}
                       >

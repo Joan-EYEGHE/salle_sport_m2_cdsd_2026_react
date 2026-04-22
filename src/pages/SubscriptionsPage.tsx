@@ -44,7 +44,7 @@ function addDaysYmd(base: string, days: number): string {
 function rowStatus(endDate: string): RowStatus {
   const t = todayYmd();
   if (endDate < t) return 'EXPIRE';
-  const limit = addDaysYmd(t, 30);
+  const limit = addDaysYmd(t, 3);
   if (endDate <= limit) return 'BIENTOT';
   return 'ACTIF';
 }
@@ -197,8 +197,7 @@ export default function SubscriptionsPage() {
   const { user } = useAuth();
   const role = user?.role ?? 'CONTROLLER';
 
-  const canAdd = role === 'ADMIN' || role === 'CASHIER';
-  const canRenew = canAdd;
+  const canRenew = role === 'ADMIN' || role === 'CASHIER';
   const canDelete = role === 'ADMIN';
 
   const [rows, setRows] = useState<Subscription[]>([]);
@@ -320,11 +319,6 @@ export default function SubscriptionsPage() {
               <p className="gf-card-header__title">Abonnements</p>
               <p className="gf-card-header__sub">Gestion de tous les abonnements membres</p>
             </div>
-            {canAdd && (
-              <button type="button" className="gf-btn-header" onClick={() => navigate('/subscriptions/form')}>
-                + Nouvel abonnement
-              </button>
-            )}
           </div>
 
           <div className="gf-toolbar">

@@ -549,22 +549,17 @@ export default function DashboardPage() {
                   <thead>
                     <tr>
                       <th>Date</th>
-                      <th>Membre</th>
                       <th>Type</th>
-                      <th>Activité</th>
+                      <th>Description</th>
                       <th style={{ textAlign: 'right' }}>Montant</th>
                     </tr>
                   </thead>
                   <tbody>
                     {recentTx.map((tx) => {
-                      const memberName = tx.member
-                        ? `${tx.member.prenom} ${tx.member.nom}`
-                        : '—';
                       const cat = getTxCategory(tx.libelle);
                       return (
                         <tr key={tx.id}>
                           <td style={{ color: 'var(--gf-muted)' }}>{fmtTableDate(tx.date)}</td>
-                          <td style={{ fontWeight: 500 }}>{memberName}</td>
                           <td>
                             <span className={`gf-badge gf-badge--${cat.badgeClass}`}>
                               {cat.label}

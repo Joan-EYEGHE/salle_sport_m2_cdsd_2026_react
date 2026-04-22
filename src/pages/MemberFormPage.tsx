@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import axios from 'axios';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import type { Activity, Member, Subscription } from '../types';
 import Loader from '../components/Loader';
@@ -137,6 +137,7 @@ function borderErr(hasErr: boolean): CSSProperties {
 
 export default function MemberFormPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { slug: slugParam } = useParams<{ slug?: string }>();
   const isEdit = Boolean(slugParam && slugParam !== 'new');
   const memberSlug = isEdit ? slugParam! : null;
@@ -195,6 +196,15 @@ export default function MemberFormPage() {
       cancelled = true;
     };
   }, [isEdit]);
+
+  useEffect(() => {
+    if (isEdit) return;
+    const raw = searchParams.get('activityId');
+    if (raw == null || raw === '') return;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return;
+    setIdActivity(n);
+  }, [isEdit, searchParams]);
 
   useEffect(() => {
     if (isEdit || idActivity === '') {
