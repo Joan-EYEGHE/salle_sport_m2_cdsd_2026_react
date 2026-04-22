@@ -18,6 +18,9 @@ export default function RoleGuard({ allowedRoles, children }: RoleGuardProps) {
     if (user.role === 'CONTROLLER') {
       return <Navigate to="/qr-control" replace />;
     }
+    if (user.role === 'CASHIER') {
+      return <Navigate to="/members" replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
 
