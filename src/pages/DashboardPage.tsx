@@ -239,7 +239,7 @@ export default function DashboardPage() {
   useEffect(() => {
     setExpirLoading(true);
     api
-      .get('/subscriptions/expiring-soon?days=30')
+      .get('/subscriptions/expiring-soon?days=3')
       .then((res) => {
         const d = res.data?.data ?? res.data;
         const arr = (Array.isArray(d) ? d : []).map((s) =>
@@ -447,7 +447,7 @@ export default function DashboardPage() {
                   }}
                 >
                   {expirations.slice(0, 5).map((sub) => {
-                    const isUrgent = sub.daysLeft <= 7;
+                    const isUrgent = sub.daysLeft <= 3;
                     const memberName = sub.membre
                       ? `${sub.membre.prenom} ${sub.membre.nom}`
                       : `Abonnement #${sub.id}`;
@@ -505,7 +505,7 @@ export default function DashboardPage() {
 
               <button
                 type="button"
-                onClick={() => navigate('/expirations')}
+                onClick={() => navigate('/subscriptions?filter=bientot')}
                 style={{
                   width: '100%',
                   background: 'linear-gradient(195deg, #FFA726, #fb8c00)',

@@ -4,7 +4,6 @@ Problème 1 : Couleurs palette (#f0f2f5, #7b809a, #344767, white) en inline — 
 Problème 2 : Item nav actif background white — remplacé par var(--gf-white)
 Total : 2 problèmes trouvés
 */
-import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -16,10 +15,8 @@ import {
   ScanLine,
   UserCog,
   LogOut,
-  Bell,
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
-import api from '../api/axios';
 
 interface NavItem {
   label: string;
@@ -68,7 +65,6 @@ function getPageInfo(pathname: string): { label: string; sub?: string } {
   if (pathname.startsWith('/transactions')) return { label: 'Transactions' };
   if (pathname.startsWith('/qr-control')) return { label: 'Scan QR' };
   if (pathname.startsWith('/users')) return { label: 'Utilisateurs' };
-  if (pathname.startsWith('/expirations')) return { label: 'Expirations' };
   return { label: '' };
 }
 
@@ -76,24 +72,6 @@ export default function MainLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-
-  const [expiring, setExpiring] = useState<number | '!'>(0);
-
-  useEffect(() => {
-    api
-      .get('/subscriptions/expiring-soon?days=30')
-      .then((res) => {
-        const rows = res.data?.data ?? res.data;
-        const count =
-          typeof res.data?.count === 'number'
-            ? res.data.count
-            : Array.isArray(rows)
-              ? rows.length
-              : 0;
-        setExpiring(count);
-      })
-      .catch(() => setExpiring('!'));
-  }, [pathname]);
 
   const filteredNav = NAV_ITEMS.filter((item) =>
     user ? item.roles.includes(user.role) : false
@@ -123,8 +101,6 @@ export default function MainLayout() {
     month: 'long',
     year: 'numeric',
   });
-
-  const showBadge = expiring === '!' || expiring > 0;
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
@@ -365,49 +341,9 @@ export default function MainLayout() {
             </span>
           </div>
 
-          {/* Right: date + bell */}
+          {/* Right: date */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <span style={{ fontSize: 12, color: 'var(--gf-muted)' }}>{today}</span>
-
-            {/* Bell */}
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <button
-                onClick={() => navigate('/expirations')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 4,
-                  display: 'flex',
-                  alignItems: 'center',
-                  color: 'var(--gf-muted)',
-                }}
-              >
-                <Bell size={20} />
-              </button>
-              {showBadge && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    right: 0,
-                    background: '#e91e63',
-                    color: 'var(--gf-white)',
-                    borderRadius: '50%',
-                    width: 16,
-                    height: 16,
-                    fontSize: 9,
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    lineHeight: 1,
-                  }}
-                >
-                  {expiring === '!' ? '!' : expiring > 9 ? '9+' : expiring}
-                </span>
-              )}
-            </div>
           </div>
         </header>
 

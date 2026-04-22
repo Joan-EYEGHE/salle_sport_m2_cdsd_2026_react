@@ -1,3 +1,4 @@
+// DÉSACTIVÉ — route supprimée le 22/04/2026
 /*
  * Page expirations masquée : contenu métier non pris en charge dans cette version du front.
  */

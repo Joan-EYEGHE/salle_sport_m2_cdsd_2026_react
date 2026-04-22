@@ -6,7 +6,7 @@ Problème 3 : Conteneur page — gap 20px et doublons gf-page-top / KPI
 Total : 3 problèmes trouvés
 */
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, CircleCheck, Info, XCircle } from 'lucide-react';
 import api from '../api/axios';
 import { useAuth } from '../context/useAuth';
@@ -197,6 +197,9 @@ export default function SubscriptionsPage() {
   const { user } = useAuth();
   const role = user?.role ?? 'CONTROLLER';
 
+  const [searchParams] = useSearchParams();
+  const filterParam = searchParams.get('filter');
+
   const canRenew = role === 'ADMIN' || role === 'CASHIER';
   const canDelete = role === 'ADMIN';
 
@@ -204,7 +207,9 @@ export default function SubscriptionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
+    () => (filterParam === 'bientot' ? 'BIENTOT' : 'ALL')
+  );
   const [page, setPage] = useState(1);
 
   const fetchSubs = async () => {

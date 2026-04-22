@@ -20,7 +20,6 @@ const TicketsPage = lazy(() => import('../pages/TicketsPage'));
 const QRControlPage = lazy(() => import('../pages/QRControlPage'));
 const TransactionsPage = lazy(() => import('../pages/TransactionsPage'));
 const UsersPage = lazy(() => import('../pages/UsersPage'));
-const ExpirationsPage = lazy(() => import('../pages/ExpirationsPage'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 
 function wrap(el: React.ReactNode) {
@@ -97,10 +96,6 @@ const routes: RouteObject[] = [
       {
         path: 'users',
         element: guard(['ADMIN'], <UsersPage />),
-      },
-      {
-        path: 'expirations',
-        element: guard(['ADMIN', 'CASHIER'], <ExpirationsPage />),
       },
       {
         path: 'subscriptions',
