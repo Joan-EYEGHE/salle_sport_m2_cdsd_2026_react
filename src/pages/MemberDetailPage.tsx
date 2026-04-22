@@ -450,7 +450,7 @@ export default function MemberDetailPage() {
                       style={btnRenew}
                       onClick={() =>
                         navigate(
-                          `/subscriptions/form?mode=renewal&memberSlug=${encodeURIComponent(
+                          `/subscriptions/form?mode=renewal&member=${encodeURIComponent(
                             member.slug ?? String(member.id),
                           )}&subscriptionId=${primaryActive.id}`,
                         )
@@ -595,7 +595,7 @@ export default function MemberDetailPage() {
                         type="button"
                         onClick={() =>
                           navigate(
-                            `/subscriptions/form?memberSlug=${encodeURIComponent(
+                            `/subscriptions/form?member=${encodeURIComponent(
                               member.slug ?? String(member.id),
                             )}`,
                           )

@@ -56,6 +56,13 @@ function getPageInfo(pathname: string): { label: string; sub?: string } {
   // Autres pages — inchangées
   if (pathname.startsWith('/dashboard')) return { label: 'Dashboard' };
   if (pathname.startsWith('/activities')) return { label: 'Activités' };
+  if (pathname === '/subscriptions/form') {
+    const mode = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('mode') : null;
+    return {
+      label: 'Abonnements',
+      sub: mode === 'renewal' ? 'Renouvellement' : 'Nouvel abonnement',
+    };
+  }
   if (pathname.startsWith('/subscriptions')) return { label: 'Abonnements' };
   if (pathname.startsWith('/tickets')) return { label: 'Tickets' };
   if (pathname.startsWith('/transactions')) return { label: 'Transactions' };

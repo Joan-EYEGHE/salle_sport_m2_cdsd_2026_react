@@ -508,7 +508,7 @@ export default function SubscriptionsPage() {
                                 title="Renouveler"
                                 onClick={() =>
                                   navigate(
-                                    `/subscriptions/form?mode=renewal&subscriptionId=${sub.id}&memberSlug=${encodeURIComponent(
+                                    `/subscriptions/form?mode=renewal&subscriptionId=${sub.id}&member=${encodeURIComponent(
                                       m?.slug ?? String(memberId),
                                     )}`
                                   )

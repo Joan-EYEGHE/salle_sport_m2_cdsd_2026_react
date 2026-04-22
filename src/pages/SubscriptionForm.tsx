@@ -138,9 +138,11 @@ export default function SubscriptionForm() {
   const [searchParams] = useSearchParams();
 
   const qMode = searchParams.get('mode') === 'renewal' ? 'renewal' : 'creation';
-  const qMemberSlug = searchParams.get('memberSlug');
-  const qMemberId = searchParams.get('memberId');
-  const qMemberKey = qMemberSlug ?? qMemberId;
+  /** Slug ou id (string) — priorité : `member`, puis anciens `memberSlug` / `memberId`. */
+  const qMemberKey =
+    searchParams.get('member') ??
+    searchParams.get('memberSlug') ??
+    searchParams.get('memberId');
   const qSubscriptionId = searchParams.get('subscriptionId');
   const hasQueryParams = Boolean(qMemberKey || qSubscriptionId);
 
@@ -269,6 +271,33 @@ export default function SubscriptionForm() {
       })
       .catch(() => {})
       .finally(() => setRenewalLoading(false));
+  }, [mode, qMemberKey, qSubscriptionId]);
+
+  // ─── création : préremplir le membre depuis ?member=… (sans renouvellement) ─
+  useEffect(() => {
+    if (mode !== 'creation' || !qMemberKey || qSubscriptionId) return;
+    let cancelled = false;
+    setRenewalLoading(true);
+    api
+      .get(`/members/${encodeURIComponent(qMemberKey)}`)
+      .then((res) => {
+        if (cancelled) return;
+        const member = res.data?.data ?? res.data;
+        setSelectedMember({
+          id: member.id,
+          nom: member.nom,
+          prenom: member.prenom,
+          email: member.email,
+          initials: member.initials,
+        });
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setRenewalLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [mode, qMemberKey, qSubscriptionId]);
 
   // ─── member search debounce ──────────────────────────────────────────────
