@@ -43,8 +43,10 @@ function getPageInfo(pathname: string): { label: string; sub?: string } {
   // Membres
   if (pathname === '/members') return { label: 'Membres' };
   if (pathname === '/members/new') return { label: 'Membres', sub: 'Nouveau membre' };
-  if (/^\/members\/\d+\/edit$/.test(pathname)) return { label: 'Membres', sub: 'Modifier le membre' };
-  if (/^\/members\/\d+$/.test(pathname)) return { label: 'Membres', sub: 'Détail membre' };
+  if (/^\/members\/[^/]+\/edit$/.test(pathname)) return { label: 'Membres', sub: 'Modifier le membre' };
+  if (/^\/members\/[^/]+$/.test(pathname) && pathname !== '/members/new') {
+    return { label: 'Membres', sub: 'Détail membre' };
+  }
 
   // Autres pages — inchangées
   if (pathname.startsWith('/dashboard')) return { label: 'Dashboard' };

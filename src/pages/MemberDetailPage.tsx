@@ -162,7 +162,7 @@ const infoRow: React.CSSProperties = {
 // ─── page ───────────────────────────────────────────────────────────────────
 
 export default function MemberDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const role = user?.role ?? 'CONTROLLER';
@@ -177,7 +177,7 @@ export default function MemberDetailPage() {
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
-    if (!id || Number.isNaN(Number(id))) {
+    if (!slug?.trim()) {
       setNotFound(true);
       setAccessLogs([]);
       setLastSuccessScanAt(undefined);
@@ -190,19 +190,22 @@ export default function MemberDetailPage() {
     setNotFound(false);
 
     try {
-      const mRes = await api.get(`/members/${id}`);
+      const mRes = await api.get(`/members/${encodeURIComponent(slug)}`);
       const m = normalizeMemberFromApi(unwrapData<Member>(mRes));
       setMember(m);
 
       const subsFromMember = m.subscriptions ?? [];
       const financial = role === 'ADMIN' || role === 'CASHIER';
+      const memberNumericId = m.id;
 
       const logsReq = api
-        .get('/access-logs', { params: { memberId: id, limit: 10, sort: 'desc' } })
+        .get('/access-logs', { params: { memberId: memberNumericId, limit: 10, sort: 'desc' } })
         .then((r) => unwrapList<AccessLog>(r).map(normalizeAccessLogFromApi))
         .catch(() => [] as AccessLog[]);
       const lastOkReq = api
-        .get('/access-logs', { params: { memberId: id, resultat: 'SUCCES', limit: 1, sort: 'desc' } })
+        .get('/access-logs', {
+          params: { memberId: memberNumericId, resultat: 'SUCCES', limit: 1, sort: 'desc' },
+        })
         .then((r) => unwrapList<AccessLog>(r).map(normalizeAccessLogFromApi))
         .catch(() => [] as AccessLog[]);
 
@@ -210,7 +213,9 @@ export default function MemberDetailPage() {
         const [logs, lastOk, sRes] = await Promise.all([
           logsReq,
           lastOkReq,
-          api.get('/subscriptions', { params: { memberId: id } }).catch(() => ({ data: { data: [] } })),
+          api
+            .get('/subscriptions', { params: { memberId: memberNumericId } })
+            .catch(() => ({ data: { data: [] } })),
         ]);
         setAccessLogs(logs);
         setLastSuccessScanAt(computeLastVisitFromLogs(logs, lastOk));
@@ -234,7 +239,7 @@ export default function MemberDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, role]);
+  }, [slug, role]);
 
   useEffect(() => {
     load();
@@ -435,7 +440,7 @@ export default function MemberDetailPage() {
                   <button
                     type="button"
                     style={btnEdit}
-                    onClick={() => navigate(`/members/${member.id}/edit`)}
+                    onClick={() => navigate(`/members/${member.slug ?? String(member.id)}/edit`)}
                   >
                     ✏️ Modifier
                   </button>
@@ -445,7 +450,9 @@ export default function MemberDetailPage() {
                       style={btnRenew}
                       onClick={() =>
                         navigate(
-                          `/subscriptions/form?mode=renewal&memberId=${member.id}&subscriptionId=${primaryActive.id}`,
+                          `/subscriptions/form?mode=renewal&memberSlug=${encodeURIComponent(
+                            member.slug ?? String(member.id),
+                          )}&subscriptionId=${primaryActive.id}`,
                         )
                       }
                     >
@@ -586,7 +593,13 @@ export default function MemberDetailPage() {
                     {canAct && (
                       <button
                         type="button"
-                        onClick={() => navigate(`/subscriptions/form?memberId=${member.id}`)}
+                        onClick={() =>
+                          navigate(
+                            `/subscriptions/form?memberSlug=${encodeURIComponent(
+                              member.slug ?? String(member.id),
+                            )}`,
+                          )
+                        }
                         style={{
                           border: 'none',
                           background: 'linear-gradient(195deg, #49a3f1, #1A73E8)',

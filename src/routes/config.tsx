@@ -67,11 +67,11 @@ const routes: RouteObject[] = [
         element: guard(['ADMIN', 'CASHIER'], <SubscriptionForm />),
       },
       {
-        path: 'members/:id/edit',
+        path: 'members/:slug/edit',
         element: guard(['ADMIN', 'CASHIER'], <MemberFormPage />),
       },
       {
-        path: 'members/:id',
+        path: 'members/:slug',
         element: guard(['ADMIN', 'CASHIER', 'CONTROLLER'], <MemberDetailPage />),
       },
       {

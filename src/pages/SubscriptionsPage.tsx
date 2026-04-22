@@ -438,6 +438,7 @@ export default function SubscriptionsPage() {
                     const end = sub.date_prochain_paiement;
                     const st = rowStatus(end);
                     const memberId = m?.id ?? sub.id_membre;
+                    const memberPathSeg = m?.slug ?? String(memberId);
                     const initials = getInitials(m);
                     const gradId = m?.id ?? sub.id_membre;
 
@@ -485,7 +486,7 @@ export default function SubscriptionsPage() {
                               type="button"
                               className="gf-btn-action gf-btn-action--view"
                               title="Voir le membre"
-                              onClick={() => navigate(`/members/${memberId}`)}
+                              onClick={() => navigate(`/members/${memberPathSeg}`)}
                             >
                               <svg
                                 width="14"
@@ -507,7 +508,9 @@ export default function SubscriptionsPage() {
                                 title="Renouveler"
                                 onClick={() =>
                                   navigate(
-                                    `/subscriptions/form?mode=renewal&subscriptionId=${sub.id}&memberId=${memberId}`
+                                    `/subscriptions/form?mode=renewal&subscriptionId=${sub.id}&memberSlug=${encodeURIComponent(
+                                      m?.slug ?? String(memberId),
+                                    )}`
                                   )
                                 }
                                 style={{

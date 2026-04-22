@@ -516,11 +516,13 @@ export default function MembersPage() {
   const pageEnd = Math.min(pageStart + PAGE_SIZE, filtered.length);
   const pageRows = filtered.slice(pageStart, pageEnd);
 
+  const memberPath = (m: Member) => m.slug ?? String(m.id);
+
   const handleDelete = async (m: Member) => {
     if (!window.confirm(`Supprimer le membre "${m.prenom} ${m.nom}" ? Cette action est irréversible.`)) return;
     const deletedId = Number(m.id);
     try {
-      await api.delete(`/members/${deletedId}`);
+      await api.delete(`/members/${encodeURIComponent(memberPath(m))}`);
       setMembers((prev) => prev.filter((x) => Number(x.id) !== deletedId));
     } catch {
       alert('Impossible de supprimer ce membre.');
@@ -620,9 +622,9 @@ export default function MembersPage() {
                         avatarBg={avatarGradient(m.id)}
                         canEditOrAdd={canEditOrAdd}
                         canDelete={canDelete}
-                        onView={() => navigate(`/members/${m.id}`)}
+                        onView={() => navigate(`/members/${memberPath(m)}`)}
                         onOpenQr={() => setViewMember(m)}
-                        onEdit={() => navigate(`/members/${m.id}/edit`)}
+                        onEdit={() => navigate(`/members/${memberPath(m)}/edit`)}
                         onDelete={() => handleDelete(m)}
                       />
                     );

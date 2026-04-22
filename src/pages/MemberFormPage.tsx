@@ -137,9 +137,9 @@ function borderErr(hasErr: boolean): CSSProperties {
 
 export default function MemberFormPage() {
   const navigate = useNavigate();
-  const { id: idParam } = useParams<{ id?: string }>();
-  const isEdit = Boolean(idParam && !Number.isNaN(Number(idParam)));
-  const memberId = isEdit ? Number(idParam) : undefined;
+  const { slug: slugParam } = useParams<{ slug?: string }>();
+  const isEdit = Boolean(slugParam && slugParam !== 'new');
+  const memberSlug = isEdit ? slugParam! : null;
 
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');
@@ -172,6 +172,7 @@ export default function MemberFormPage() {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [touched, setTouched] = useState<Partial<Record<FieldKey, boolean>>>({});
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  const [loadedMemberId, setLoadedMemberId] = useState<number | null>(null);
 
   const forfaitOptions = useMemo(
     () => (activityDetail ? forfaitOptionsFromActivity(activityDetail) : []),
@@ -319,15 +320,17 @@ export default function MemberFormPage() {
     submitting || (isEdit ? editSubmitBlocked : createSubmitBlocked);
 
   useEffect(() => {
-    if (!isEdit || memberId == null) return;
+    if (!isEdit || memberSlug == null) return;
 
     let cancelled = false;
     (async () => {
       setLoadState('loading');
+      setLoadedMemberId(null);
       try {
-        const res = await api.get(`/members/${memberId}`);
+        const res = await api.get(`/members/${encodeURIComponent(memberSlug)}`);
         const m = (res.data?.data ?? res.data) as MemberFromApi;
         if (cancelled) return;
+        setLoadedMemberId(m.id);
         setPrenom(m.prenom ?? '');
         setNom(m.nom ?? '');
         setEmail(m.email ?? '');
@@ -348,9 +351,10 @@ export default function MemberFormPage() {
     return () => {
       cancelled = true;
     };
-  }, [isEdit, memberId]);
+  }, [isEdit, memberSlug]);
 
-  const avatarBg = isEdit && memberId != null ? avatarGradientById(memberId) : GRAD_INFO;
+  const avatarBg =
+    isEdit && loadedMemberId != null ? avatarGradientById(loadedMemberId) : GRAD_INFO;
   const initials = initialsFrom(prenom, nom);
   const fullName = `${prenom.trim()} ${nom.trim()}`.trim() || '—';
 
@@ -361,7 +365,7 @@ export default function MemberFormPage() {
     setSubmitting(true);
 
     try {
-      if (isEdit && memberId != null) {
+      if (isEdit && memberSlug != null) {
         const body = {
           prenom: prenom.trim(),
           nom: nom.trim(),
@@ -372,7 +376,7 @@ export default function MemberFormPage() {
           adresse: adresse.trim() || null,
           date_inscription: dateInscription.trim() || inscriptionDateFromApi({} as MemberFromApi),
         };
-        await api.put(`/members/${memberId}`, body);
+        await api.put(`/members/${encodeURIComponent(memberSlug)}`, body);
         setToastMsg('Membre mis à jour avec succès');
       } else {
         if (idActivity === '' || !typeForfait || !activityDetail) {

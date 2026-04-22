@@ -138,9 +138,11 @@ export default function SubscriptionForm() {
   const [searchParams] = useSearchParams();
 
   const qMode = searchParams.get('mode') === 'renewal' ? 'renewal' : 'creation';
+  const qMemberSlug = searchParams.get('memberSlug');
   const qMemberId = searchParams.get('memberId');
+  const qMemberKey = qMemberSlug ?? qMemberId;
   const qSubscriptionId = searchParams.get('subscriptionId');
-  const hasQueryParams = Boolean(qMemberId || qSubscriptionId);
+  const hasQueryParams = Boolean(qMemberKey || qSubscriptionId);
 
   // ── mode ──
   const [mode, setMode] = useState<Mode>(qMode);
@@ -216,11 +218,11 @@ export default function SubscriptionForm() {
 
   // ─── load renewal data from query params ─────────────────────────────────
   useEffect(() => {
-    if (mode !== 'renewal' || !qMemberId || !qSubscriptionId) return;
+    if (mode !== 'renewal' || !qMemberKey || !qSubscriptionId) return;
     setRenewalLoading(true);
 
     Promise.all([
-      api.get(`/members/${qMemberId}`),
+      api.get(`/members/${encodeURIComponent(qMemberKey)}`),
       api.get(`/subscriptions/${qSubscriptionId}`),
     ])
       .then(([mRes, sRes]) => {
@@ -267,7 +269,7 @@ export default function SubscriptionForm() {
       })
       .catch(() => {})
       .finally(() => setRenewalLoading(false));
-  }, [mode, qMemberId, qSubscriptionId]);
+  }, [mode, qMemberKey, qSubscriptionId]);
 
   // ─── member search debounce ──────────────────────────────────────────────
   const handleMemberQueryChange = useCallback((val: string) => {
