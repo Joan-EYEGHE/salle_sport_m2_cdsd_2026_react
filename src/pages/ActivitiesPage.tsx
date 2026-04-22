@@ -189,7 +189,17 @@ export default function ActivitiesPage() {
     try {
       const res = await api.get('/activities');
       const data = res.data?.data ?? res.data;
-      setActivities(Array.isArray(data) ? data : []);
+      const rows = Array.isArray(data) ? data : [];
+      setActivities(
+        rows.map((row) => {
+          const r = row as ExtActivity;
+          const t = r.slug;
+          return {
+            ...r,
+            slug: typeof t === 'string' && t.trim() !== '' ? t.trim() : undefined,
+          };
+        }),
+      );
     } catch {
       setError('Impossible de charger les activités.');
     } finally {

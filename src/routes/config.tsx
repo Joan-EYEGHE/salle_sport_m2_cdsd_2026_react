@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import { Outlet } from 'react-router-dom';
 import type { RouteObject } from 'react-router-dom';
 import RoleGuard from '../guards/RoleGuard';
 import PublicRoute from '../guards/PublicRoute';
@@ -49,19 +50,13 @@ const routes: RouteObject[] = [
       },
       {
         path: 'activities',
-        element: guard(['ADMIN', 'CASHIER'], <ActivitiesPage />),
-      },
-      {
-        path: 'activities/new',
-        element: guard(['ADMIN', 'CASHIER'], <ActivityFormPage />),
-      },
-      {
-        path: 'activities/:slug/subscribe',
-        element: guard(['ADMIN', 'CASHIER'], <SubscriptionForm />),
-      },
-      {
-        path: 'activities/:slug/edit',
-        element: guard(['ADMIN', 'CASHIER'], <ActivityFormPage />),
+        element: wrap(<Outlet />),
+        children: [
+          { index: true, element: guard(['ADMIN', 'CASHIER'], <ActivitiesPage />) },
+          { path: 'new', element: guard(['ADMIN', 'CASHIER'], <ActivityFormPage />) },
+          { path: ':slug/subscribe', element: guard(['ADMIN', 'CASHIER'], <SubscriptionForm />) },
+          { path: ':slug/edit', element: guard(['ADMIN', 'CASHIER'], <ActivityFormPage />) },
+        ],
       },
       {
         path: 'members',

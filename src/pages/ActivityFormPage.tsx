@@ -28,9 +28,18 @@ const PRICE_FIELDS: { key: keyof ActivityForm & string; label: string }[] = [
   { key: 'prix_annuel', label: 'Tarif annuel' },
 ];
 
+function decodeSegment(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
 export default function ActivityFormPage() {
   const navigate = useNavigate();
-  const { slug } = useParams<{ slug?: string }>();
+  const { slug: slugParam } = useParams<{ slug?: string }>();
+  const slug = slugParam ? decodeSegment(slugParam) : undefined;
   const isEdit = Boolean(slug && slug !== 'new');
   const activitySlug = isEdit ? slug! : null;
 
@@ -64,6 +73,16 @@ export default function ActivityFormPage() {
           isMonthlyOnly: Boolean(rest.isMonthlyOnly),
         });
         setLoadState('ready');
+
+        const resolvedSlug =
+          typeof rest.slug === 'string' && rest.slug.trim() ? rest.slug.trim() : '';
+        if (
+          resolvedSlug &&
+          activitySlug &&
+          (activitySlug !== resolvedSlug || /^\d+$/.test(activitySlug))
+        ) {
+          navigate(`/activities/${encodeURIComponent(resolvedSlug)}/edit`, { replace: true });
+        }
       } catch (e) {
         if (cancelled) return;
         setLoadState(axios.isAxiosError(e) && e.response?.status === 404 ? 'error' : 'error');
@@ -72,7 +91,7 @@ export default function ActivityFormPage() {
     return () => {
       cancelled = true;
     };
-  }, [isEdit, activitySlug]);
+  }, [isEdit, activitySlug, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
