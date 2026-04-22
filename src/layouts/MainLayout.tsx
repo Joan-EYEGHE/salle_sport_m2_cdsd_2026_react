@@ -48,6 +48,11 @@ function getPageInfo(pathname: string): { label: string; sub?: string } {
     return { label: 'Membres', sub: 'Détail membre' };
   }
 
+  // Activités
+  if (pathname === '/activities') return { label: 'Activités' };
+  if (pathname === '/activities/new') return { label: 'Activités', sub: 'Nouvelle activité' };
+  if (/^\/activities\/[^/]+\/edit$/.test(pathname)) return { label: 'Activités', sub: "Modifier l'activité" };
+
   // Autres pages — inchangées
   if (pathname.startsWith('/dashboard')) return { label: 'Dashboard' };
   if (pathname.startsWith('/activities')) return { label: 'Activités' };

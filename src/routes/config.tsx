@@ -9,6 +9,7 @@ const LandingPage = lazy(() => import('../pages/LandingPage'));
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const DashboardPage = lazy(() => import('../pages/DashboardPage'));
 const ActivitiesPage = lazy(() => import('../pages/ActivitiesPage'));
+const ActivityFormPage = lazy(() => import('../pages/ActivityFormPage'));
 const MembersPage = lazy(() => import('../pages/MembersPage'));
 const MemberFormPage = lazy(() => import('../pages/MemberFormPage'));
 const MemberDetailPage = lazy(() => import('../pages/MemberDetailPage'));
@@ -51,8 +52,16 @@ const routes: RouteObject[] = [
         element: guard(['ADMIN', 'CASHIER'], <ActivitiesPage />),
       },
       {
-        path: 'activities/:id/subscribe',
+        path: 'activities/new',
+        element: guard(['ADMIN', 'CASHIER'], <ActivityFormPage />),
+      },
+      {
+        path: 'activities/:slug/subscribe',
         element: guard(['ADMIN', 'CASHIER'], <SubscriptionForm />),
+      },
+      {
+        path: 'activities/:slug/edit',
+        element: guard(['ADMIN', 'CASHIER'], <ActivityFormPage />),
       },
       {
         path: 'members',

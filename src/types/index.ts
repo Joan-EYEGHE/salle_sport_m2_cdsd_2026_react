@@ -9,6 +9,7 @@ export interface User {
 export interface Activity {
   id: number;
   nom: string;
+  slug?: string;
   active?: boolean;
   status: boolean;
   frais_inscription: number;
