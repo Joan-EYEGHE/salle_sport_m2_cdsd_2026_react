@@ -217,7 +217,7 @@ export default function ActivityFormPage() {
           <div className="gf-card-body">
             <form
               onSubmit={handleSubmit}
-              style={{ padding: '8px 0 0', display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 560 }}
+              style={{ padding: '8px 0 0', display: 'flex', flexDirection: 'column', gap: 14 }}
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <label style={fieldLabelStyle}>
