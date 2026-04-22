@@ -701,26 +701,25 @@ export default function MemberFormPage() {
                   {/* Bloc 3 — Paiement */}
                   <div
                     style={{
-                      ...grid2,
                       marginBottom: 28,
                       paddingTop: 8,
                       borderTop: '1px solid var(--gf-bg)',
-                      alignItems: 'start',
                     }}
                   >
                     {sectionTitle('Paiement')}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {activityDetail && (
-                        <>
+                    <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+
+                      {/* Colonne gauche — Frais inscription */}
+                      <div style={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {activityDetail && (
                           <label
                             style={{
-                              ...labelStyle,
                               display: 'flex',
                               alignItems: 'center',
                               gap: 8,
+                              fontSize: 12,
+                              color: 'var(--gf-muted)',
                               cursor: 'pointer',
-                              marginBottom: 0,
-                              flexWrap: 'wrap',
                             }}
                           >
                             <input
@@ -738,37 +737,46 @@ export default function MemberFormPage() {
                             />
                             <span>Avec {fmtMoney(nominalFraisInscription)} Inscription</span>
                           </label>
-                          <input
-                            type="number"
-                            min={0}
-                            step={1}
-                            value={fraisInscriptionField}
-                            onChange={(e) => setFraisInscriptionField(e.target.value)}
-                            placeholder="Frais d'inscription différent"
-                            style={inputStyle}
-                          />
-                        </>
-                      )}
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Méthode de paiement</label>
-                      <select
-                        value={methodePaiement}
-                        onChange={(e) => setMethodePaiement(e.target.value as MethodePaiement)}
-                        style={{
-                          ...inputStyle,
-                          cursor: 'pointer',
-                          appearance: 'none',
-                          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237b809a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                          backgroundRepeat: 'no-repeat',
-                          backgroundPosition: 'right 12px center',
-                          paddingRight: 36,
-                        }}
-                      >
-                        <option value="CASH">Cash</option>
-                        <option value="WAVE">Wave</option>
-                        <option value="ORANGE">Orange</option>
-                      </select>
+                        )}
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={fraisInscriptionField}
+                          onChange={(e) => setFraisInscriptionField(e.target.value)}
+                          placeholder="Frais d'inscription"
+                          disabled={!activityDetail}
+                          style={{
+                            ...inputStyle,
+                            opacity: activityDetail ? 1 : 0.45,
+                            cursor: activityDetail ? 'text' : 'not-allowed',
+                            background: activityDetail ? 'var(--gf-white)' : 'var(--gf-bg)',
+                          }}
+                        />
+                      </div>
+
+                      {/* Colonne droite — Méthode de paiement */}
+                      <div style={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <label style={labelStyle}>Méthode de paiement</label>
+                        <select
+                          value={methodePaiement}
+                          onChange={(e) => setMethodePaiement(e.target.value as MethodePaiement)}
+                          style={{
+                            ...inputStyle,
+                            cursor: 'pointer',
+                            appearance: 'none',
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237b809a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 12px center',
+                            paddingRight: 36,
+                          }}
+                        >
+                          <option value="CASH">Cash</option>
+                          <option value="WAVE">Wave</option>
+                          <option value="ORANGE">Orange</option>
+                        </select>
+                      </div>
+
                     </div>
                   </div>
 

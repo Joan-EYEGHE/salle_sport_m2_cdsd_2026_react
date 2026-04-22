@@ -118,10 +118,24 @@ function mapTicketInfoToVerifyTicket(info: unknown): VerifyResult['ticket'] | un
 }
 
 function mapValidateResponseToVerifyResult(body: TicketValidateResponse): VerifyResult {
+  const ticket = mapTicketInfoToVerifyTicket(body.ticket_info);
+  let message: string;
+  if (body.valid) {
+    if (ticket) {
+      const activite = ticket.activity?.nom;
+      message = activite
+        ? `Accès accordé par ticket — ${activite}.`
+        : 'Accès accordé par ticket.';
+    } else {
+      message = 'Accès autorisé';
+    }
+  } else {
+    message = body.reason ?? 'Accès refusé.';
+  }
   return {
     success: body.valid,
-    message: body.valid ? 'Accès autorisé' : (body.reason ?? 'Accès refusé.'),
-    ticket: mapTicketInfoToVerifyTicket(body.ticket_info),
+    message,
+    ticket,
   };
 }
 
@@ -365,13 +379,6 @@ export default function QRControlPage() {
 
     try {
       const ticketRes = await api.post('/tickets/validate', { code: trimmed });
-      console.log('[validateCodeString] ticketRes.data:', JSON.stringify(ticketRes.data));
-      console.log('[validateCodeString] ticketParsed:', JSON.stringify(
-        parseTicketValidateResponse(ticketRes.data),
-      ));
-      console.log('[validateCodeString] ticketInconnu:',
-        parseTicketValidateResponse(ticketRes.data)?.reason === 'Ticket inconnu',
-      );
       const ticketParsed = parseTicketValidateResponse(ticketRes.data);
 
       const ticketInconnu =
@@ -906,8 +913,10 @@ export default function QRControlPage() {
                   let lignePrincipale: string;
                   if (isMemberAccess && log.membre) {
                     lignePrincipale = `${log.membre.prenom} ${log.membre.nom}`;
-                  } else if (isTicketAccess && log.ticket?.code_ticket) {
-                    lignePrincipale = log.ticket.code_ticket;
+                  } else if (isTicketAccess) {
+                    lignePrincipale =
+                      log.ticket?.code_ticket ??
+                      (log.id_ticket != null ? `Ticket n°${log.id_ticket}` : `Scan #${log.id}`);
                   } else {
                     lignePrincipale = `Scan #${log.id}`;
                   }
@@ -919,7 +928,7 @@ export default function QRControlPage() {
                       ? `Abonnement actif${activite ? ` — ${activite}` : ''}`
                       : 'Accès refusé — abonnement';
                   } else if (isTicketAccess) {
-                    const activite = log.ticket?.batch?.activity?.nom ?? '—';
+                    const activiteNom = log.ticket?.batch?.activity?.nom;
                     const genereA = log.ticket?.createdAt
                       ? new Date(log.ticket.createdAt).toLocaleTimeString('fr-FR', {
                           hour: '2-digit',
@@ -930,9 +939,19 @@ export default function QRControlPage() {
                       log.ticket?.createdAt
                         ? new Date(log.ticket.createdAt).toDateString() === new Date().toDateString()
                         : false;
-                    ligneDetail = isSuccess
-                      ? `${activite}${genereAujourdhui && genereA ? ` · généré aujourd'hui à ${genereA}` : ''}`
-                      : `Ticket refusé — ${activite}`;
+                    const suffixHeure =
+                      genereAujourdhui && genereA ? ` · généré aujourd'hui à ${genereA}` : '';
+                    if (isSuccess) {
+                      ligneDetail = activiteNom
+                        ? `Accès accordé par ticket — ${activiteNom}${suffixHeure}`
+                        : suffixHeure
+                          ? `Accès accordé par ticket${suffixHeure}`
+                          : 'Accès accordé par ticket';
+                    } else {
+                      ligneDetail = activiteNom
+                        ? `Ticket refusé — ${activiteNom}`
+                        : 'Ticket refusé';
+                    }
                   } else {
                     ligneDetail = `Accès #${log.id}`;
                   }
