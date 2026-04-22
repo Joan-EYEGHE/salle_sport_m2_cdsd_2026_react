@@ -39,19 +39,24 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Utilisateurs',  path: '/users',          icon: UserCog,         roles: ['ADMIN'] },
 ];
 
-const PAGE_LABELS: Record<string, string> = {
-  '/dashboard':    'Dashboard',
-  '/members':      'Membres',
-  '/activities':   'Activités',
-  '/subscriptions': 'Abonnements',
-  '/subscriptions/form': 'Abonnements',
-  '/expirations':   'Expirations',
-  '/tickets':       'Tickets',
-  '/tickets/new':   'Tickets',
-  '/transactions': 'Transactions',
-  '/qr-control':   'Scan QR',
-  '/users':        'Utilisateurs',
-};
+function getPageInfo(pathname: string): { label: string; sub?: string } {
+  // Membres
+  if (pathname === '/members') return { label: 'Membres' };
+  if (pathname === '/members/new') return { label: 'Membres', sub: 'Nouveau membre' };
+  if (/^\/members\/\d+\/edit$/.test(pathname)) return { label: 'Membres', sub: 'Modifier le membre' };
+  if (/^\/members\/\d+$/.test(pathname)) return { label: 'Membres', sub: 'Détail membre' };
+
+  // Autres pages — inchangées
+  if (pathname.startsWith('/dashboard')) return { label: 'Dashboard' };
+  if (pathname.startsWith('/activities')) return { label: 'Activités' };
+  if (pathname.startsWith('/subscriptions')) return { label: 'Abonnements' };
+  if (pathname.startsWith('/tickets')) return { label: 'Tickets' };
+  if (pathname.startsWith('/transactions')) return { label: 'Transactions' };
+  if (pathname.startsWith('/qr-control')) return { label: 'Scan QR' };
+  if (pathname.startsWith('/users')) return { label: 'Utilisateurs' };
+  if (pathname.startsWith('/expirations')) return { label: 'Expirations' };
+  return { label: '' };
+}
 
 export default function MainLayout() {
   const { user, logout } = useAuth();
@@ -97,8 +102,7 @@ export default function MainLayout() {
     navigate('/login');
   };
 
-  const baseSegment = '/' + pathname.split('/')[1];
-  const pageLabel = PAGE_LABELS[baseSegment] ?? '';
+  const { label: pageLabel, sub: pageSub } = getPageInfo(pathname);
 
   const today = new Date().toLocaleDateString('fr-FR', {
     day: 'numeric',
@@ -330,12 +334,20 @@ export default function MainLayout() {
               {pageLabel && (
                 <>
                   {' / '}
-                  <span style={{ color: 'var(--gf-dark)', fontWeight: 500 }}>{pageLabel}</span>
+                  <span style={{ color: pageSub ? 'var(--gf-muted)' : 'var(--gf-dark)', fontWeight: 500 }}>
+                    {pageLabel}
+                  </span>
+                </>
+              )}
+              {pageSub && (
+                <>
+                  {' / '}
+                  <span style={{ color: 'var(--gf-dark)', fontWeight: 500 }}>{pageSub}</span>
                 </>
               )}
             </span>
             <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--gf-dark)' }}>
-              {pageLabel}
+              {pageSub ?? pageLabel}
             </span>
           </div>
 

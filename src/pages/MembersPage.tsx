@@ -240,68 +240,71 @@ function MemberCard({
     <div
       className="gf-card"
       style={{
-        padding: 14,
+        padding: 0,
         boxShadow: 'var(--gf-shadow-card)',
         border: '1px solid var(--gf-border)',
         background: 'var(--gf-white)',
         display: 'flex',
         flexDirection: 'column',
-        gap: 10,
         minHeight: 0,
       }}
     >
-      {/* Identité */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, position: 'relative' }}>
-        <div
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: '50%',
-            background: avatarBg,
-            color: 'var(--gf-white)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 12,
-            fontWeight: 700,
-            flexShrink: 0,
-          }}
-        >
-          {initials}
-        </div>
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            gap: 6,
-          }}
-        >
+      <div className="mc-top" style={{ padding: '16px 14px 14px' }}>
+        {/* Identité */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, position: 'relative' }}>
           <div
             style={{
-              width: '100%',
-              fontSize: 13,
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              background: avatarBg,
+              color: 'var(--gf-white)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 12,
               fontWeight: 700,
-              color: 'var(--gf-dark)',
-              lineHeight: 1.25,
-              wordBreak: 'break-word',
+              flexShrink: 0,
             }}
           >
-            {fullName}
+            {initials}
           </div>
-          <div style={{ fontSize: 10, color: 'var(--gf-muted)', marginTop: 3 }}>
-            Membre depuis {fmtDate(m.date_inscription ?? m.createdAt)}
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: 6,
+            }}
+          >
+            <div
+              style={{
+                width: '100%',
+                fontSize: 13,
+                fontWeight: 700,
+                color: 'var(--gf-dark)',
+                lineHeight: 1.25,
+                wordBreak: 'break-word',
+              }}
+            >
+              {fullName}
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--gf-muted)', marginTop: 3 }}>
+              Membre depuis {fmtDate(m.date_inscription ?? m.createdAt)}
+            </div>
           </div>
-        </div>
-        <div style={{ position: 'absolute', top: -5, right: 10 }}>
-          <StatusBadge status={status} />
+          <div style={{ position: 'absolute', top: -5, right: 10 }}>
+            <StatusBadge status={status} />
+          </div>
         </div>
       </div>
 
+      <div style={{ borderTop: '1px solid #f0f2f5', margin: '4px 0' }} />
+
       {/* Coordonnées */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: '12px 14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--gf-dark)' }}>
           <Phone size={14} strokeWidth={2} style={{ flexShrink: 0, color: 'var(--gf-muted)' }} aria-hidden />
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.phone ?? '—'}</span>
@@ -310,10 +313,40 @@ function MemberCard({
           <Mail size={14} strokeWidth={2} style={{ flexShrink: 0, color: 'var(--gf-muted)' }} aria-hidden />
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.email ?? '—'}</span>
         </div>
+        <div
+          className="ir"
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 8,
+            fontSize: 12,
+            color: 'var(--gf-dark)',
+            lineHeight: 1.35,
+          }}
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#7b809a"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ flexShrink: 0, marginTop: 2 }}
+            aria-hidden
+          >
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9,22 9,12 15,12 15,22" />
+          </svg>
+          <span style={{ wordBreak: 'break-word' }}>{m.adresse ?? '—'}</span>
+        </div>
       </div>
 
+      <div style={{ borderTop: '1px solid #f0f2f5', margin: '4px 0' }} />
+
       {/* QR */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 14px 10px' }}>
         <div
           style={{
             background: 'var(--gf-white)',
@@ -327,8 +360,10 @@ function MemberCard({
         </div>
       </div>
 
+      <div style={{ borderTop: '1px solid #f0f2f5', margin: '4px 0' }} />
+
       {/* Actions */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 'auto' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 'auto', padding: '12px 14px 16px' }}>
         <button
           type="button"
           title="Afficher"

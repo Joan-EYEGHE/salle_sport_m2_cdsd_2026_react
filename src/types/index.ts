@@ -28,6 +28,7 @@ export interface Member {
   slug?: string;
   email?: string;
   phone?: string;
+  adresse?: string | null;
   date_naissance?: string | null;
   uuid_qr: string;
   initials?: string;
