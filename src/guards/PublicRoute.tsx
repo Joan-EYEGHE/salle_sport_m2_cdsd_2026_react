@@ -13,7 +13,11 @@ export default function PublicRoute({ children }: PublicRouteProps) {
   if (isLoading) return <Loader size="lg" />;
 
   if (isAuthenticated) {
-    return <Navigate to={user?.role === 'CONTROLLER' ? '/qr-control' : '/dashboard'} replace />;
+    const dest =
+      user?.role === 'CONTROLLER' ? '/qr-control' :
+      user?.role === 'CASHIER'    ? '/members'    :
+      '/dashboard';
+    return <Navigate to={dest} replace />;
   }
 
   return <>{children}</>;

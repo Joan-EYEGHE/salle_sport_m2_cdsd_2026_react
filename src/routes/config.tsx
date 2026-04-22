@@ -45,7 +45,7 @@ const routes: RouteObject[] = [
     children: [
       {
         path: 'dashboard',
-        element: guard(['ADMIN', 'CASHIER'], <DashboardPage />),
+        element: guard(['ADMIN'], <DashboardPage />),
       },
       {
         path: 'activities',

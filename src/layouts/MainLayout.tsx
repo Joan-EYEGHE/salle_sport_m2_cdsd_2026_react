@@ -26,7 +26,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard',     path: '/dashboard',     icon: LayoutDashboard, roles: ['ADMIN', 'CASHIER'] },
+  { label: 'Dashboard',     path: '/dashboard',     icon: LayoutDashboard, roles: ['ADMIN'] },
   { label: 'Membres',       path: '/members',        icon: Users,           roles: ['ADMIN', 'CASHIER'] },
   { label: 'Activités',     path: '/activities',     icon: Dumbbell,        roles: ['ADMIN', 'CASHIER'] },
   { label: 'Abonnements',   path: '/subscriptions',       icon: CalendarDays,    roles: ['ADMIN', 'CASHIER'] },
