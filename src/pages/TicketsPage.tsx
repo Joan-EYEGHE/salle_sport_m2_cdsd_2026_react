@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom';
 import { Printer, QrCode } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import api from '../api/axios';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import Modal from '../components/Modal';
 import type { Activity, Batch, Member, Ticket as TicketType } from '../types';
 

@@ -6,7 +6,7 @@ Total : 2 problèmes trouvés
 */
 import { useState } from 'react';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
 const DEMO_USERS = [
   {

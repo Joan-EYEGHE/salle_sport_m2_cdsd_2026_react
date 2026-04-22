@@ -5,7 +5,7 @@ Problème 2 : Couleurs #f0f2f5, #ffffff, #344767, #7b809a en inline
 Total : 2 problèmes trouvés
 */
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
 export default function NotFound() {
   const { isAuthenticated } = useAuth();

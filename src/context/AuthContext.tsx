@@ -1,28 +1,6 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, type ReactNode } from 'react';
+import { AuthContext, type AuthUser } from './auth-context';
 import api from '../api/axios';
-
-type Role = 'ADMIN' | 'CASHIER' | 'CONTROLLER';
-
-interface AuthUser {
-  id: number;
-  email: string;
-  role: Role;
-  firstName?: string;
-  lastName?: string;
-  fullName?: string;
-}
-
-interface AuthContextType {
-  user: AuthUser | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-}
-
-const AuthContext = createContext<AuthContextType | null>(null);
 
 function decodeJWT(token: string): AuthUser | null {
   try {
@@ -33,25 +11,26 @@ function decodeJWT(token: string): AuthUser | null {
   }
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+function readAuthFromStorage(): { token: string | null; user: AuthUser | null } {
+  const t = localStorage.getItem('token');
+  const u = localStorage.getItem('user');
+  if (!t || !u) {
+    return { token: null, user: null };
+  }
+  try {
+    return { token: t, user: JSON.parse(u) as AuthUser };
+  } catch {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    return { token: null, user: null };
+  }
+}
 
-  useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-      }
-    }
-    setIsLoading(false);
-  }, []);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const initial = readAuthFromStorage();
+  const [user, setUser] = useState<AuthUser | null>(initial.user);
+  const [token, setToken] = useState<string | null>(initial.token);
+  const [isLoading] = useState(false);
 
   const login = async (email: string, password: string) => {
     const response = await api.post('/auth/login', { email, password });
@@ -86,28 +65,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     >
       {children}
     </AuthContext.Provider>
-  );
-}
-
-export function useAuth(): AuthContextType {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
-}
-
-export function LogoutButton() {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-  return (
-    <button
-      onClick={handleLogout}
-      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-gray-700 rounded-lg transition"
-    >
-      Déconnexion
-    </button>
   );
 }

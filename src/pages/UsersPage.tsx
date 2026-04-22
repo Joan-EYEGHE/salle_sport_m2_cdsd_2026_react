@@ -6,7 +6,7 @@ Total : 1 problème trouvé
 import { useCallback, useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import api from '../api/axios';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import type { User } from '../types';
 
 // ─── types ───────────────────────────────────────────────────────────────────

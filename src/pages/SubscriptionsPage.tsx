@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, CircleCheck, Info, XCircle } from 'lucide-react';
 import api from '../api/axios';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import type { Activity, Member, Subscription } from '../types';
 
 function normalizeSubscriptionRow(raw: Subscription & Record<string, unknown>): Subscription {

@@ -60,7 +60,8 @@ export default function ActivityFormPage() {
         const res = await api.get(`/activities/${encodeURIComponent(activitySlug)}`);
         const raw = res.data?.data ?? res.data;
         if (cancelled) return;
-        const { id: _id, ...rest } = raw as Activity;
+        const { id, ...rest } = raw as Activity;
+        void id;
         setForm({
           nom: rest.nom ?? '',
           status: rest.status ?? true,

@@ -8,7 +8,7 @@ import QRCode from 'react-qr-code';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import api from '../api/axios';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import Loader from '../components/Loader';
 import type { AccessLog, Activity, Member, Subscription } from '../types';
 import { normalizeAccessLogFromApi } from '../utils/accessLogApiNormalize';

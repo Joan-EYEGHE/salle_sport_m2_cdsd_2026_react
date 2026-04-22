@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import { Mail, Phone, Printer, QrCode as QrCodeIcon } from 'lucide-react';
 import api from '../api/axios';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import Modal from '../components/Modal';
 import type { Member } from '../types';
 import { normalizeMemberFromApi } from '../utils/memberApiNormalize';

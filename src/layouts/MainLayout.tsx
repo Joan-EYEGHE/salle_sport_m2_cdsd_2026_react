@@ -18,7 +18,7 @@ import {
   LogOut,
   Bell,
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import api from '../api/axios';
 
 interface NavItem {
