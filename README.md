@@ -19,7 +19,7 @@
 
 La version React de GymFlow met l’accent sur une **UI/UX “open-source ready”** : pages structurées, routing, appels API centralisés et composants réutilisables.
 
-> 📸 **Screenshot / GIF** : (placeholder) ajoute une capture de la landing page / dashboard.
+> 📸 **Screenshot / GIF** : ![(placeholder) ajoute une capture de la landing page / dashboard.](https://res.cloudinary.com/di3dithde/image/upload/v1776894358/landing_page_gymflow_dztr6r.png)
 
 ---
 
